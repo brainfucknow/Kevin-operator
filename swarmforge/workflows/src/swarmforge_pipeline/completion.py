@@ -28,13 +28,16 @@ from mistralai.vibe.harness.runtime.completion.providers.mistral import (
 
 
 def _workflow_client():
-    """The workflow worker's agent client, imported lazily: the plugin module
-    pulls in httpx, which the Temporal workflow sandbox refuses to load when
-    it imports the workflow definitions at worker startup."""
+    """The workflow worker's client, imported lazily: the module pulls in
+    httpx, which the Temporal workflow sandbox refuses to load when it
+    imports the workflow definitions at worker startup. run_as=DEPLOYMENT
+    authenticates every request with the deployment's service-account token
+    (MISTRAL_SA_TOKEN_PATH) against the worker's API URL, regardless of
+    whether the execution runs on behalf of a user."""
+    from mistralai.workflows.client import get_mistral_client
     from mistralai.workflows.core.auth.run_as import RunAs
-    from mistralai.workflows.plugins.mistralai.utils import get_mistral_client
 
-    return get_mistral_client(run_as=RunAs.AUTO)
+    return get_mistral_client(run_as=RunAs.DEPLOYMENT)
 
 
 class SwarmforgeWorkflowMistralConfig(CompletionConfigBase):
