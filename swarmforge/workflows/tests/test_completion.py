@@ -1,3 +1,8 @@
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 from mistralai.vibe.harness.runtime.completion import parse_completion_config
 from mistralai.vibe.harness.runtime.completion.providers.mistral import (
@@ -30,23 +35,29 @@ def test_build_provider_uses_api_key_without_sa_token(monkeypatch):
 def test_build_provider_uses_workflow_client_with_sa_token(monkeypatch):
     monkeypatch.setenv("MISTRAL_SA_TOKEN_PATH", "/tmp/sa-token")
     sentinel = object()
-    calls = []
-
-    def fake_get_mistral_client(run_as):
-        calls.append(run_as)
-        return sentinel
-
-    monkeypatch.setattr(completion, "get_mistral_client", fake_get_mistral_client)
+    monkeypatch.setattr(completion, "_workflow_client", lambda: sentinel)
     provider = completion.SwarmforgeWorkflowMistralConfig(model="mistral-large-latest").build_provider()
     assert isinstance(provider, MistralCompletionProvider)
     assert provider.model == "mistral-large-latest"
     assert provider._api_key is None
     assert provider._client is sentinel
-    assert calls == [completion.RunAs.AUTO]
 
 
 def _role() -> Role:
     return Role(name="architect", tier="frontier", runs_as="agent")
+
+
+def test_workflow_module_chain_does_not_import_completion():
+    src = str(Path(completion.__file__).parent)
+    code = (
+        "import sys\n"
+        "import swarmforge_pipeline.pipeline\n"
+        "print('LOADED' if 'swarmforge_pipeline.completion' in sys.modules else 'CLEAN')\n"
+    )
+    env = {**os.environ, "PYTHONPATH": src + os.pathsep + os.environ.get("PYTHONPATH", "")}
+    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.strip() == "CLEAN"
 
 
 def test_build_agent_pins_the_completion_config():

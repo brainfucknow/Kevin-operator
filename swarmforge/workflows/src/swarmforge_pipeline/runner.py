@@ -16,7 +16,6 @@ from typing import Annotated
 from mistralai import agents
 
 from .catalogue import Role
-from .completion import SwarmforgeWorkflowMistralConfig
 
 
 class Worktree(agents.SessionInput):
@@ -121,6 +120,8 @@ async def write_file(
 
 
 def build_agent(role: Role, model: str, instructions: str, writable: bool) -> agents.Agent:
+    from .completion import SwarmforgeWorkflowMistralConfig
+
     shell_tool = run_shell if writable else run_readonly_shell
     tools = [shell_tool, read_file] + ([write_file] if writable else [])
     return agents.Agent(
