@@ -102,7 +102,7 @@ route includes the security reviewer; drop it per task with `sf route`:
 |---|---|---|
 | [Architecture design reviewer](roles/architecture-design-reviewer.md) | Migrations, public APIs, major dependency changes. | After specification approval, before coding; architect still reviews implementation. |
 | [Security reviewer](roles/security-reviewer.md) | Authentication, authorization, secrets, untrusted input, external execution. | After hardener, before QA; hardener retains mutation and quality gates. |
-| [Pull request reviewer](roles/pr-reviewer.md) | The online review bots are out of credits. Pull request mode: say "review pull request #<N>"; the orchestrator runs `sf new "Review pull request #<N>" -m "Review pull request #<N> against <base>." --route pr-reviewer`. Stage mode: add it to a task's route. | Alone, or before QA. It reports findings and changes no code; it sends obvious findings back to the coder. |
+| [Pull request reviewer](roles/pr-reviewer.md) | The online review bots are out of credits. Say "review pull request #<N>" on its head branch, or add the role to a task's route. | Alone, or before QA. It reports findings and changes no code; it sends obvious findings back to the coder. |
 
 ```sh
 sf new "Migrate public API" -m "..." --route specifier,architecture-design-reviewer,coder,architect,qa
