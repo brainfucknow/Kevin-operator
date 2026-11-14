@@ -49,7 +49,7 @@ export PATH="$repo/swarmforge/bin:$PATH"
 # init
 out="$(sf init)"
 assert_match "init prints the identity of record commits" "$out" "identity: tester <tester@example.com>"
-assert_match "init reports the catalogue" "$out" "roles: specifier architecture-design-reviewer coder cleaner architect hardener security-reviewer qa"
+assert_match "init reports the catalogue" "$out" "roles: specifier architecture-design-reviewer coder cleaner architect hardener security-reviewer pr-reviewer qa"
 assert_match "init reports the routes" "$out" "routes: feature bugfix refactor harden spike"
 assert_eq "init is idempotent" "$(sf init | head -n 1)" "identity: tester <tester@example.com>"
 assert_eq "init writes no git-bug data" "$(git for-each-ref refs/bugs refs/identities)" ""
@@ -295,6 +295,44 @@ sf handoff "$review_id" >/dev/null
 assert_eq "QA follows optional security review" "$(sf stage "$review_id")" "qa"
 assert_fails "security review cannot precede hardener" sf new "Wrong review order" --route security-reviewer,hardener,qa
 
+# send-back: a flagged stage hands the task back to an earlier role, twice at most.
+assert_eq "the fallback route skips the pull request reviewer" "$(sf new "No reviewer" -m x | xargs sf route | grep -c pr-reviewer || true)" "0"
+pr_id="$(sf new "Review pull request #1" -m "Review pull request #1 against main." --route pr-reviewer)"
+assert_eq "pull request mode starts at the reviewer" "$(sf stage "$pr_id")" "pr-reviewer"
+sb="$(sf new "Send back" -m x --route coder,cleaner,pr-reviewer,qa)"
+sf start "$sb" >/dev/null
+to_reviewer() { sf handoff "$sb" >/dev/null; sf handoff "$sb" >/dev/null; }
+to_reviewer
+set +e; out="$(sf handoff "$sb" --to coder 2>&1)"; rc=$?; set -e
+assert_eq "the first send-back is accepted" "$rc" "0"
+assert_match "the first send-back hands the task to the coder" "$out" "^HANDOFF: $sb pr-reviewer -> coder at "
+assert_eq "a send-back moves the stage back" "$(sf stage "$sb")" "coder"
+assert_eq "the coder gets a sent-back task" "$(sf next coder | grep -c "^$sb$")" "1"
+sf handoff "$sb" >/dev/null
+set +e; err="$(sf handoff "$sb" --to coder 2>&1)"; rc=$?; set -e
+assert_eq "a stage without the flag keeps the refusal of today" "$rc $err" "1 sf: --to coder is not on route 'coder,cleaner,pr-reviewer,qa' at or after stage:cleaner"
+sf handoff "$sb" >/dev/null
+assert_eq "the task reaches the reviewer again" "$(sf stage "$sb")" "pr-reviewer"
+sf handoff "$sb" --to coder >/dev/null
+to_reviewer
+tip="$(git rev-parse "swarm/$sb")"
+set +e; err="$(sf handoff "$sb" --to coder 2>&1)"; rc=$?; set -e
+assert_eq "the third send-back is refused" "$rc $err" "1 sf: --to coder: task was sent back 2 times; ask the operator"
+assert_eq "a refused send-back records nothing" "$(git rev-parse "swarm/$sb") $(sf stage "$sb")" "$tip pr-reviewer"
+assert_match "the reviewer still hands off forward" "$(sf handoff "$sb" --to qa)" "pr-reviewer -> qa"
+assert_eq "harvest shows each send-back as a handoff from the reviewer to the coder" \
+  "$(sf harvest | jq -c --arg id "$sb" 'select(.id == $id) | [.records[] | select(.type == "handoff" and .from == "pr-reviewer") | .stage]')" '["coder","coder","qa"]'
+ss="$(sf new "Send back to spec" -m x --route specifier,coder,pr-reviewer)"
+sf start "$ss" >/dev/null
+git -C ".worktrees/$ss" commit -q --allow-empty -m "Spec"
+sf review "$ss" >/dev/null && sf approve "$ss" >/dev/null && sf handoff "$ss" >/dev/null
+set +e; err="$(sf handoff "$ss" --to specifier 2>&1)"; rc=$?; set -e
+assert_eq "a send-back to the specifier is refused" "$rc $err" "1 sf: --to specifier: a task cannot go back to the specifier"
+sc="$(sf new "Unflagged reviewer" -m x --route coder,security-reviewer,qa)"
+sf start "$sc" >/dev/null && sf handoff "$sc" >/dev/null
+set +e; err="$(sf handoff "$sc" --to coder 2>&1)"; rc=$?; set -e
+assert_eq "the security reviewer cannot send back" "$rc $err" "1 sf: --to coder is not on route 'coder,security-reviewer,qa' at or after stage:security-reviewer"
+
 # audit gate
 sed -i 's/^coder     strong   subagent$/coder strong subagent audit/' swarmforge/roles.conf
 assert_match "check accepts the audit flag" "$(sf check)" "^CHECK: ok"
@@ -422,7 +460,7 @@ cp -R "$HERE/.claude" "$HERE/.github" "$HERE/.codex" "$HERE/.vibe" "$work/" \
 
 # configuration check
 copy_swarmforge .
-assert_match "check passes on the shipped configuration" "$(sf check)" "^CHECK: ok \(8 roles, 5 routes\)$"
+assert_match "check passes on the shipped configuration" "$(sf check)" "^CHECK: ok \(9 roles, 5 routes\)$"
 assert_eq "the shipped configuration has the falsifier gate" "$(sf gates)" "falsifier"
 check_fails() {
   local name="$1" expected="$2" out
@@ -861,7 +899,7 @@ assert_eq "harvest reads old records as new ones" "$(sf harvest | jq -c --arg id
 assert_eq "sf does not rewrite old records" "$(git log -1 --format=%B "swarm/$jo" | grep -c '^SwarmForge-Verdict: stuck$')" "1"
 
 sed -i 's/^spec-judge \(.*\) spec-judge$/spec-judge \1 judge/' swarmforge/roles.conf
-assert_eq "check refuses the old judge flag" "$(sf check 2>&1 | grep -c "roles.conf: 'spec-judge' has unknown flag 'judge' (only audit, optional, gate, spec-judge)")" "1"
+assert_eq "check refuses the old judge flag" "$(sf check 2>&1 | grep -c "roles.conf: 'spec-judge' has unknown flag 'judge' (only audit, optional, gate, spec-judge, send-back)")" "1"
 assert_fails "check fails on the old judge flag" sf check
 copy_swarmforge .
 sed -i '/^spec-judge /d' swarmforge/roles.conf

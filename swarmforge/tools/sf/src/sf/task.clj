@@ -210,10 +210,12 @@
   (let [id (open-task id-arg)
         {:keys [to summary allow?]} (options/handoff args)
         state (store/state id)
+        send-back? (config/sends-back? (:stage state))
+        target to
         _ (refuse (flow/handoff-refusal state))
-        _ (refuse (flow/to-refusal state to))
+        _ (refuse (flow/to-refusal state target send-back? (store/open-records id)))
         from (or role (acting-role state))
-        to (flow/next-stage state to)
+        to (flow/next-stage state target)
         _ (when (not= "done" to) (config/require-role to))
         head (role-head id)]
     (refuse (flow/handoff-refusal state head))
@@ -223,6 +225,7 @@
                          (let [state (last records)
                                rec (flow/handoff state from to head summary)]
                            (refuse (flow/handoff-refusal state (role-head id)))
+                           (refuse (flow/to-refusal state target send-back? records))
                            (cond-> rec
                              refusals (assoc :audit-refusals refusals)
                              missing (assoc :missing-tools missing)

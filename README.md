@@ -112,7 +112,7 @@ subset of the catalogue in `swarmforge/roles.conf` order:
 | `spike` | specifier |
 
 The [role catalogue](swarmforge/roles.conf) assigns tiers and supports
-`subagent`, `session`, `audit`, and `optional` settings. See
+`subagent`, `session`, `audit`, `optional`, and `send-back` settings. See
 [configuration](swarmforge/README.md#configuration) for these settings and
 the optional reviewers. Model mappings live in
 [`swarmforge/tiers.conf`](swarmforge/tiers.conf); regenerate agents with

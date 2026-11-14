@@ -38,7 +38,9 @@ Role commands
   next <role>                     print ids of tasks waiting at stage <role>, or NO_TASK
   start <id>                      create or enter the task worktree; print the task
   handoff <id> [--to ROLE] [--allow-missing-tool] [-m text]
-                                  record HEAD and move the task to the next stage; refused
+                                  record HEAD and move the task to the next stage; --to may
+                                  name an earlier role when the stage's role has send-back,
+                                  refused after 2 send-backs; refused
                                   (exit 4) when a Not-tested trailer names a missing tool,
                                   unless --allow-missing-tool and an answered question
                                   names each one

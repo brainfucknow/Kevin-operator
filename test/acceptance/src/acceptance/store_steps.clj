@@ -94,6 +94,21 @@
         (must-in world (:repo world) "sf" "handoff" id)
         (recur (inc handoffs))))))
 
+(defn- handoff-to-stage
+  "Hands the task off along its route until it is at stage; the operator
+  approves the specification on the way."
+  [world name stage]
+  (let [id (id-of world name)]
+    (loop [handoffs 0]
+      (let [now (must-in world (:repo world) "sf" "stage" id)]
+        (when (not= stage now)
+          (check (< handoffs 20) (str "task " name " did not reach " stage))
+          (if (= "specifier" now)
+            (do (must-in world (:repo world) "sf" "review" id)
+                (must-in world (:repo world) "sf" "approve" id))
+            (must-in world (:repo world) "sf" "handoff" id))
+          (recur (inc handoffs)))))))
+
 (defn- commit [world name message env]
   (run-in world (worktree world name) ["git" "commit" "-q" "--allow-empty" "-m" (unescape message)] env))
 
@@ -162,6 +177,18 @@
     (fn [world name]
       (handoff-to-done world name)
       (must-in world (:repo world) "sf" "finish" (id-of world name))
+      world)]
+
+   [#"task \"(\w)\" was handed off to stage \"([^\"]+)\""
+    (fn [world name stage]
+      (handoff-to-stage world name stage)
+      world)]
+
+   [#"task \"(\w)\" was sent back from \"([^\"]+)\" to \"([^\"]+)\" (\d+) times"
+    (fn [world name from to n]
+      (dotimes [_ (parse-long n)]
+        (handoff-to-stage world name from)
+        (must-in world (:repo world) "sf" "handoff" (id-of world name) "--to" to))
       world)]
 
    [#"task \"(\w)\" was handed off to done and squash-merged into main"
