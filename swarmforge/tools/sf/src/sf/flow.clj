@@ -45,16 +45,47 @@
   [{:keys [stage route]} to]
   (or (not-empty to) (second (drop-while #(not= stage %) (route-list route))) "done"))
 
+(def send-back-cap
+  "The send-backs a task may have."
+  2)
+
+(defn send-backs
+  "The number of handoff records among records whose target comes before their
+  sender on route."
+  [records route]
+  (let [at #(.indexOf ^java.util.List (route-list route) %)]
+    (count (filter #(and (= "handoff" (:record %)) (< -1 (at (:stage %)) (at (:from %))))
+                   records))))
+
+(defn- earlier? [{:keys [stage route]} to]
+  (boolean (some #{to} (take-while #(not= stage %) (route-list route)))))
+
+(defn- send-back-refusal
+  "Refuses a send-back to the specifier, and the one past the cap."
+  [{:keys [route]} to records]
+  (let [sent (send-backs records route)]
+    (cond (= "specifier" to) "--to specifier: a task cannot go back to the specifier"
+          (>= sent send-back-cap) (str "--to " to ": task was sent back " sent " times; ask the operator"))))
+
 (defn to-refusal
   "Refuses a --to that skips past the route: to must be the stage, a later role
-  on the route, or done after the route's last role."
-  [{:keys [stage route] :as state} to]
-  (when-not (or (str/blank? to)
-                (some #{to} (drop-while #(not= stage %) (route-list route)))
-                (= to (next-stage state nil)))
-    (if (= "done" to)
-      (str "--to done skips the rest of route '" route "' after stage:" stage "; hand off to the next role")
-      (str "--to " to " is not on route '" route "' at or after stage:" stage))))
+  on the route, or done after the route's last role. When send-back? (the
+  stage's role has the send-back flag), to may also be an earlier role on the
+  route other than the specifier, while records, the task's records, hold
+  fewer than send-back-cap send-backs."
+  ([state to] (to-refusal state to false []))
+  ([{:keys [stage route] :as state} to send-back? records]
+   (cond
+     (or (str/blank? to)
+         (some #{to} (drop-while #(not= stage %) (route-list route)))
+         (= to (next-stage state nil)))
+     nil
+     (and send-back? (earlier? state to))
+     (send-back-refusal state to records)
+     (= "done" to)
+     (str "--to done skips the rest of route '" route "' after stage:" stage "; hand off to the next role")
+     :else
+     (str "--to " to " is not on route '" route "' at or after stage:" stage))))
 
 (defn handoff-refusal
   ([state] (handoff-refusal state (:commit state)))

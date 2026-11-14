@@ -110,6 +110,26 @@
           (should= 1 status)
           (should (some #(str/includes? % problem) errors))))))
 
+  (context "send-back roles"
+    (it "reads the send-back flag, alone or with audit and optional in any order"
+      (spit (str (fs/path *dir* "swarmforge/roles/pr-reviewer.md")) "fixture")
+      (conf "routes.conf" "feature coder,qa\n")
+      (doseq [flags ["send-back" "optional send-back" "send-back audit optional" "audit optional send-back"]]
+        (conf "roles.conf" (str "coder strong subagent\npr-reviewer strong subagent " flags "\nqa fast subagent\n"))
+        (should= 0 (first (check)))
+        (should (config/sends-back? "pr-reviewer"))
+        (should-not (config/sends-back? "coder"))))
+
+    (it "refuses send-back on a gate or a spec-judge, and a repeated send-back"
+      (doseq [role ["falsifier" "spec-judge"]] (spit (str (fs/path *dir* "swarmforge/roles" (str role ".md"))) "fixture"))
+      (doseq [[row problem] [["falsifier strong subagent gate send-back" "roles.conf: 'falsifier' is a gate and cannot also be send-back"]
+                             ["spec-judge strong subagent spec-judge send-back" "roles.conf: 'spec-judge' is a spec-judge and cannot also be send-back"]
+                             ["coder strong subagent send-back send-back" "roles.conf: 'coder' repeats flag 'send-back'"]]]
+        (conf "roles.conf" (str "specifier strong session\n" row "\nqa fast subagent\n"))
+        (let [[status _ errors] (check)]
+          (should= 1 status)
+          (should (some #(str/includes? % problem) errors))))))
+
   (context "gate roles"
     (it "keeps a gate off the pipeline and the routes and lists it with the gates"
       (spit (str (fs/path *dir* "swarmforge/roles/falsifier.md")) "fixture")
@@ -180,7 +200,7 @@
       (conf "roles.conf" "specifier strong session\nreferee strong subagent judge\ncoder strong subagent\nqa fast subagent\n")
       (let [[status _ errors] (check)]
         (should= 1 status)
-        (should (some #(str/includes? % "roles.conf: 'referee' has unknown flag 'judge' (only audit, optional, gate, spec-judge)") errors))))
+        (should (some #(str/includes? % "roles.conf: 'referee' has unknown flag 'judge' (only audit, optional, gate, spec-judge, send-back)") errors))))
 
     (it "refuses a route that names the spec-judge"
       (spit (str (fs/path *dir* "swarmforge/roles/spec-judge.md")) "fixture")
@@ -217,8 +237,8 @@
                 "CHECK: roles.conf: role 'specifier' listed twice"
                 "CHECK: roles.conf: 'coder' uses unknown tier 'weak' (see tiers.conf)"
                 "CHECK: roles.conf: 'coder' runs-as must be subagent or session, not 'robot'"
-                "CHECK: roles.conf: 'qa' has unknown flag 'flag' (only audit, optional, gate, spec-judge)"
-                "CHECK: roles.conf: 'x' needs <role> <tier> <runs-as> [audit] [optional]"
+                "CHECK: roles.conf: 'qa' has unknown flag 'flag' (only audit, optional, gate, spec-judge, send-back)"
+                "CHECK: roles.conf: 'x' needs <role> <tier> <runs-as> [audit] [optional] [send-back]"
                 "CHECK: routes.conf: route 'feature' listed twice"
                 "CHECK: routes.conf: feature: route 'qa,specifier' is out of order; follow swarmforge/roles.conf: specifier,Bad,done,specifier,coder,qa,x"
                 "CHECK: routes.conf: 'lonely' needs exactly <name> <role,role,...>"
