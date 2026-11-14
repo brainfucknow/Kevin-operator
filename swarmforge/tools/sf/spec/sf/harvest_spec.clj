@@ -112,7 +112,7 @@
 
 (describe "line keys fixes and found_by"
   (it "follow route and precede records"
-    (should= ["id" "title" "request" "status" "truncated" "stage" "needs" "route" "fixes" "found_by" "records"]
+    (should= ["id" "title" "request" "status" "truncated" "stage" "needs" "route" "gates" "fixes" "found_by" "records"]
              (map second (re-seq #"\"(\w+)\":" (re-find #"^.*?\"records\":" (harvest/line task)))))))
 
   (it "hold the target and the detector of the created record"

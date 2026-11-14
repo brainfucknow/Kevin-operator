@@ -14,6 +14,13 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
    - When the request names a pull request review finding, a CI failure or an earlier task, add `--fixes` with the task id when the request names a task, else the quoted pull request (`'#<number>'`).
    - Add one `--found-by` value: `pr-review` for a pull request review finding; `ci` for a CI failure; `operator` for any other defect the operator names. When a later swarm task found the defect, leave `--found-by` off, also when the operator relays it. The operator relaying a pull request review finding still gives `pr-review`.
    - Leave both options off when the request names no task and no pull request.
+   - Add `--gates <gates>` when the operator chose gates for this task or for the session. A session choice goes on every later `sf new` until the operator changes it. Without such words, leave `--gates` off; the task then has gates `none`.
+   - When the route has `specifier` and `sf gates` prints a role, print the chain and the choice. In brackets, put what runs only when chosen: the gate roles, then the spec-judge of `roles.conf` when it has one. Example, route `specifier,coder,qa`, gates none:
+     ```
+     specifier -> [falsifier -> spec-judge] -> coder -> qa
+     gates: none. Say "run the falsifier" to turn it on.
+     ```
+     With gates chosen, the second line is `gates: <gates>`. When the request is large or leaves much open, you may add one line that suggests the falsifier, with its reason. Do not wait for an answer, and do not turn the gates on yourself.
 3. Dispatch the first role of the route (`sf stage <id>`).
 
 ## Dispatching A Role
@@ -27,8 +34,9 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 - If the harness cannot run subagents, run `sf dispatch <role> <id>` instead; it starts a headless backend session with the same prompt. `sf run <id>` repeats that until the task is done or blocked.
 
 ## Specification Gate
-- When the specifier returns after `sf review`, run the gates first: for each role `sf gates` prints, delegate to the agent named after it with the prompt `Task <id>. Run: swarmforge/bin/sf show <id>` and wait for its report. Without subagents, run `sf dispatch <gate> <id>`. A gate records nothing; if it committed or recorded anything, tell the operator. Skip the gates for a task or the session when the operator says so.
-- The spec-judge loop runs when `swarmforge/roles.conf` has a spec-judge (a row flagged `spec-judge`), the harness runs subagents, and the operator has not said to skip the gates. Otherwise skip the spec-judge: the gate has no automatic send-back and no spec verdict. After the gates of each spec revision:
+- When the specifier returns after `sf review`, run `sf gates <id>` first. For each role it prints, delegate to the agent named after it with the prompt `Task <id>. Run: swarmforge/bin/sf show <id>` and wait for its report. Without subagents, run `sf dispatch <gate> <id>`. A gate records nothing; if it committed or recorded anything, tell the operator.
+- When `sf gates <id>` prints nothing, run no gate, no spec-judge and no `sf spec-verdict`. Stop for the operator as below, and add one line: the gates did not run, and the operator can turn them on for this spec revision.
+- The spec-judge loop runs when `swarmforge/roles.conf` has a spec-judge (a row flagged `spec-judge`), the harness runs subagents, and a gate ran this spec revision. Otherwise skip the spec-judge: the gate has no automatic send-back and no spec verdict. After the gates of each spec revision:
   - Delegate to the spec-judge with the prompt `Task <id>. Run: swarmforge/bin/sf spec-revisions <id> --full` followed by this spec revision's gate reports verbatim. Wait for its `SPEC-VERDICT:` and `REASON:`.
   - Record it: `sf spec-verdict <id> <spec-verdict> "<the spec-judge's reason, then every finding of this spec revision's gate reports verbatim>"`. For continue, end the text with `Sent back: the CRITICAL and HIGH findings.`
   - On continue, after `sf spec-verdict` records it, tell the operator in one line, show the output of `sf spec-revisions <id>`, verbatim, and resume the specifier without stopping. When it returns after `sf review`, run the gates and the spec-judge again.
@@ -36,13 +44,16 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
   - On converged, needs-operator and stuck, stop for the operator. Show the spec verdict with its reason. Recommend approval only on converged. On needs-operator, put the decision to the operator.
   - After the operator's own `sf reject`, the next spec revision runs the gates and the spec-judge again. The loop continues while sf allows it.
   - The spec-judge records nothing. If it recorded anything, tell the operator.
-- Show the committed criteria and QA, from the specification commit body or durable contract files, each gate's report verbatim, the task's route, any recommended change and the output of `sf spec-revisions <id>`, verbatim. Recommend as follows, and list every remaining finding:
+- Show the committed criteria and QA, from the specification commit body or durable contract files, each gate's report verbatim, the task's route and gates, any recommended change and the output of `sf spec-revisions <id>`, verbatim. Recommend as follows, and list every remaining finding:
   - The spec-judge gave this spec revision's spec verdict: recommend approval only on converged.
   - Otherwise at least one gate ran this spec revision: recommend approval if this spec revision's reports have no CRITICAL or HIGH finding.
   - No gate ran this spec revision: make no recommendation.
   Then stop and wait. Do not approve on their behalf.
 - Link that specification: push the task branch (`git push <remote> swarm/<id>`) and link the specification commit or durable files. Without a remote, give the commit SHA and `git show` command or worktree paths. Follow its Lore directive; do not create files merely to provide links.
 - If the operator changes the route: `sf route <id> <route>`. The new route must contain the current stage.
+- The operator may change the gates at any stop for approval. Record the change with `sf gates <id> <gates>` before anything else. Never run it without the operator's words.
+  - Turned on while a spec revision waits: run the gates and then the spec-judge on that spec revision, as above, also when you already showed it without reports.
+  - Turned off: later spec revisions run no gate. Reports already shown for the waiting spec revision stay valid; `--rejected` on `sf approve` and the reason of `sf reject` still carry their findings.
 - On "approve": `sf approve <id>`, which records the approval and hands the task to the next role on its route; dispatch that role. Add one `--rejected "<finding> | <reason>"` for each finding of this spec revision's gate reports that the operator approves over (did not send back), at any severity. `<finding>` is the finding's first line, `<DEFECT|PREMISE>, <SEVERITY>: <claim>`. `<reason>` is the operator's words, or `accepted by the operator at the gate` when they gave none; join their lines with spaces and write ` / ` for any ` | ` in them.
 - On change requests: `sf reject <id> "<reason>"` and resume the specifier. The reason carries the operator's words and every finding of this spec revision's gate reports, at every severity, both verbatim, and says which findings are sent back (all, when the operator names none). When the operator adopts an option you offered, quote it as `Operator chose: <option text>`; it is their decision. A reason never carries a design or fix of your own.
 

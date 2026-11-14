@@ -74,7 +74,7 @@
       (should= "specifier,coder,cleaner" (out task/route [id]))
       (should= [id] (str/split-lines (out task/next-task ["specifier"])))
       (should= "NO_TASK" (out task/next-task ["coder"]))
-      (should= (str id "\tspecifier\t\tspecifier,coder,cleaner\tAdd login") (out task/ls []))
+      (should= (str id "\tspecifier\t\tspecifier,coder,cleaner\tnone\tAdd login") (out task/ls []))
       (should= "" (out task/ls ["--stage" "coder"]))
       (should= "" (out task/ls ["--needs"]))))
 
@@ -89,7 +89,7 @@
   (it "stops at the review and moves on at the approval"
     (let [id (new-id "Add login")]
       (out task/review [id "spec" "ready"])
-      (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tAdd login") (out task/ls ["--needs"]))
+      (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tnone\tAdd login") (out task/ls ["--needs"]))
       (should= "NO_TASK" (out task/next-task ["specifier"]))
       (fails-with "waiting" #(task/handoff [id] {}))
       (should-contain "HANDOFF" (out task/approve [id]))
@@ -136,7 +136,7 @@
                              ["unknown approve argument 'extra'" ["extra"]]]]
           (fails-with text #(task/approve (into [id] args)))
           (should= before (tip)))
-        (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tAdd login") (out task/ls ["--needs"])))))
+        (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tnone\tAdd login") (out task/ls ["--needs"])))))
 
   (it "keeps the existing approval refusals with --rejected"
     (let [id (new-id "Add login")]
@@ -188,7 +188,7 @@
       (out task/review [id])
       (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncleaner fast subagent\n")
       (fails-with "unknown role 'coder'" #(task/approve [id]))
-      (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tAdd login") (out task/ls ["--needs"]))))
+      (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tnone\tAdd login") (out task/ls ["--needs"]))))
 
   (it "does not approve a task that waits on nothing"
     (let [id (new-id "Add login")]
@@ -289,7 +289,7 @@
           tip (git *dir* "rev-parse" (str "swarm/" id))]
       (git *dir* "merge" "-q" "--squash" (str "swarm/" id))
       (git *dir* "commit" "-q" "--no-verify" "-m" "Squash")
-      (should= (str id "\tdone\t\tcoder\tQuick") (out task/ls []))
+      (should= (str id "\tdone\t\tcoder\tnone\tQuick") (out task/ls []))
       (should= (str "VERIFY: none configured\nFINISHED: " id " merged into main") (out task/finish [id]))
       (should= tip (git *dir* "rev-parse" "HEAD^2"))
       (should= (str "sf finished: " id) (git *dir* "log" "-1" "--format=%s"))
@@ -648,3 +648,76 @@
       (git *dir* "commit" "-q" "--no-verify" "--no-edit")
       (out task/finish [id])
       (should= "claude|session" (carried "HEAD")))))
+
+(def ^:private gated-roles
+  "specifier frontier subagent\nfalsifier strong subagent gate\ndoubter strong subagent gate\ncoder strong subagent\ncleaner fast subagent\n")
+
+(describe "the gates of a task"
+  (around [it] (with-repo {"roles.conf" gated-roles} it))
+
+  (it "are none without --gates, and shown as none by start, show and ls"
+    (let [id (new-id "Add login" "--route" "specifier,coder")]
+      (should= "" (out task/gates [id]))
+      (should-contain "ROUTE: specifier,coder\nGATES: none\n" (out task/start [id]))
+      (should-contain "ROUTE: specifier,coder\nGATES: none\n" (out task/show [id]))
+      (should= (str id "\tspecifier\t\tspecifier,coder\tnone\tAdd login") (out task/ls []))))
+
+  (it "are the gate roles --gates names, without duplicates, in catalogue order"
+    (let [id (new-id "Add login" "--gates" "doubter,falsifier,doubter")]
+      (should= "falsifier\ndoubter" (out task/gates [id]))
+      (should-contain "GATES: falsifier,doubter\n" (out task/start [id]))
+      (should-contain "GATES: falsifier,doubter\n" (out task/show [id]))
+      (should-contain "\tfalsifier,doubter\tAdd login" (out task/ls []))))
+
+  (it "refuses --gates with an empty value or a role that is not a gate, and creates no task"
+    (doseq [[value text] [["qa" "--gates: 'qa' is not a gate role"]
+                          ["coder" "--gates: 'coder' is not a gate role"]
+                          ["" "--gates needs gate roles or none, got ''"]]]
+      (fails-with text #(task/new-task ["Gated" "--gates" value])))
+    (should= "" (out task/ls [])))
+
+  (it "change on an open task with one gates record that keeps stage, route and needs"
+    (let [id (new-id "Add login" "--route" "specifier,coder")
+          route (out task/route [id])]
+      (should= (str "GATES: " id " falsifier") (out task/gates [id "falsifier"]))
+      (should= "falsifier" (out task/gates [id]))
+      (should-contain "type: gates\nfrom: operator\ngates: falsifier" (out task/show [id]))
+      (should= "specifier" (out task/stage [id]))
+      (should= route (out task/route [id]))
+      (should= (str "GATES: " id " none") (out task/gates [id "none"]))
+      (should= "" (out task/gates [id]))
+      (let [tip (git *dir* "rev-parse" (str "swarm/" id))]
+        (fails-with "gates: 'qa' is not a gate role" #(task/gates [id "qa"]))
+        (should= tip (git *dir* "rev-parse" (str "swarm/" id))))))
+
+  (it "are the operator's to change, but anyone may read them"
+    (let [id (new-id "Add login")
+          tip #(git *dir* "rev-parse" (str "swarm/" id))
+          before (tip)]
+      (with-redefs [shell/env (fn [name default] (if (= "SWARMFORGE_DISPATCHED" name) "falsifier" default))]
+        (fails-with "gates is the operator's; the dispatched falsifier cannot run it" #(task/gates [id "falsifier"]))
+        (should= "" (out task/gates [id])))
+      (should= before (tip))))
+
+  (it "refuses an unknown task as sf route does"
+    (fails-with "no task 'nosuch'" #(task/gates ["nosuch"])))
+
+  (it "change while the specification waits for approval, and the gate goes on as before"
+    (let [id (new-id "Add login")]
+      (out task/review [id])
+      (let [revisions (out task/spec-revisions [id])]
+        (out task/gates [id "falsifier"])
+        (should= (str id "\tspecifier\tapproval\tspecifier,coder,cleaner\tfalsifier\tAdd login") (out task/ls ["--needs"]))
+        (should= revisions (out task/spec-revisions [id])))
+      (should-contain (str "HANDOFF: " id " specifier -> coder") (out task/approve [id]))
+      (should= "falsifier" (out task/gates [id]))))
+
+  (it "are none for a task whose records carry no gates"
+    (let [id "legacy-task-1234567"]
+      (git *dir* "checkout" "-q" "-b" (str "swarm/" id))
+      (git *dir* "commit" "-q" "--allow-empty" "--no-verify" "-m"
+           (str "sf created: " id "\n\nLegacy task\n\nSwarmForge-Task: " id "\nSwarmForge-Record: created\n"
+                "SwarmForge-From: operator\nSwarmForge-Stage: coder\nSwarmForge-Route: coder\nSwarmForge-Needs: none"))
+      (git *dir* "checkout" "-q" "main")
+      (should= (str id "\tcoder\t\tcoder\tnone\tLegacy task") (out task/ls []))
+      (should= "" (out task/gates [id])))))

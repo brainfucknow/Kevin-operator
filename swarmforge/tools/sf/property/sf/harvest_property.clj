@@ -66,6 +66,10 @@
 
 (def ^:private route (gen/fmap #(str/join "," %) (gen/not-empty (gen/vector role 1 4))))
 
+(def ^:private gate-list
+  "A task's :gates value: gate roles joined with commas."
+  (gen/fmap #(str/join "," %) (gen/not-empty (gen/vector word 1 3))))
+
 (def ^:private record-time
   "A commit author time as record/parse gives it: epoch seconds in UTC text."
   (gen/fmap #(record/utc-time (str %)) (gen/choose 0 4102444800)))
@@ -89,6 +93,7 @@
             rejected (gen/vector (gen/fmap :text finding) 0 3)
             time (gen/one-of [(gen/return nil) record-time])
             recorded-by (gen/one-of [(gen/return nil) sentence])
+            gates (gen/one-of [(gen/return nil) gate-list])
             backend carried-backend]
     (cond-> (merge {:record type :from from :stage stage :needs needs :route route :sha sha :commit commit
                     :merged-into "main"}
@@ -96,6 +101,7 @@
       text (assoc :text text)
       time (assoc :time time)
       recorded-by (assoc :recorded-by recorded-by)
+      gates (assoc :gates gates)
       refusals (assoc :audit-refusals refusals)
       (= "approval" type) (assoc :rejected rejected))))
 
@@ -123,6 +129,12 @@
                               (= [(:id t) (:status t) (boolean (:truncated t)) (:stage state) (:needs state)
                                   (str/split (:route state) #",")]
                                  (mapv parsed ["id" "status" "truncated" "stage" "needs" "route"]))))))))
+
+  (it "gives the gates of the newest record as a list, empty for none"
+    (should (passes? (prop/for-all [t task]
+                       (let [gates (:gates (last (:records t)))]
+                         (= (if gates (str/split gates #",") [])
+                            (get (json/parse-string (harvest/line t)) "gates")))))))
 
   (it "keeps every record in order, each with exactly the record keys"
     (should (passes? (prop/for-all [t task]

@@ -73,7 +73,7 @@ assert_match "the created commit holds the request" "$(git log -1 --format=%B "s
 assert_eq "next finds the task for its stage" "$(sf next specifier)" "$id"
 assert_eq "next prints NO_TASK for other stages" "$(sf next coder)" "NO_TASK"
 assert_fails "next with unknown role" sf next janitor
-assert_match "ls lists the task with its route" "$(sf ls)" "^$id	specifier		$full	Add login$"
+assert_match "ls lists the task with its route" "$(sf ls)" "^$id	specifier		$full	none	Add login$"
 
 # start
 out="$(sf start "$id")"
@@ -522,7 +522,7 @@ assert_match "start finds no task squash-merged after finish" "$(sf start "$ids"
 
 idb="$(done_task "Squash before")"
 git merge -q --squash "swarm/$idb" >/dev/null && git commit -q --allow-empty -m "Squash $idb"
-assert_match "a task squash-merged before finish is listed at done" "$(sf ls)" "^$idb	done		coder	Squash before$"
+assert_match "a task squash-merged before finish is listed at done" "$(sf ls)" "^$idb	done		coder	none	Squash before$"
 assert_match "finish merges a squash-merged task" "$(sf finish "$idb")" "^FINISHED: $idb merged into main$"
 assert_match "the squash-merged task is finished" "$(sf show "$idb")" "^STATUS: finished$"
 
@@ -548,7 +548,8 @@ mkdir -p tasks && printf -- '---\nid: %s\ncreated: 2026-10-27\n---\n\n# Legacy t
 git add "tasks/$idl.md"
 git commit -q --no-verify -m "$(printf 'sf created: %s\n\nLegacy task\n\nSwarmForge-Task: %s\nSwarmForge-Record: created\nSwarmForge-From: operator\nSwarmForge-Stage: coder\nSwarmForge-Route: coder\nSwarmForge-Needs: none' "$idl" "$idl")"
 git checkout -q main
-assert_match "ls reads the title of a legacy task" "$(sf ls)" "^$idl	coder		coder	Legacy task$"
+assert_match "ls reads the title of a legacy task" "$(sf ls)" "^$idl	coder		coder	none	Legacy task$"
+assert_eq "a legacy task has no gates" "$(sf gates "$idl")" ""
 assert_match "show reads the request of a legacy task" "$(sf show "$idl")" "^Old request\.$"
 sf start "$idl" >/dev/null && sf handoff "$idl" >/dev/null
 assert_eq "the handoff to done deletes the legacy task file" "$(git diff-tree --no-commit-id --name-status -r "swarm/$idl")" "D	tasks/$idl.md"
@@ -556,7 +557,7 @@ sf finish "$idl" >/dev/null
 assert_eq "a finished legacy task leaves no file" "$(git ls-tree -r --name-only HEAD | grep -c "$idl" || true)" "0"
 
 idt="$(sf new "$(printf 'Two\nlines')" -m x --route coder)"
-assert_match "a title with a line break is listed as one line" "$(sf ls)" "^$idt	coder		coder	Two lines$"
+assert_match "a title with a line break is listed as one line" "$(sf ls)" "^$idt	coder		coder	none	Two lines$"
 assert_match "new writes å as aa, æ as ae and ø as oe" "$(sf new "Blåbærsyltetøy" -m x --route coder)" '^blaabaersyltetoey-[0-9a-f]{7}$'
 assert_match "new drops the accents of other letters" "$(sf new "Crème brûlée" -m x --route coder)" '^creme-brulee-[0-9a-f]{7}$'
 
@@ -616,7 +617,7 @@ assert_eq "harvest prints the same lines under another time zone" "$(TZ=Asia/Tok
 assert_eq "harvest prints one line per task" "$(echo "$out" | wc -l | tr -d ' ')" "2"
 assert_eq "every harvest line is JSON" "$(echo "$out" | jq -e -c 'type' | sort -u)" '"object"'
 assert_eq "harvest prints the finished task first" "$(echo "$out" | jq -r '.id' | paste -sd ' ' -)" "$hf $ho"
-assert_eq "harvest keys every line" "$(echo "$out" | jq -c 'keys' | sort -u)" '["fixes","found_by","id","lore","needs","records","request","route","stage","status","title","truncated"]'
+assert_eq "harvest keys every line" "$(echo "$out" | jq -c 'keys' | sort -u)" '["fixes","found_by","gates","id","lore","needs","records","request","route","stage","status","title","truncated"]'
 for t in "$hf" "$ho"; do
   line="$(echo "$out" | jq -c --arg id "$t" 'select(.id == $id)')"
   assert_eq "harvest title equals sf show ($t)" "$(echo "$line" | jq -r '.title')" "$(sf show "$t" | sed -n 's/^TITLE: //p')"
@@ -942,6 +943,68 @@ assert_eq "harvest dispatched is null exactly when backend is null" \
 assert_fails "hook refuses a SwarmForge-Backend trailer" git -C ".worktrees/$b2" commit -q --allow-empty -m "$(printf 'Forged\n\nSwarmForge-Backend: claude')"
 assert_fails "hook refuses a SwarmForge-Dispatched trailer" git -C ".worktrees/$b2" commit -q --allow-empty -m "$(printf 'Forged\n\nSwarmForge-Dispatched: session')"
 cd "$repo"
+
+# gates of a task
+ga="$(sf new "A" -m x --route specifier,coder,qa)"
+assert_eq "a task without --gates has no gates" "$(sf gates "$ga")" ""
+assert_eq "start prints GATES: none after ROUTE:" "$(sf start "$ga" | grep -A1 '^ROUTE: ' | tail -1)" "GATES: none"
+assert_eq "show prints GATES: none after ROUTE:" "$(sf show "$ga" | grep -A1 '^ROUTE: ' | tail -1)" "GATES: none"
+assert_match "ls prints the gates between route and title" "$(sf ls)" "^$ga	specifier		specifier,coder,qa	none	A$"
+gb="$(sf new "B" -m x --gates falsifier)"
+assert_eq "new --gates records the gate" "$(sf gates "$gb")" "falsifier"
+assert_eq "start prints the chosen gates" "$(sf start "$gb" | grep -A1 '^ROUTE: ' | tail -1)" "GATES: falsifier"
+assert_eq "show prints the chosen gates" "$(sf show "$gb" | grep -A1 '^ROUTE: ' | tail -1)" "GATES: falsifier"
+assert_match "ls prints the chosen gates" "$(sf ls)" "^$gb	specifier		$full	falsifier	B$"
+assert_eq "new --gates drops a duplicate" "$(sf gates "$(sf new "B2" -m x --gates falsifier,falsifier)")" "falsifier"
+for value in qa nosuch ""; do
+  assert_match "new refuses --gates '$value'" "$(sf new "C" -m x --gates "$value" 2>&1 && echo created || true)" "^sf: --gates"
+done
+assert_eq "a refused --gates makes no task" "$(sf ls | awk -F'\t' '$6 == "C"' | wc -l | tr -d ' ')" "0"
+assert_eq "gates changes the gates of an open task" "$(sf gates "$ga" falsifier)" "GATES: $ga falsifier"
+assert_eq "gates prints the changed gates" "$(sf gates "$ga")" "falsifier"
+assert_match "show prints the gates record" "$(sf show "$ga")" "type: gates"
+assert_match "show prints the gates of the gates record" "$(sf show "$ga")" "^gates: falsifier$"
+assert_eq "a gates change keeps the stage" "$(sf stage "$ga")" "specifier"
+assert_eq "a gates change keeps the route" "$(sf route "$ga")" "specifier,coder,qa"
+assert_eq "gates none clears the gates" "$(sf gates "$ga" none)" "GATES: $ga none"
+tip="$(git rev-parse "swarm/$ga")"
+assert_fails "gates refuses a role that is not a gate" sf gates "$ga" qa
+assert_eq "a refused gates change records nothing" "$(git rev-parse "swarm/$ga")" "$tip"
+assert_eq "a dispatched gate cannot change the gates" "$(SWARMFORGE_DISPATCHED=falsifier sf gates "$ga" falsifier 2>&1 || true)" \
+  "sf: gates is the operator's; the dispatched falsifier cannot run it"
+assert_eq "the refused gates change records nothing" "$(git rev-parse "swarm/$ga")" "$tip"
+assert_eq "a dispatched gate can read the task's gates" "$(SWARMFORGE_DISPATCHED=falsifier sf gates "$ga")" ""
+assert_eq "a dispatched gate can read the gate roles" "$(SWARMFORGE_DISPATCHED=falsifier sf gates)" "falsifier"
+git -C ".worktrees/$ga" commit -q --allow-empty -m "Specify A"
+sf review "$ga" >/dev/null
+revisions="$(sf spec-revisions "$ga")"
+sf gates "$ga" falsifier >/dev/null
+assert_match "a gates change keeps the task waiting for approval" "$(sf ls --needs)" "^$ga	specifier	approval	"
+assert_eq "a gates change is not a spec revision" "$(sf spec-revisions "$ga")" "$revisions"
+assert_eq "spec-verdict works after a gates change" "$(sf spec-verdict "$ga" converged x)" "SPEC-VERDICT: $ga converged"
+assert_match "approve works after a gates change" "$(sf approve "$ga")" "^HANDOFF: $ga specifier -> coder"
+assert_eq "the gates outlive the approval" "$(sf gates "$ga")" "falsifier"
+assert_eq "the gate roles stay as roles.conf has them" "$(sf gates)" "falsifier"
+gn="$(sf new "None" -m x --route coder)"
+gout="$(sf harvest)"
+assert_eq "harvest gives the chosen gates" "$(echo "$gout" | jq -c --arg id "$gb" 'select(.id == $id) | .gates')" '["falsifier"]'
+assert_eq "harvest gives no gates for none" "$(echo "$gout" | jq -c --arg id "$gn" 'select(.id == $id) | .gates')" '[]'
+
+runfakes="$scratch/run-backends"
+mkdir -p "$runfakes"
+printf '#!/usr/bin/env bash
+printf "%%s\\n" "$*" >> "$RUN_LOG"
+case "$*" in *"gate."*) ;; *) sf review "$BACKEND_TASK" -m spec >/dev/null ;; esac
+' > "$runfakes/claude"
+chmod +x "$runfakes/claude"
+for gates in none falsifier; do
+  gr="$(sf new "Run $gates" -m x --route specifier,coder --gates "$gates")"
+  : > "$scratch/run.log"
+  out="$(env BACKEND_TASK="$gr" RUN_LOG="$scratch/run.log" PATH="$runfakes:$PATH" sf run "$gr" claude || true)"
+  assert_match "run with gates $gates waits for approval" "$out" "^BLOCKED: $gr needs:approval$"
+  assert_eq "run with gates $gates starts the falsifier only when chosen" "$(grep -c "'falsifier' gate" "$scratch/run.log" || true)" \
+    "$([ "$gates" = none ] && echo 0 || echo 1)"
+done
 
 for pair in ".claude/skills/swarm/SKILL.md .agents/skills/swarm/SKILL.md"; do
   set -- $pair
