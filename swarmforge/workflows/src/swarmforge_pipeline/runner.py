@@ -16,6 +16,7 @@ from typing import Annotated
 from mistralai import agents
 
 from .catalogue import Role
+from .completion import SwarmforgeWorkflowMistralConfig
 
 
 class Worktree(agents.SessionInput):
@@ -127,6 +128,7 @@ def build_agent(role: Role, model: str, instructions: str, writable: bool) -> ag
         name=f"swarmforge-{role.name}",
         instructions=instructions,
         tools=tools,
+        completion=SwarmforgeWorkflowMistralConfig(model=model),
     )
 
 

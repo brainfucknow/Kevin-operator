@@ -55,9 +55,12 @@ MISTRAL_API_KEY=... uv run python -m swarmforge_pipeline.worker
 Deploy it as a managed workflow deployment so executions run without a local
 worker (see the Mistral Workflows documentation). The `Dockerfile` builds the
 worker image: Python, git, and Babashka, which `sf` needs. A managed worker has
-no `MISTRAL_API_KEY`; `worker.py` copies the deployment service-account token
-from `MISTRAL_SA_TOKEN_PATH` into `MISTRAL_API_KEY` at startup, which is what
-the Agents SDK runtime reads. Pushing the task branch back needs GitHub write
+no `MISTRAL_API_KEY`; `completion.py` gives every role agent a completion config
+whose provider calls the model through the workflow worker's client
+(`get_mistral_client`), which authenticates each request with the deployment
+service-account token mounted at `MISTRAL_SA_TOKEN_PATH` — the raw token is
+not a static API key. Locally, the same config falls back to
+`MISTRAL_CLIENT_API_KEY`/`MISTRAL_API_KEY`. Pushing the task branch back needs GitHub write
 access: bind a workspace secret holding a token with `repo` scope as the
 `GITHUB_TOKEN` env var of the deployment (for example secret `github_token`).
 `sfkit` passes it to git through a `GIT_CONFIG_*` env pair, never through argv,
