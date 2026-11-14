@@ -75,8 +75,8 @@ Catalogue settings:
   It runs only on a task that chose it with `sf new --gates` or
   `sf gates <id> <gates>`; a task has gates `none` by default.
   The orchestrator shows its report at the gate. `sf run` dispatches the
-  task's gates when a specification it produced waits for approval. `sf dispatch` starts a
-  gate without edit permissions: claude in its default permission mode with
+  task's gates when a specification it produced waits for approval.
+  `sf dispatch` starts a gate without edit permissions: claude in its default permission mode with
   Edit, Write and NotebookEdit disallowed, codex in its read-only sandbox,
   copilot with the write tool denied. The Claude and Copilot gate adapters
   list only reading, search and shell tools. The shell can still write, so

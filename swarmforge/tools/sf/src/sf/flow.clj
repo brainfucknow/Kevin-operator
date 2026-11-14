@@ -1,7 +1,7 @@
 (ns sf.flow
   "How records move a task along its route, as plain values. state is the
-  newest record of a task: its :stage, :route, :gates and :needs. A refusal is the
-  message a command stops with, or nil to go on."
+  newest record of a task: its :stage, :route, :gates and :needs. A refusal is
+  the message a command stops with, or nil to go on."
   (:require [clojure.string :as str]
             [sf.record :as record]))
 
