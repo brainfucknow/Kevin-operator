@@ -79,6 +79,20 @@ def test_fetch_task_fast_forwards_an_existing_worktree(tmp_path):
     assert (Path(wt) / "work").read_text() == "two"
 
 
+def test_push_task_error_names_token_env_without_leaking_values(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
+
+    def boom(repo, *args, check=True):
+        raise sfkit.CommandError(["git", "push"], 128, "", "fatal: could not read Username")
+
+    monkeypatch.setattr(sfkit, "git", boom)
+    with pytest.raises(sfkit.CommandError) as err:
+        sfkit.push_task("/repo", "origin", "t-1")
+    assert "GITHUB_TOKEN" in str(err.value)
+    assert "SWARMFORGE_GITHUB_TOKEN" not in str(err.value)
+    assert "secret-token" not in str(err.value)
+
+
 def test_read_state_parses_sf_ls(tmp_path, monkeypatch):
     def fake_sf(repo, *args, check=True):
         assert args == ("ls",)

@@ -101,7 +101,15 @@ def fetch_task(main: str, remote: str, task_id: str) -> None:
 
 
 def push_task(main: str, remote: str, task_id: str) -> None:
-    git(main, "push", remote, f"{task_branch(task_id)}:{task_branch(task_id)}", check=True)
+    branch = task_branch(task_id)
+    try:
+        git(main, "push", remote, f"{branch}:{branch}", check=True)
+    except CommandError as err:
+        token_env = [n for n in ("GITHUB_TOKEN", "SWARMFORGE_GITHUB_TOKEN") if os.environ.get(n)]
+        raise CommandError(
+            err.cmd, err.exit, err.out,
+            f"{err.err} (token env vars set: {token_env or 'none'}; never their values)",
+        ) from err
 
 
 def worktree_dir(main: str, task_id: str) -> str:
