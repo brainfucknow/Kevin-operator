@@ -9,7 +9,15 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 - Read `swarmforge/roles.conf` for the role catalogue and `swarmforge/routes.conf` for the named routes.
 
 ## Starting A Task
-1. Pick the route from the shape of the request: a new behavior is `feature`; a defect with a known cause is `bugfix`; cleanup with no behavior change is `refactor`; "make it robust" is `harden`; a question or a spec with no build is `spike`. Any subset of the catalogue in canonical order is also a route. When the request fits none, ask the operator.
+1. Pick the route. Take the first rule that matches:
+   - `spike`: the operator asks for a spike and the request is one technical question. If the operator asks for a spike and the request is not one technical question, propose the question or the `specifier` route, and wait for the operator before `sf new`.
+   - `specifier` (an explicit route): a product question, or a specification with no build.
+   - `bugfix`: a defect with a known cause. `refactor`: cleanup with no behavior change. `harden`: "make it robust".
+   - `feature`: every other request to build.
+
+   Any subset of the catalogue in canonical order is also a route. When the request matches no rule, ask the operator.
+   - Start no spike and no shorter route on your own. Before `sf new` you may suggest one; then wait for the operator to choose. Suggest `spike` when the request is a technical question, or a build that rests on an unsettled technical fact. Only when the first matching rule is `feature`, suggest `code-qa` when the request names the exact behavior and how to check it, or `spec-code-qa` when it names one behavior but not how to check it.
+   - A task is a spike when its title starts with `Spike:`. Create every spike with `sf new "Spike: <the question>" -m "<request>" --route spike`. Give that prefix to no other task, and never change a spike's route. A `coder,qa` task without the prefix is an ordinary task. A spike has no specifier stage, so no specification gate runs.
 2. Create the task: `sf new "<title>" -m "<request>" --route <route>`. Use the operator's words for the body. Print the title, the id and the route.
    - When the request names a pull request review finding, a CI failure or an earlier task, add `--fixes` with the task id when the request names a task, else the quoted pull request (`'#<number>'`).
    - Add one `--found-by` value: `pr-review` for a pull request review finding; `ci` for a CI failure; `operator` for any other defect the operator names. When a later swarm task found the defect, leave `--found-by` off, also when the operator relays it. The operator relaying a pull request review finding still gives `pr-review`.
@@ -58,8 +66,10 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 - On change requests: `sf reject <id> "<reason>"` and resume the specifier. The reason carries the operator's words and every finding of this spec revision's gate reports, at every severity, both verbatim, and says which findings are sent back (all, when the operator names none). When the operator adopts an option you offered, quote it as `Operator chose: <option text>`; it is their decision. A reason never carries a design or fix of your own.
 
 ## Finishing
-- When `sf stage <id>` prints `done`, run `sf finish <id>` to merge the task branch into the base branch and remove it, report the merge, and ask the operator for the next feature.
+- When `sf stage <id>` prints `done` and the task is not a spike, run `sf finish <id>` to merge the task branch into the base branch and remove it, report the merge, and ask the operator for the next feature.
 - If the merge conflicts, resolve it in the main checkout, commit, and tell the operator what you merged.
+- When a spike reaches `done`, do not run `sf finish`. The branch and worktree stay; `sf ls` lists the task at `done`. Show the operator the answer, the verdict and the branch name, and ask whether to start a follow-up task. Never resume a spike at `done`; a new question is a new spike.
+- A follow-up task is a new task. It may rely on a spike only when the spike is at `done` and `sf show <spike id>` gives a last handoff summary, from qa, that starts `Confirmed:`. Put the operator's words, the spike's task id and the answer line in its body. When the confirmed findings settle the design, suggest `code-qa` or `spec-code-qa` for it; the operator chooses.
 
 ## Several Tasks
 - Each task has its own branch and worktree, so tasks can be in flight at once. Dispatch at most one agent per task at a time. Report `sf ls` when the operator asks for status.

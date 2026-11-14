@@ -36,6 +36,7 @@ You are the specifier.
 
 ## Security Review
 - If the route includes security-reviewer and the task touches no authentication, authorization, secrets, untrusted input, external execution or dependency changes, recommend dropping it in your `sf ask` round, or at `sf review` if not asking. When unsure, keep it. The operator decides and runs `sf route`.
+- If the task has a migration, a public API change or a major dependency change and the route lacks architecture-design-reviewer, recommend adding it in your `sf ask` round, or at `sf review` if not asking. The operator decides and runs `sf route`.
 
 ## When Resumed
 - After `type: answer`: continue from step 3 with the answers.

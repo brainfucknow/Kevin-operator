@@ -50,7 +50,7 @@ export PATH="$repo/swarmforge/bin:$PATH"
 out="$(sf init)"
 assert_match "init prints the identity of record commits" "$out" "identity: tester <tester@example.com>"
 assert_match "init reports the catalogue" "$out" "roles: specifier architecture-design-reviewer coder cleaner architect hardener security-reviewer qa"
-assert_match "init reports the routes" "$out" "routes: feature bugfix refactor harden spike"
+assert_match "init reports the routes" "$out" "routes: feature bugfix refactor harden spike spec-code-qa code-qa$"
 assert_eq "init is idempotent" "$(sf init | head -n 1)" "identity: tester <tester@example.com>"
 assert_eq "init writes no git-bug data" "$(git for-each-ref refs/bugs refs/identities)" ""
 
@@ -240,7 +240,10 @@ assert_eq "the moved-commit refusal writes no record" "$(git rev-parse "swarm/$i
 assert_match "approve --rejected refuses a task not waiting for approval" "$(sf approve "$ida" --rejected "A | b" 2>&1 || true)" "not waiting for approval"
 
 # routes
-assert_eq "routes lists the presets" "$(sf routes | awk '{print $1}' | paste -sd ' ' -)" "feature bugfix refactor harden spike"
+assert_eq "routes lists the presets" "$(sf routes | awk '{print $1}' | paste -sd ' ' -)" "feature bugfix refactor harden spike spec-code-qa code-qa"
+assert_eq "new without --route records the feature route" "$(sf new "Default" -m x | xargs sf route)" "specifier,coder,cleaner,architect,hardener,security-reviewer,qa"
+assert_eq "spec-code-qa is recorded" "$(sf new "Spec code" -m x --route spec-code-qa | xargs sf route)" "specifier,coder,qa"
+assert_eq "code-qa is recorded" "$(sf new "Code" -m x --route code-qa | xargs sf route)" "coder,qa"
 id2="$(sf new "Fix rounding" -m "x" --route bugfix)"
 assert_eq "named route is recorded" "$(sf route "$id2")" "specifier,coder,cleaner,qa"
 sf start "$id2" >/dev/null
@@ -255,7 +258,18 @@ assert_fails "route in the wrong order" sf new "Bad" -m x --route "qa,coder"
 assert_fails "route with an unknown role" sf new "Bad" -m x --route "janitor"
 id3="$(sf new "Tidy" -m "x" --route "cleaner,architect")"
 assert_eq "explicit route starts at its first role" "$(sf stage "$id3")" "cleaner"
-assert_eq "SWARMFORGE_ROUTE sets the default" "$(SWARMFORGE_ROUTE=spike sf new "Idea" -m x | xargs sf route)" "specifier"
+ids="$(SWARMFORGE_ROUTE=spike sf new "Spike: idea" -m x)"
+assert_eq "SWARMFORGE_ROUTE sets the default" "$(sf route "$ids")" "coder,qa"
+assert_eq "a spike starts at the coder" "$(sf stage "$ids")" "coder"
+ids="$(sf new "Spike: can X do Y?" -m x --route spike)"
+sf start "$ids" >/dev/null
+echo "echo yes" > ".worktrees/$ids/probe.sh"
+git -C ".worktrees/$ids" add probe.sh && git -C ".worktrees/$ids" commit -q -m "yes"
+assert_match "spike coder hands off to qa" "$(sf handoff "$ids" -m "yes")" "coder -> qa"
+sf start "$ids" >/dev/null
+git -C ".worktrees/$ids" commit -q --allow-empty -m "Confirmed: yes"
+assert_match "spike qa hands off to done" "$(sf handoff "$ids" -m "Confirmed: yes")" "qa -> done"
+assert_match "spike verdict is in the history" "$(sf show "$ids")" "summary: Confirmed: yes"
 
 # optional roles are selected through existing routes and lifecycle
 review_route="specifier,architecture-design-reviewer,coder,architect,qa"
@@ -422,7 +436,7 @@ cp -R "$HERE/.claude" "$HERE/.github" "$HERE/.codex" "$HERE/.vibe" "$work/" \
 
 # configuration check
 copy_swarmforge .
-assert_match "check passes on the shipped configuration" "$(sf check)" "^CHECK: ok \(8 roles, 5 routes\)$"
+assert_match "check passes on the shipped configuration" "$(sf check)" "^CHECK: ok \(8 roles, 7 routes\)$"
 assert_eq "the shipped configuration has the falsifier gate" "$(sf gates)" "falsifier"
 check_fails() {
   local name="$1" expected="$2" out
