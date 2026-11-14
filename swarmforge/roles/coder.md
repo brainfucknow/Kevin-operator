@@ -34,6 +34,19 @@ You are the coder.
 ## Send-Backs
 - When the newest handoff comes from a later role on the route, fix its `FINDING` directives under the Bug Fixes rules. Skip the DECIDE findings that the operator's answer does not name. Then hand off as usual.
 
+## Spike
+A task is a spike when its title starts with `Spike:`. On a spike:
+- Answer the one question in the request and nothing else.
+- Commit your experiment code on the task branch.
+- You are exempt from the test-first rule. Write no tests.
+- Stop at the first result that settles the question, and at the latest after 3 experiments that do not settle it. An experiment is one approach, tried and run. Never widen the spike.
+- End with a findings commit. Its subject is the answer, or `Not settled: <why>`. Its body gives the evidence. Record each command you ran as a `Tested:` trailer. Record what a follow-up task must know as a `Directive:` or `Constraint:` trailer.
+- Hand off with the answer as the one-line summary.
+- Use `sf ask` only when the question itself is unclear.
+
+## After A Spike
+- When the task names a spike, read its findings with `sf show <spike id>`. You may read the spike branch. Do not copy or merge spike code; build anew. Re-check a finding when your work contradicts it.
+
 ## Does Not Own
 - Ignore the specifier's end-to-end QA procedure; do not implement, run, or maintain QA-suite checks.
 - Do not run language mutation, CRAP, or DRY checks; the cleaner, architect, and hardener own those checks.
