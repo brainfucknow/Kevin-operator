@@ -204,6 +204,19 @@
 (defn- to-refusal [state target records]
   (flow/to-refusal state target (config/sends-back? (:stage state)) records))
 
+(defn- handoff-entry
+  "The store/write! step of handoff: re-checks the refusals against the records
+  it appends to, then returns the handoff record."
+  [id target {:keys [from to head summary refusals missing carried]}]
+  (fn [records]
+    (let [state (last records)]
+      (refuse (flow/handoff-refusal state (role-head id)))
+      (refuse (to-refusal state target records))
+      (cond-> (flow/handoff state from to head summary)
+        refusals (assoc :audit-refusals refusals)
+        missing (assoc :missing-tools missing)
+        carried (merge carried)))))
+
 (defn handoff
   "Records HEAD and moves the task on. role overrides the acting role,
   reviewed? skips the missing-tool check and the audit gate, which the review
@@ -222,15 +235,8 @@
     (refuse (flow/handoff-refusal state head))
     (let [missing (when-not reviewed? (missing-tools! id head allow?))
           refusals (when-not reviewed? (audit/gate id from head))]
-      (store/write! id (fn [records]
-                         (let [state (last records)
-                               rec (flow/handoff state from to head summary)]
-                           (refuse (flow/handoff-refusal state (role-head id)))
-                           (refuse (to-refusal state target records))
-                           (cond-> rec
-                             refusals (assoc :audit-refusals refusals)
-                             missing (assoc :missing-tools missing)
-                             carried (merge carried)))))
+      (store/write! id (handoff-entry id target {:from from :to to :head head :summary summary
+                                                 :refusals refusals :missing missing :carried carried}))
       (when refusals (audit/clear! id from)))
     (metrics/save! id (worktree-of id))
     (when (and (= "done" to) (fs/directory? (worktree-of id)))
