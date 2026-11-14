@@ -84,17 +84,20 @@ def clone_or_update(repository: str, dest: str, remote: str, base_branch: str) -
 
 def fetch_task(main: str, remote: str, task_id: str) -> None:
     """Fetch the task branch into the clone's local swarm/<id> ref. When a
-    worktree already has the branch checked out, update it through a
-    fast-forward merge there instead."""
+    worktree already has the branch checked out, git refuses to update the
+    local ref from the main clone, so fetch and fast-forward inside the
+    worktree instead (its FETCH_HEAD lives in the worktree's git dir)."""
     branch = task_branch(task_id)
     proc = git(main, "fetch", remote, f"+{branch}:refs/heads/{branch}", check=False)
-    if proc.returncode != 0:
-        git(main, "fetch", remote, branch, check=True)
-        wt = worktree_dir(main, task_id)
-        if os.path.isdir(wt):
-            git(wt, "merge", "--ff-only", "FETCH_HEAD", check=True)
-        else:
-            raise CommandError(["git", "fetch", remote, branch], proc.returncode, proc.stdout, proc.stderr)
+    wt = worktree_dir(main, task_id)
+    if os.path.isdir(wt):
+        git(wt, "fetch", remote, branch, check=True)
+        git(wt, "merge", "--ff-only", "FETCH_HEAD", check=True)
+    elif proc.returncode != 0:
+        raise CommandError(
+            ["git", "fetch", remote, f"+{branch}:refs/heads/{branch}"],
+            proc.returncode, proc.stdout, proc.stderr,
+        )
 
 
 def push_task(main: str, remote: str, task_id: str) -> None:

@@ -50,6 +50,35 @@ def test_clone_or_update_clones_and_updates(tmp_path):
     sfkit.push_task(main, "origin", "task-1")
 
 
+def test_fetch_task_fast_forwards_an_existing_worktree(tmp_path):
+    from pathlib import Path
+
+    src = tmp_path / "src"
+    _make_repo(str(src))
+    _git(str(src), "checkout", "-q", "-b", "swarm/task-2")
+    (src / "work").write_text("one")
+    _git(str(src), "add", "-A")
+    _git(str(src), "commit", "-q", "-m", "task work")
+    _git(str(src), "checkout", "-q", "main")
+
+    main = sfkit.clone_or_update(str(src), str(tmp_path / "clone"), "origin", "main")
+    sfkit.fetch_task(main, "origin", "task-2")
+    wt = sfkit.worktree_dir(main, "task-2")
+    _git(main, "worktree", "add", "-q", wt, "swarm/task-2")
+
+    _git(str(src), "checkout", "-q", "swarm/task-2")
+    (src / "work").write_text("two")
+    _git(str(src), "add", "-A")
+    _git(str(src), "commit", "-q", "-m", "more task work")
+    _git(str(src), "checkout", "-q", "main")
+
+    # the local ref cannot be updated while the worktree has the branch
+    # checked out; fetch_task must fetch and merge inside the worktree
+    sfkit.fetch_task(main, "origin", "task-2")
+    assert sfkit.git(wt, "rev-parse", "HEAD").stdout.strip() == _git(str(src), "rev-parse", "swarm/task-2").stdout.strip()
+    assert (Path(wt) / "work").read_text() == "two"
+
+
 def test_read_state_parses_sf_ls(tmp_path, monkeypatch):
     def fake_sf(repo, *args, check=True):
         assert args == ("ls",)
