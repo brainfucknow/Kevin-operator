@@ -39,7 +39,8 @@ Start a task from the harness with `/swarm <feature request>`, or by hand:
 sf new "Add login" -m "Users log in with email and password." --route feature   # prints the id
 sf start <id>      # worktree and task text, run by the role that owns the stage
 sf review <id>     # specifier stops for approval
-sf route <id> specifier,coder,qa   # operator narrows the route at the gate
+sf route <id> spec-code-qa   # operator narrows the route at the gate
+sf new "Spike: can X do Y?" -m "..." --route spike   # coder answers, qa checks; never merged
 sf approve <id>    # operator; moves the task to the next role on the route
 sf ls              # id, stage, needs, route, title
 sf finish <id>     # at stage done: verify the merge, merge, remove the branch

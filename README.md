@@ -109,7 +109,11 @@ subset of the catalogue in `swarmforge/roles.conf` order:
 | `bugfix` | specifier, coder, cleaner, qa |
 | `refactor` | cleaner, architect, hardener |
 | `harden` | hardener, qa |
-| `spike` | specifier |
+| `spike` | coder, qa: one technical question, answered with throwaway code that is never merged; title starts with `Spike:` |
+| `spec-code-qa` | specifier, coder, qa |
+| `code-qa` | coder, qa |
+
+The orchestrator suggests `spike`, `spec-code-qa` and `code-qa`; you choose.
 
 The [role catalogue](swarmforge/roles.conf) assigns tiers and supports
 `subagent`, `session`, `audit`, and `optional` settings. See
