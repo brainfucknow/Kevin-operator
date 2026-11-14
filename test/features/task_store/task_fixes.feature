@@ -13,7 +13,7 @@ Feature: sf task fixes
   them in the created block as "fixes:" and "found-by:" after "route:". A
   task created without the options has neither trailer and neither line.
 
-  sf harvest prints two keys on every line, after "route" and before
+  sf harvest prints two keys on every line, after "gates" and before
   "records": "fixes" and "found_by", the stored values or null. A reader of
   the harvest maps a pull request to its tasks.
 
@@ -89,8 +89,8 @@ Feature: sf task fixes
     And task "B" is the task that command created
     When I run "sf harvest"
     Then the exit status is 0
-    And the output matches "\"id\":\"$B\"[^\n]*\"route\":\[\"coder\"\],\"fixes\":\"<stored>\",\"found_by\":\"<detector>\",\"records\":"
-    And the output matches "\"id\":\"$A\"[^\n]*\"route\":\[\"coder\"\],\"fixes\":null,\"found_by\":null,\"records\":"
+    And the output matches "\"id\":\"$B\"[^\n]*\"route\":\[\"coder\"\],\"gates\":\[\],\"fixes\":\"<stored>\",\"found_by\":\"<detector>\",\"records\":"
+    And the output matches "\"id\":\"$A\"[^\n]*\"route\":\[\"coder\"\],\"gates\":\[\],\"fixes\":null,\"found_by\":null,\"records\":"
 
     Examples:
       | target | detector  | stored |
@@ -137,7 +137,7 @@ Feature: sf task fixes
     And the route of task "B" was set to "coder" 11 times
     When I run "sf start $B"
     Then the exit status is 0
-    And the output has the lines "ROUTE: coder\nFIXES: #115\nFOUND-BY: ci\nBRANCH: swarm/$B"
+    And the output has the lines "ROUTE: coder\nGATES: none\nFIXES: #115\nFOUND-BY: ci\nBRANCH: swarm/$B"
     And the output has no line containing "type: created"
 
   # sf task fixes 10

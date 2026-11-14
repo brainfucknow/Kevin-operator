@@ -100,6 +100,21 @@
              (record/message {:task "t-1" :record "created" :from "operator" :text "Fix\n\nx" :stage "coder"
                               :route "coder" :needs "none" :fixes "#115" :found-by "ci"})))
 
+  (it "puts Gates after Route, and no Gates trailer for a task without gates"
+    (let [rec {:task "t-1" :record "gates" :from "operator" :stage "coder" :route "coder"
+               :needs "none" :gates "falsifier"}
+          message (record/message rec)]
+      (should= (str "sf gates: t-1\n\n"
+                    "SwarmForge-Task: t-1\nSwarmForge-Record: gates\nSwarmForge-From: operator\n"
+                    "SwarmForge-Stage: coder\nSwarmForge-Route: coder\nSwarmForge-Gates: falsifier\n"
+                    "SwarmForge-Needs: none\n")
+               message)
+      (should= (assoc rec :sha "abc1234" :commit "par1234")
+               (record/parse {:sha "abc1234" :parents ["par1234"] :message message
+                              :trailers (drop 2 (clojure.string/split-lines message))}))
+      (should (record/recognized? rec))
+      (should-not (clojure.string/includes? (record/message (dissoc rec :gates)) "Gates"))))
+
   (it "ends with Merged-Into for the finished record"
     (should= (str "sf finished: t-1\n\n"
                   "SwarmForge-Task: t-1\nSwarmForge-Record: finished\nSwarmForge-From: operator\n"
@@ -327,6 +342,12 @@
              (record/block {:record "changes-requested" :from "operator" :text "vague"}))
     (should= "type: route\nfrom: operator\nroute: coder,qa"
              (record/block {:record "route" :from "operator" :route "coder,qa"})))
+
+  (it "renders a gates change, none when it clears them"
+    (should= "type: gates\nfrom: operator\ngates: falsifier"
+             (record/block {:record "gates" :from "operator" :gates "falsifier"}))
+    (should= "type: gates\nfrom: operator\ngates: none"
+             (record/block {:record "gates" :from "operator"})))
 
   (it "renders the audit refusals of a review and a handoff that carry them"
     (should= "type: review\nfrom: specifier\ncommit: c1\nfiles: -\nsummary: ready\naudit-refusals: 2"

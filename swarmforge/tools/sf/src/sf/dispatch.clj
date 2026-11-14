@@ -76,11 +76,12 @@
      (shell/must {:dir dir} "git" "status" "--porcelain")]))
 
 (defn- run-gates
-  "Dispatches each gate on the specification of id that waits for approval.
-  A gate reports; it must not record, commit or edit."
+  "Dispatches each of the task's gates on the specification of id that waits
+  for approval; none when its gates are none. A gate reports; it must not
+  record, commit or edit."
   [id backend]
   (let [before (gate-snapshot id)]
-    (doseq [gate (config/gates)]
+    (doseq [gate (flow/gates-list (:gates (first before)))]
       (dispatch [gate id backend])
       (when (not= before (gate-snapshot id))
         (shell/die "gate " gate " changed task " id "; a gate only reports")))))
@@ -88,7 +89,7 @@
 (defn run
   "Dispatches stage after stage until the task is done (exit 0) or waits on the
   operator (exit 2). When a stage it dispatched asked for approval, it first
-  runs the gates on that specification. It stops when a stage it dispatched
+  runs the task's gates on that specification. It stops when a stage it dispatched
   added a record of the operator's."
   [[id-arg backend]]
   (let [id (store/resolve-id id-arg)

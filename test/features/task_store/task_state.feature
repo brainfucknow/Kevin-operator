@@ -7,7 +7,8 @@ Feature: sf task state
   no other store.
 
   sf ls prints one line per task that is not finished, sorted by id: id,
-  stage, needs (empty when none), route and title, separated by tabs. --stage
+  stage, needs (empty when none), route, gates (none when the task has none)
+  and title, separated by tabs. --stage
   <role> keeps the tasks at that stage, --needs keeps the tasks that need the
   operator or an approval. sf next <role> prints the ids of the tasks at that
   stage that need nothing, or NO_TASK.
@@ -40,9 +41,9 @@ Feature: sf task state
     And the output is "<output>"
 
     Examples:
-      | options       | output                                                                      |
-      |               | $A\tspecifier\t\tspecifier,coder\tAdd login\n$B\tcoder\t\tcoder,qa\tFix bug |
-      | --stage coder | $B\tcoder\t\tcoder,qa\tFix bug                                              |
+      | options       | output                                                                                  |
+      |               | $A\tspecifier\t\tspecifier,coder\tnone\tAdd login\n$B\tcoder\t\tcoder,qa\tnone\tFix bug |
+      | --stage coder | $B\tcoder\t\tcoder,qa\tnone\tFix bug                                                    |
 
   # sf task state 2
   Scenario Outline: sf task state 2: sf ls shows a task that needs the operator
@@ -52,16 +53,16 @@ Feature: sf task state
     And the output is "<output>"
 
     Examples:
-      | options | output                                                                               |
-      |         | $A\tspecifier\t\tspecifier,coder\tAdd login\n$B\tcoder\toperator\tcoder,qa\tFix bug |
-      | --needs | $B\tcoder\toperator\tcoder,qa\tFix bug                                              |
+      | options | output                                                                                          |
+      |         | $A\tspecifier\t\tspecifier,coder\tnone\tAdd login\n$B\tcoder\toperator\tcoder,qa\tnone\tFix bug |
+      | --needs | $B\tcoder\toperator\tcoder,qa\tnone\tFix bug                                                    |
 
   # sf task state 3
   Scenario: sf task state 3: sf ls --needs shows a task that waits for approval
     Given I ran "sf review $A"
     When I run "sf ls --needs"
     Then the exit status is 0
-    And the output is "$A\tspecifier\tapproval\tspecifier,coder\tAdd login"
+    And the output is "$A\tspecifier\tapproval\tspecifier,coder\tnone\tAdd login"
 
   # sf task state 4
   Scenario: sf task state 4: sf next lists the tasks at the stage that need nothing
@@ -81,7 +82,7 @@ Feature: sf task state
     Given task "B" was finished
     When I run "sf ls"
     Then the exit status is 0
-    And the output is "$A\tspecifier\t\tspecifier,coder\tAdd login"
+    And the output is "$A\tspecifier\t\tspecifier,coder\tnone\tAdd login"
 
   # sf task state 7
   Scenario Outline: sf task state 7: a squash-merged task whose branch remains is still listed at done
@@ -91,9 +92,9 @@ Feature: sf task state
     And the output is "<output>"
 
     Examples:
-      | command       | output                                                                 |
-      | sf ls         | $A\tspecifier\t\tspecifier,coder\tAdd login\n$B\tdone\t\tcoder,qa\tFix bug |
-      | sf next coder | NO_TASK                                                                |
+      | command       | output                                                                                 |
+      | sf ls         | $A\tspecifier\t\tspecifier,coder\tnone\tAdd login\n$B\tdone\t\tcoder,qa\tnone\tFix bug |
+      | sf next coder | NO_TASK                                                                                |
 
   # sf task state 8
   Scenario Outline: sf task state 8: a command that writes a record refuses a finished task
