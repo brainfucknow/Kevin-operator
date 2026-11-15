@@ -794,8 +794,8 @@ for d in $PATH; do
   done
 done
 IFS="$oldifs"
-assert_match "no backend without a CLI or an API key" "$(env PATH="$cleanbin" -u MISTRAL_API_KEY sf dispatch coder "$jl" 2>&1 || true)" "^sf: no backend found \(claude, codex, copilot, mistral\)"
-assert_match "an explicit mistral backend without a key refuses" "$(env PATH="$cleanbin" -u MISTRAL_API_KEY sf dispatch coder "$jl" mistral 2>&1 || true)" "^sf-mistral: MISTRAL_API_KEY is not set"
+assert_match "no backend without a CLI or an API key" "$(env -u MISTRAL_API_KEY PATH="$cleanbin" sf dispatch coder "$jl" 2>&1 || true)" "^sf: no backend found \(claude, codex, copilot, mistral\)"
+assert_match "an explicit mistral backend without a key refuses" "$(env -u MISTRAL_API_KEY PATH="$cleanbin" sf dispatch coder "$jl" mistral 2>&1 || true)" "^sf-mistral: MISTRAL_API_KEY is not set"
 assert_match "mistral is detected with an API key and no CLI, and refuses without a remote" "$(env PATH="$cleanbin" MISTRAL_API_KEY=dummy sf dispatch coder "$jl" 2>&1 || true)" "^sf-mistral: the mistral backend needs a git remote 'origin'"
 assert_match "sf run with the mistral backend starts one pipeline execution" "$(env PATH="$cleanbin" MISTRAL_API_KEY=dummy sf run "$jl" mistral 2>&1 || true)" "^sf-mistral: the mistral backend needs a git remote 'origin'"
 
@@ -803,6 +803,8 @@ assert_match "sf run with the mistral backend starts one pipeline execution" "$(
 # execution reports blocked, so sf run fetches the branch back and exits 2
 git init -q --bare "$scratch/origin.git"
 git remote add origin "$scratch/origin.git"
+# the worker checks out the base branch, so the remote must have it
+git push -q origin HEAD
 stub_port="$(bb -e '(import (java.net ServerSocket)) (with-open [s (ServerSocket. 0)] (.getLocalPort s))')"
 cat > "$scratch/stub.clj" <<'STUB_EOF'
 (require '[org.httpkit.server :as server])
