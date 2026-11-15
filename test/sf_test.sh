@@ -490,6 +490,9 @@ echo "Big_Role strong subagent" >> swarmforge/roles.conf
 check_fails "check rejects a bad role name" "CHECK: roles.conf: role name 'Big_Role'"
 echo "done strong subagent" >> swarmforge/roles.conf
 check_fails "check rejects a reserved role name" "CHECK: roles.conf: 'done' is reserved"
+echo "none strong subagent gate" >> swarmforge/roles.conf
+cp swarmforge/roles/falsifier.md swarmforge/roles/none.md
+check_fails "check rejects none as a reserved role name" "CHECK: roles.conf: 'none' is reserved"
 echo "scribe mythic subagent" >> swarmforge/roles.conf
 check_fails "check rejects an unknown tier" "CHECK: roles.conf: 'scribe' uses unknown tier 'mythic'"
 echo "scribe fast daemon" >> swarmforge/roles.conf
