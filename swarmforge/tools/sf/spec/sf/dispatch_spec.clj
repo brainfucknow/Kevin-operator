@@ -66,7 +66,8 @@
       (should= "codex" (detect-backend))))
 
   (it "stops when there is none"
-    (with-redefs [fs/which (constantly nil)]
+    (with-redefs [fs/which (constantly nil)
+                  shell/env (env-of {})]
       (should-contain "no backend found" (:err (support/captured detect-backend))))))
 
 (defn- dispatched

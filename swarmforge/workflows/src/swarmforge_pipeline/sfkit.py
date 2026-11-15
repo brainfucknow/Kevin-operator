@@ -95,16 +95,20 @@ def clone_or_update(repository: str, dest: str, remote: str, base_branch: str) -
 
 def fetch_task(main: str, remote: str, task_id: str) -> None:
     """Fetch the task branch into the clone's local swarm/<id> ref. When a
-    worktree already has the branch checked out, git refuses to update the
-    local ref from the main clone, so fetch and fast-forward inside the
-    worktree instead (its FETCH_HEAD lives in the worktree's git dir)."""
+    worktree already has the branch checked out, update it there instead:
+    fetching the refspec from the main clone can move the ref without
+    updating the worktree's files (older git does not refuse), so fetch and
+    fast-forward inside the worktree (its FETCH_HEAD lives in the
+    worktree's git dir); the merge moves the shared branch ref for the main
+    clone too."""
     branch = task_branch(task_id)
-    proc = git(main, "fetch", remote, f"+{branch}:refs/heads/{branch}", check=False)
     wt = worktree_dir(main, task_id)
     if os.path.isdir(wt):
         git(wt, "fetch", remote, branch, check=True)
         git(wt, "merge", "--ff-only", "FETCH_HEAD", check=True)
-    elif proc.returncode != 0:
+        return
+    proc = git(main, "fetch", remote, f"+{branch}:refs/heads/{branch}", check=False)
+    if proc.returncode != 0:
         raise CommandError(
             ["git", "fetch", remote, f"+{branch}:refs/heads/{branch}"],
             proc.returncode, proc.stdout, proc.stderr,
