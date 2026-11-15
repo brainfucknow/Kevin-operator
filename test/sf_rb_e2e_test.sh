@@ -10,7 +10,7 @@ SF_RB="$HERE/swarmforge/bin/sf-rb"
 failures=0
 pass() { echo "ok   $1"; }
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
-assert_match() { if echo "$2" | grep -Eq "$3"; then pass "$1"; else fail "$1: '$2' does not match /$3/"; fi; }
+assert_match() { if grep -Eq "$3" <<<"$2"; then pass "$1"; else fail "$1: '$2' does not match /$3/"; fi; }
 assert_status() { if [ "$2" -eq "$3" ]; then pass "$1"; else fail "$1: expected exit $3, got $2"; fi; }
 
 scratch="$(mktemp -d)"
