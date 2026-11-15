@@ -47,6 +47,10 @@ async def test_gate_that_changes_the_task_fails_the_execution_without_retry(monk
         return ["falsifier"]
 
     @temporal_activity.defn
+    async def task_gates(params):
+        return ["falsifier"]
+
+    @temporal_activity.defn
     async def spec_judge_role(params):
         return "spec-judge"
 
@@ -103,6 +107,7 @@ async def test_gate_that_changes_the_task_fails_the_execution_without_retry(monk
                         sync_checkout,
                         read_task_state,
                         list_gates,
+                        task_gates,
                         spec_judge_role,
                         run_stage_role,
                         activities.run_gate,

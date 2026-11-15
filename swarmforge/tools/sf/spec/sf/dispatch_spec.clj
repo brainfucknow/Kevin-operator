@@ -212,7 +212,19 @@
         (should= 2 (:status result))
         (should-contain "BLOCKED" (:out result)))))
 
-  (it "runs the gates on a specification it dispatched, then waits for approval"
+  (it "runs the task's gates on a specification it dispatched, then waits for approval"
+    (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ndoubter strong subagent gate\ncoder strong subagent\n")
+    (let [id (new-id "Add login" "--route" "specifier,coder" "--gates" "falsifier")
+          ran (atom [])]
+      (with-redefs [dispatch/dispatch (fn [[role id _]]
+                                        (swap! ran conj role)
+                                        (when (= "specifier" role) (task/review [id "-m" "spec"])))]
+        (let [result (support/captured #(dispatch/run [id]))]
+          (should= 2 (:status result))
+          (should-contain (str "BLOCKED: " id " needs:approval") (:out result))))
+      (should= ["specifier" "falsifier"] @ran)))
+
+  (it "runs no gate on a specification it dispatched when the task's gates are none"
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ncoder strong subagent\n")
     (let [id (new-id "Add login" "--route" "specifier,coder")
           ran (atom [])]
@@ -222,7 +234,7 @@
         (let [result (support/captured #(dispatch/run [id "claude"]))]
           (should= 2 (:status result))
           (should-contain (str "BLOCKED: " id " needs:approval") (:out result))))
-      (should= ["specifier" "falsifier"] @ran)))
+      (should= ["specifier"] @ran)))
 
   (it "does not rerun the gates on a specification that already waited for approval"
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ncoder strong subagent\n")
@@ -235,7 +247,7 @@
 
   (it "stops when a gate records anything"
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ncoder strong subagent\n")
-    (let [id (new-id "Add login" "--route" "specifier,coder")]
+    (let [id (new-id "Add login" "--route" "specifier,coder" "--gates" "falsifier")]
       (with-redefs [dispatch/dispatch (fn [[role id _]]
                                         (if (= "specifier" role)
                                           (task/review [id "-m" "spec"])
@@ -248,7 +260,7 @@
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ncoder strong subagent\n")
     (doseq [[title change] [["Edit" #(spit (str % "/note") "x")]
                             ["Commit" #(git % "commit" "-q" "--allow-empty" "-m" "Gate commit")]]]
-      (let [id (new-id title "--route" "specifier,coder")]
+      (let [id (new-id title "--route" "specifier,coder" "--gates" "falsifier")]
         (with-redefs [dispatch/dispatch (fn [[role id _]]
                                           (if (= "specifier" role)
                                             (task/review [id "-m" "spec"])
@@ -260,7 +272,8 @@
   (it "stops when a stage records what only the operator records"
     (doseq [[title stage operator] [["Approve" "specifier" #(task/approve [%])]
                                     ["Answer" "coder" #(do (task/ask [% "Which?"]) (task/answer [% "This."]))]
-                                    ["Route" "coder" #(task/route [% "coder,cleaner"])]]]
+                                    ["Route" "coder" #(task/route [% "coder,cleaner"])]
+                                    ["Gates" "coder" #(task/gates [% "none"])]]]
       (let [id (new-id title "--route" "specifier,coder,cleaner")
             ran (atom [])]
         (when (= "coder" stage)

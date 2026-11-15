@@ -34,11 +34,12 @@ class CheckoutInfo(BaseModel):
 
 
 class TaskState(BaseModel):
-    """The task's stage, needs, and route as sf reports them."""
+    """The task's stage, needs, route, and chosen gates as sf reports them."""
 
     stage: str
     needs: str = "none"
     route: list[str] = Field(default_factory=list)
+    gates: list[str] = Field(default_factory=list)
 
 
 class GateReport(BaseModel):

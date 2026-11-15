@@ -43,9 +43,9 @@ Feature: sf task history
     And the output after the line "---" is "Users log in.\nWith email.\n\ntype: created\nfrom: operator\nbranch: swarm/$A\ncommit: $A:created\nroute: specifier,coder\n\ntype: question\nfrom: specifier\nquestion: Which hash?\n\ntype: answer\nfrom: operator\nanswer: argon2id\n\ntype: review\nfrom: specifier\ncommit: C1\nfiles: features/a.feature\nsummary: spec ready\n\n<lore>\nLORE: C1 specifier Constraint: keep it short"
 
     Examples:
-      | command | header                                                                                                          | lore                                                                 |
-      | start   | TASK: $A\nTITLE: Add login\nSTAGE: specifier\nROUTE: specifier,coder\nBRANCH: swarm/$A\nDIR: ROOT/.worktrees/$A | LORE-OMITTED: 1 superseded or evidence lines; sf show $A prints them |
-      | show    | TASK: $A\nTITLE: Add login\nSTATUS: open\nSTAGE: specifier\nROUTE: specifier,coder                              | LORE: C1 specifier Lore-id: L1                                       |
+      | command | header                                                                                                                       | lore                                                                 |
+      | start   | TASK: $A\nTITLE: Add login\nSTAGE: specifier\nROUTE: specifier,coder\nGATES: none\nBRANCH: swarm/$A\nDIR: ROOT/.worktrees/$A | LORE-OMITTED: 1 superseded or evidence lines; sf show $A prints them |
+      | show    | TASK: $A\nTITLE: Add login\nSTATUS: open\nSTAGE: specifier\nROUTE: specifier,coder                                           | LORE: C1 specifier Lore-id: L1                                       |
 
   # sf task history 2
   Scenario: sf task history 2: a value of several lines goes on indented lines

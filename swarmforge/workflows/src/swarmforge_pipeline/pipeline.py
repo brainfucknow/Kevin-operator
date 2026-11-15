@@ -3,7 +3,7 @@
 swarmforge-pipeline: one execution per task. It loops over the task's stages,
 running each as one Agents SDK agent on the role's tier model, with all sf
 bookkeeping on the task branch. When a stage this execution dispatched waits
-for approval it runs the gates and the spec-judge as steps that record
+for approval it runs the task's gates and the spec-judge as steps that record
 nothing and returns their reports and verdict with status blocked; a task
 that already waited for approval when the execution started returns blocked
 without running them again, like a local sf run. When the task needs the
@@ -66,7 +66,7 @@ class SwarmforgePipeline:
                 )
                 if outcome.needs == "approval":
                     ref = activities.RefInput(main=co.main, task_id=params.task_id)
-                    for gate in await activities.list_gates(ref):
+                    for gate in await activities.task_gates(ref):
                         result.reports.append(
                             await activities.run_gate(
                                 activities.GateRunInput(co=co, task_id=params.task_id, gate=gate)

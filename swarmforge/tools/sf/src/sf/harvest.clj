@@ -43,7 +43,7 @@
 
 (defn line
   "The JSON text, on one line, of task: its :id, :status (open, finished or unclosed),
-  :truncated, :title, :request, :records oldest first and the :commits whose
+  :truncated, the route and gates of its newest record, :title, :request, :records oldest first and the :commits whose
   Lore trailers make its LORE: lines, as lore/read-log reads them."
   [{:keys [id status truncated title request records commits]}]
   (let [state (last records)
@@ -58,6 +58,7 @@
       "stage" (:stage state)
       "needs" (:needs state)
       "route" (route-of (:route state))
+      "gates" (flow/gates-list (:gates state))
       "fixes" (:fixes created)
       "found_by" (:found-by created)
       "records" (mapv record-entry records)

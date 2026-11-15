@@ -16,7 +16,7 @@ write `SwarmForge-*` trailers by hand. There are no task files.
 
 ## Record commits
 
-The newest record in first-parent history supplies stage, route, and needs.
+The newest record in first-parent history supplies stage, route, gates, and needs.
 Needs is `none`, `operator` while a question awaits an answer, or `approval`
 while a reviewed specification awaits a decision. `sf show <id>` prints the
 records; use it rather than reconstructing them from trailers.
@@ -104,12 +104,13 @@ Use `sf show <id>` when the brief omits needed history or evidence.
 | `sf approve` / `sf reject` | Approve advances the specifier; reject requests changes. Approval must match the reviewed role commit; a new specification needs review again. An answer or rejection is not approval. Each `--rejected "<finding> \| <reason>"` on approve records a gate finding the operator approved over as a `Rejected:` trailer of the approval record. |
 | `sf spec-verdict <id> <spec-verdict> <text>` | Records the spec-judge's spec verdict on the newest spec revision ([rules](#spec-revisions)). |
 | `sf ask` / `sf answer` | Block for an operator decision, then resume the same role. |
-| `sf handoff` | Requires a clean task worktree and needs `none`; records HEAD and advances to the next route role, then `done`. Use `--to` only as the role prompt directs; it names the current stage or a later route role, and `done` only after the route's last role. |
+| `sf handoff` | Requires a clean task worktree and needs `none`; records HEAD and advances to the next route role, then `done`. Use `--to` only as the role prompt directs; it names the current stage or a later route role, and `done` only after the route's last role. When the stage's role has the `send-back` flag, `--to` may also name an earlier route role other than the specifier; the task then moves forward along the route again. A send-back is a handoff record whose target comes before its sender on the route. `sf` refuses the third send-back of a task. |
 | `sf route <id> <route>` | Changes an open task's route, retaining the current stage. Roles must follow catalogue order. |
+| `sf new --gates <gates>` / `sf gates <id> [<gates>]` | `<gates>` is a comma list of gate roles (`sf gates` lists them), or `none`. sf stores each role once, in `roles.conf` order, and refuses an empty value or a role that is not a gate. A task without the option has gates `none`, also a task created before gates existed. `sf gates <id>` prints the task's gates, one per line, and nothing for `none`. `sf gates <id> <gates>` changes an open task's gates with a `gates` record that keeps stage, route and needs; it is not a spec revision. `sf start` and `sf show` print `GATES:` after `ROUTE:`; `sf ls` prints the gates as the fifth column. |
 | `sf next <role>` | Lists open tasks at that stage needing nothing; blocked tasks stay hidden. |
 
-`sf new`, `sf approve`, `sf reject`, `sf spec-verdict`, `sf answer`, `sf finish`
-and a route change are the operator's. `sf dispatch` and `sf run` start each role and gate with
+`sf new`, `sf approve`, `sf reject`, `sf spec-verdict`, `sf answer`, `sf finish`,
+a route change and a gates change are the operator's. `sf dispatch` and `sf run` start each role and gate with
 `SWARMFORGE_DISPATCHED` set to its name, and those commands refuse to run
 under it. `sf run` also stops when a stage it dispatched added an operator
 record. Subagents that the session starts share the session's environment,
@@ -184,7 +185,7 @@ writes the finished-record trailers manually.
 
 ## Spec revisions
 
-With a `spec-judge` row in `roles.conf`, the specification gate loops. After the gates of each spec revision, the spec-judge gives a spec verdict and the orchestrator records it with `sf spec-verdict`. Remove the spec-judge line to turn the loop off. `sf spec-verdict` then refuses.
+With a `spec-judge` row in `roles.conf`, the specification gate of a task with gates loops. After the task's gates run on each spec revision, the spec-judge gives a spec verdict and the orchestrator records it with `sf spec-verdict`. Remove the spec-judge line to turn the loop off. `sf spec-verdict` then refuses.
 
 - A spec revision is one `review` record made at stage specifier, numbered from 1. It includes the `spec-verdict` and `changes-requested` records before the next review. A review of another stage is not a spec revision.
 - `sf spec-verdict <id> converged|needs-operator|stuck <text>` writes a `spec-verdict` record from the spec-judge. The task keeps stage, route and needs, and waits for approval.
@@ -239,7 +240,7 @@ no ref, worktree, or file changes, and any role may run it. A `swarm/*` branch w
 skipped with an `sf: ` line on stderr.
 
 Each line has `id`, `title`, `request`, `status` (`open`, `finished`, or `unclosed`),
-`truncated`, `stage`, `needs` and `route` (an array) from the newest record,
+`truncated`, `stage`, `needs`, `route` and `gates` (arrays; `gates` is empty for `none`) from the newest record,
 `fixes` and `found_by` from the created record (null when it has none, or
 the task is truncated), plus `records` and `lore`. A `fixes` value that
 starts with `#` is a pull request; any other is a task id.

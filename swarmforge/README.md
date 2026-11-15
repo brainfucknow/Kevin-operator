@@ -40,9 +40,11 @@ Start a task from the harness with `/swarm <feature request>`, or by hand:
 sf new "Add login" -m "Users log in with email and password." --route feature   # prints the id
 sf start <id>      # worktree and task text, run by the role that owns the stage
 sf review <id>     # specifier stops for approval
-sf route <id> specifier,coder,qa   # operator narrows the route at the gate
+sf route <id> spec-code-qa   # operator narrows the route at the gate
+sf new "Spike: can X do Y?" -m "..." --route spike   # coder answers, qa checks; never merged
 sf approve <id>    # operator; moves the task to the next role on the route
-sf ls              # id, stage, needs, route, title
+sf gates <id> falsifier   # operator turns the falsifier on for the task
+sf ls              # id, stage, needs, route, gates, title
 sf finish <id>     # at stage done: verify the merge, merge, remove the branch
 ```
 
@@ -76,27 +78,33 @@ Catalogue settings:
 - `session` makes the orchestrator play a role in chat; `subagent` delegates it.
 - `audit` makes the first handoff or review at each commit request self-review
   without recording anything. Complete that review before retrying.
-- `gate` makes a read-only subagent that audits each specification after
+- `gate` makes a read-only subagent that audits a specification after
   `sf review` and before approval; it is not a stage and cannot be on a route.
-  The orchestrator shows its report at the gate. `sf run` dispatches the gates
-  when a specification it produced waits for approval. `sf dispatch` starts a
-  gate without edit permissions: claude in its default permission mode with
+  It runs only on a task that chose it with `sf new --gates` or
+  `sf gates <id> <gates>`; a task has gates `none` by default.
+  The orchestrator shows its report at the gate. `sf run` dispatches the
+  task's gates when a specification it produced waits for approval.
+  `sf dispatch` starts a gate without edit permissions: claude in its default permission mode with
   Edit, Write and NotebookEdit disallowed, codex in its read-only sandbox,
   copilot with the write tool denied. The Claude and Copilot gate adapters
   list only reading, search and shell tools. The shell can still write, so
   `sf run` also stops when a gate records, commits or changes the task
-  worktree. The shipped [falsifier](roles/falsifier.md) is a gate; delete its
-  line to turn it off.
+  worktree. The shipped [falsifier](roles/falsifier.md) is a gate.
 - `spec-judge` is the one read-only subagent that rules on each spec
   revision's gate findings: converged, continue, needs-operator or stuck. It
   is neither a stage nor a gate and cannot be on a route. The orchestrator
   records its spec verdict with `sf spec-verdict`. Continue sends the
   specification back automatically, within the caps in
   [spec revisions](handoff-protocol.md#spec-revisions). The operator still
-  approves. The shipped [spec-judge](roles/spec-judge.md) turns the loop on.
-  Delete its line to turn it off.
+  approves. It runs only on a spec revision that a gate audited. The shipped
+  [spec-judge](roles/spec-judge.md) turns the loop on. Delete its line to
+  turn it off.
 - `optional` excludes a role from fallback routes. Include it explicitly in a
   named route, `--route`, or `SWARMFORGE_ROUTE` to enable it; it can also use `audit`.
+- `send-back` lets a role run `sf handoff <id> --to <role>` with an earlier
+  role on the route, other than the specifier. The task then moves forward
+  along the route again. `sf` refuses the third send-back of a task. It
+  combines with `audit` and `optional`; a gate or a spec-judge cannot have it.
 
 Optional reviewers keep the usual approval and handoff flow. The `feature`
 route includes the security reviewer; drop it per task with `sf route`:
@@ -105,6 +113,7 @@ route includes the security reviewer; drop it per task with `sf route`:
 |---|---|---|
 | [Architecture design reviewer](roles/architecture-design-reviewer.md) | Migrations, public APIs, major dependency changes. | After specification approval, before coding; architect still reviews implementation. |
 | [Security reviewer](roles/security-reviewer.md) | Authentication, authorization, secrets, untrusted input, external execution. | After hardener, before QA; hardener retains mutation and quality gates. |
+| [Pull request reviewer](roles/pr-reviewer.md) | The online review bots are out of credits. Say "review pull request #<N>" on its head branch, or add the role to a task's route. | Alone, or before QA. It reports findings and changes no code; it sends obvious findings back to the coder. |
 
 ```sh
 sf new "Migrate public API" -m "..." --route specifier,architecture-design-reviewer,coder,architect,qa

@@ -16,9 +16,12 @@
 
 Operator commands
   init                           install the commit-msg hook; print the identity of record commits
-  new <title> [-m text | -F file] [--route NAME|a,b,c] [--fixes <id>|'#N' [--found-by pr-review|ci|operator]]
-                                  create a task on a route; prints its id
+  new <title> [-m text | -F file] [--route NAME|a,b,c] [--gates <gates>]
+      [--fixes <id>|'#N' [--found-by pr-review|ci|operator]]
+                                  create a task on a route; prints its id. <gates> is a
+                                  comma list of gate roles, or none (the default)
   route <id> [NAME|a,b,c]         print or change the task's route
+  gates <id> [<gates>]            print the task's gates, one per line, or change them
   ls [--stage ROLE] [--needs]     list open tasks
   show <id>                       show a task with all records, also once finished
   answer <id> <text>              answer a role's question and clear needs operator
@@ -41,7 +44,8 @@ Role commands
                                   record HEAD and move the task to the next stage; refused
                                   (exit 4) when a Not-tested trailer names a missing tool,
                                   unless --allow-missing-tool and an answered question
-                                  names each one
+                                  names each one; a send-back role may name an earlier
+                                  role in --to, at most twice per task
   ask <id> <text>                 record a question and stop: needs operator
   review <id> [--allow-missing-tool] [-m text]
                                   ask the operator to approve the specification; checks
@@ -49,7 +53,7 @@ Role commands
 
 Catalogue commands
   roles                           print the role catalogue in canonical order
-  gates                           print the gate roles that audit a specification before approval
+  gates                           print the gate roles of roles.conf: the gates a task can choose
   routes                          print the named routes
   stage <id>                      print the task's current stage
   spec-revisions <id> [--full]    print each spec revision of the specification gate: size,
@@ -60,7 +64,7 @@ Catalogue commands
                                   tasks first (handoff-protocol.md describes the keys)
   dispatch <role> <id> [backend]  run a role or gate headlessly (claude, codex, copilot, mistral)
   run <id> [backend]              dispatch stage after stage until done or blocked; runs the
-                                  gates when the specification it dispatched waits for approval;
+                                  task's gates when the specification it dispatched waits for approval;
                                   with mistral one swarmforge-pipeline workflow execution per
                                   call runs the loop on the Mistral platform (swarmforge/workflows/)
   adapters                        regenerate .claude/.codex/.github/.vibe agent files
@@ -75,7 +79,7 @@ Environment
   SWARMFORGE_ROLE      role name used for `from:` (default: the task's stage)
   SWARMFORGE_DISPATCHED
                        set by dispatch and run to the role or gate they start;
-                       new, approve, reject, spec-verdict, answer, route changes and finish
+                       new, approve, reject, spec-verdict, answer, route and gates changes and finish
                        refuse to run under it
   SWARMFORGE_BACKEND   default backend for dispatch/run; set by dispatch and run to the
                        backend they start; under dispatch, records carry it
@@ -122,7 +126,9 @@ Environment
    "finish" task/finish
    "roles" (config/in-checkout print-roles)
    "pipeline" (config/in-checkout print-roles)
-   "gates" (config/in-checkout (fn [_] (run! println (config/gates))))
+   "gates" (fn [args] (if (empty? args)
+                        ((config/in-checkout (fn [_] (run! println (config/gates)))) args)
+                        (task/gates args)))
    "routes" (config/in-checkout (fn [_] (doseq [[name route] (config/named-routes)]
                                           (println (format "%-10s %s" name (str route))))))
    "dispatch" dispatch/dispatch

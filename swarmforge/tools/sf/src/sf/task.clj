@@ -118,19 +118,29 @@
   (println (str "roles: " (str/join " " (config/pipeline))))
   (println (str "routes: " (str/join " " (map first (config/named-routes))))))
 
+(defn- gate-choice
+  "The :gates value that spec names, or nil for none; stops on a refusal,
+  which label names."
+  [label spec]
+  (let [gate-roles (config/gates)]
+    (refuse (flow/gates-refusal label spec gate-roles))
+    (flow/gates-value spec gate-roles)))
+
 (defn new-task [[title & args]]
   (operator-only! "new")
   (when (str/blank? title) (shell/die "new needs a title"))
-  (let [{:keys [body route fixes found-by] :or {body title}}
+  (let [{:keys [body route fixes found-by gates] :or {body title}}
         (options/parse "new" args {"-m" :body "-F" [:body options/read-file] "--route" :route
-                                   "--fixes" :fixes "--found-by" :found-by}
+                                   "--fixes" :fixes "--found-by" :found-by "--gates" :gates}
                        {} #{"--fixes" "--found-by"})
         route (if route (config/resolve-route route) (config/default-route))
+        gates (when gates (gate-choice "--gates" gates))
         _ (refuse (record/link-refusal {:fixes fixes :found-by found-by}))
         fixes (if (and fixes (not (record/pull-request? fixes))) (store/resolve-id fixes) fixes)
         title (record/one-line title)
         id (store/new-id title)]
     (store/create! id (record/message (merge (cond-> (assoc (flow/created title body route) :task id)
+                                               gates (assoc :gates gates)
                                                fixes (assoc :fixes fixes)
                                                found-by (assoc :found-by found-by))
                                              (store/recording-backend))))
@@ -152,6 +162,19 @@
               (fn [state] (refuse (flow/route-refusal state route)) {:route route}))
       (println (str "ROUTE: " id " " route)))))
 
+(defn gates
+  "Prints the task's gates, one per line, or records the operator's change of
+  them."
+  [[id-arg spec & more]]
+  (cond
+    (seq more) (shell/die "gates takes [<id> [<gates>]]")
+    (nil? spec) (run! println (flow/gates-list (:gates (store/state (store/resolve-id id-arg)))))
+    :else (let [_ (operator-only! "gates")
+                id (open-task id-arg)
+                value (gate-choice "gates" spec)]
+            (write! id "gates" "operator" (constantly {:gates value}))
+            (println (str "GATES: " id " " (record/shown-gates value))))))
+
 (defn ls [args]
   (let [{:keys [stage needs]} (options/parse "ls" args {"--stage" :stage} {"--needs" :needs})]
     (doseq [id (store/open-ids)
@@ -160,7 +183,8 @@
             :when (and (or (nil? stage) (= stage (:stage state)))
                        (or (not needs) (flow/waiting? state)))]
       (println (str/join "\t" [id (:stage state) (if (flow/waiting? state) (:needs state) "")
-                               (:route state) (:title (store/title-and-request records))])))))
+                               (:route state) (flow/gates-shown state)
+                               (:title (store/title-and-request records))])))))
 
 (defn next-task [[role]]
   (when (str/blank? role) (shell/die "next needs a role"))
@@ -183,6 +207,7 @@
     (println (str "STATUS: " status))
     (println (str "STAGE: " (:stage state)))
     (println (str "ROUTE: " (:route state)))
+    (println (str "GATES: " (flow/gates-shown state)))
     (history/print-body view)))
 
 (defn start [[id-arg]]
@@ -195,11 +220,28 @@
       (println (str "TITLE: " title))
       (println (str "STAGE: " (:stage state)))
       (println (str "ROUTE: " (:route state)))
+      (println (str "GATES: " (flow/gates-shown state)))
       (doseq [[key value] (record/link-fields (first (:records view)))]
         (println (str (str/upper-case key) ": " value)))
       (println (str "BRANCH: " (record/branch id)))
       (println (str "DIR: " dir))
       (history/print-brief id view))))
+
+(defn- to-refusal [state target records]
+  (flow/to-refusal state target (config/sends-back? (:stage state)) records))
+
+(defn- handoff-entry
+  "The store/write! step of handoff: re-checks the refusals against the records
+  it appends to, then returns the handoff record."
+  [id target {:keys [from to head summary refusals missing carried]}]
+  (fn [records]
+    (let [state (last records)]
+      (refuse (flow/handoff-refusal state (role-head id)))
+      (refuse (to-refusal state target records))
+      (cond-> (flow/handoff state from to head summary)
+        refusals (assoc :audit-refusals refusals)
+        missing (assoc :missing-tools missing)
+        carried (merge carried)))))
 
 (defn handoff
   "Records HEAD and moves the task on. role overrides the acting role,
@@ -208,25 +250,19 @@
   record, replaces the recording backend."
   [[id-arg & args] {:keys [role reviewed? carried]}]
   (let [id (open-task id-arg)
-        {:keys [to summary allow?]} (options/handoff args)
+        {target :to :keys [summary allow?]} (options/handoff args)
         state (store/state id)
         _ (refuse (flow/handoff-refusal state))
-        _ (refuse (flow/to-refusal state to))
+        _ (refuse (to-refusal state target (store/open-records id)))
         from (or role (acting-role state))
-        to (flow/next-stage state to)
+        to (flow/next-stage state target)
         _ (when (not= "done" to) (config/require-role to))
         head (role-head id)]
     (refuse (flow/handoff-refusal state head))
     (let [missing (when-not reviewed? (missing-tools! id head allow?))
           refusals (when-not reviewed? (audit/gate id from head))]
-      (store/write! id (fn [records]
-                         (let [state (last records)
-                               rec (flow/handoff state from to head summary)]
-                           (refuse (flow/handoff-refusal state (role-head id)))
-                           (cond-> rec
-                             refusals (assoc :audit-refusals refusals)
-                             missing (assoc :missing-tools missing)
-                             carried (merge carried)))))
+      (store/write! id (handoff-entry id target {:from from :to to :head head :summary summary
+                                                 :refusals refusals :missing missing :carried carried}))
       (when refusals (audit/clear! id from)))
     (metrics/save! id (worktree-of id))
     (when (and (= "done" to) (fs/directory? (worktree-of id)))

@@ -145,15 +145,16 @@ def ensure_worktree(main: str, task_id: str) -> str:
 
 
 def read_state(main: str, task_id: str) -> TaskState:
-    """The task's stage, needs, and route from sf ls. sf reads only local
-    swarm/* branches, so the task branch is fetched first."""
+    """The task's stage, needs, route, and gates from sf ls. sf reads only
+    local swarm/* branches, so the task branch is fetched first."""
     proc = sf(main, "ls", check=True)
     for line in proc.stdout.splitlines():
         fields = line.split("\t")
         if fields and fields[0] == task_id:
             needs = fields[2].strip() if len(fields) > 2 and fields[2].strip() else "none"
             route = fields[3].split(",") if len(fields) > 3 and fields[3].strip() else []
-            return TaskState(stage=fields[1], needs=needs, route=route)
+            gates = fields[4].split(",") if len(fields) > 4 and fields[4].strip() not in ("", "none") else []
+            return TaskState(stage=fields[1], needs=needs, route=route, gates=gates)
     raise CommandError(["sf", "ls"], 1, proc.stdout, f"no row for task {task_id}")
 
 

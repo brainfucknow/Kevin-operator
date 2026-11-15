@@ -114,20 +114,22 @@ def test_read_state_parses_sf_ls(tmp_path, monkeypatch):
     def fake_sf(repo, *args, check=True):
         assert args == ("ls",)
         return subprocess.CompletedProcess(
-            args, 0, "add-login-3f9a2c1\tcoder\t\tspecifier,coder\tAdd login\n", ""
+            args, 0, "add-login-3f9a2c1\tcoder\t\tspecifier,coder\tfalsifier\tAdd login\n", ""
         )
 
     monkeypatch.setattr(sfkit, "sf", fake_sf)
     state = sfkit.read_state(str(tmp_path), "add-login-3f9a2c1")
-    assert state == TaskState(stage="coder", needs="none", route=["specifier", "coder"])
+    assert state == TaskState(stage="coder", needs="none", route=["specifier", "coder"], gates=["falsifier"])
 
     def fake_sf_approval(repo, *args, check=True):
         return subprocess.CompletedProcess(
-            args, 0, "add-login-3f9a2c1\tspecifier\tapproval\tspecifier,coder\tAdd login\n", ""
+            args, 0, "add-login-3f9a2c1\tspecifier\tapproval\tspecifier,coder\tnone\tAdd login\n", ""
         )
 
     monkeypatch.setattr(sfkit, "sf", fake_sf_approval)
-    assert sfkit.read_state(str(tmp_path), "add-login-3f9a2c1").needs == "approval"
+    state = sfkit.read_state(str(tmp_path), "add-login-3f9a2c1")
+    assert state.needs == "approval"
+    assert state.gates == []
 
 
 def test_git_env_carries_token_on_push_only(monkeypatch):

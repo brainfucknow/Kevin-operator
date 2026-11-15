@@ -64,6 +64,61 @@
     (should= "--to qa is not on route 'specifier,coder,cleaner' at or after stage:coder"
              (flow/to-refusal at-coder "qa"))))
 
+(def ^:private review-route "coder,cleaner,pr-reviewer,qa")
+
+(def ^:private at-reviewer {:stage "pr-reviewer" :route review-route :needs "none"})
+
+(defn- handoff-record [from to] {:record "handoff" :from from :stage to})
+
+(def ^:private one-send-back
+  [(handoff-record "coder" "cleaner") (handoff-record "cleaner" "pr-reviewer")
+   (handoff-record "pr-reviewer" "coder")])
+
+(def ^:private two-send-backs
+  (into one-send-back [(handoff-record "coder" "cleaner") (handoff-record "cleaner" "pr-reviewer")
+                       (handoff-record "pr-reviewer" "coder")]))
+
+(describe "send-backs"
+  (it "counts the handoff records whose target comes before their sender on the route"
+    (should= 0 (flow/send-backs [] review-route))
+    (should= 1 (flow/send-backs one-send-back review-route))
+    (should= 2 (flow/send-backs two-send-backs review-route)))
+
+  (it "skips other records, a handoff to the sender's own stage, and a sender off the route"
+    (should= 0 (flow/send-backs [{:record "question" :from "pr-reviewer" :stage "coder"}
+                                 (handoff-record "coder" "coder")
+                                 (handoff-record "operator" "coder")
+                                 (handoff-record "specifier" "coder")]
+                                review-route))))
+
+(describe "to-refusal with send-back"
+  (it "lets a flagged stage send the task back to an earlier role twice"
+    (should-be-nil (flow/to-refusal at-reviewer "coder" true []))
+    (should-be-nil (flow/to-refusal at-reviewer "coder" true one-send-back))
+    (should-be-nil (flow/to-refusal at-reviewer "cleaner" true one-send-back)))
+
+  (it "refuses the third send-back of a task"
+    (should= "--to coder: task was sent back 2 times; ask the operator"
+             (flow/to-refusal at-reviewer "coder" true two-send-backs)))
+
+  (it "keeps forward targets open after two send-backs"
+    (should-be-nil (flow/to-refusal at-reviewer "qa" true two-send-backs)))
+
+  (it "refuses a send-back to the specifier"
+    (should= "--to specifier: a task cannot go back to the specifier"
+             (flow/to-refusal {:stage "pr-reviewer" :route "specifier,coder,pr-reviewer" :needs "none"}
+                              "specifier" true [])))
+
+  (it "keeps the refusal of today for a stage without the flag"
+    (should= "--to coder is not on route 'coder,cleaner,pr-reviewer,qa' at or after stage:cleaner"
+             (flow/to-refusal (assoc at-reviewer :stage "cleaner") "coder" false []))
+    (should= (flow/to-refusal at-reviewer "coder")
+             (flow/to-refusal at-reviewer "coder" false [])))
+
+  (it "refuses a role off the route even for a flagged stage"
+    (should= "--to architect is not on route 'coder,cleaner,pr-reviewer,qa' at or after stage:pr-reviewer"
+             (flow/to-refusal at-reviewer "architect" true []))))
+
 (describe "refusals"
   (it "refuses a handoff while the task waits on the operator"
     (should-be-nil (flow/handoff-refusal at-coder))
@@ -118,7 +173,41 @@
   (it "records the merge of a finished task"
     (should= {:record "finished" :from "operator" :stage "done" :route "coder" :needs "none"
               :merged-into "main"}
-             (flow/finished {:route "coder"} "main"))))
+             (flow/finished {:route "coder"} "main")))
+
+  (it "carries the task's gates into the next record, the handoff and the finished merge"
+    (let [state (assoc at-coder :gates "falsifier")]
+      (should= "falsifier" (:gates (flow/follow state "question" "coder" {:needs "operator"})))
+      (should= "falsifier" (:gates (flow/handoff state "coder" "cleaner" "abc1234" nil)))
+      (should= "falsifier" (:gates (flow/finished state "main")))))
+
+  (it "carries no gates for a task that has none"
+    (should-not (contains? (flow/handoff at-coder "coder" "cleaner" "abc1234" nil) :gates))
+    (should-not (contains? (flow/finished at-coder "main") :gates))))
+
+(describe "gates"
+  (it "lists a task's gates, none as empty"
+    (should= ["falsifier" "doubter"] (flow/gates-list "falsifier,doubter"))
+    (should= [] (flow/gates-list nil)))
+
+  (it "shows a task's gates, none when it has none"
+    (should= "falsifier" (flow/gates-shown {:gates "falsifier"}))
+    (should= "none" (flow/gates-shown {:route "coder"})))
+
+  (it "takes none or gate roles, without duplicates, in catalogue order"
+    (should-be-nil (flow/gates-value "none" ["falsifier"]))
+    (should= "falsifier" (flow/gates-value "falsifier,falsifier" ["falsifier"]))
+    (should= "falsifier,doubter" (flow/gates-value "doubter,falsifier" ["falsifier" "doubter"])))
+
+  (it "refuses an empty value, an empty name and a name that is not a gate role"
+    (should-be-nil (flow/gates-refusal "--gates" "none" ["falsifier"]))
+    (should-be-nil (flow/gates-refusal "--gates" "falsifier" ["falsifier"]))
+    (should= "--gates needs gate roles or none, got ''" (flow/gates-refusal "--gates" "" ["falsifier"]))
+    (should= "--gates needs gate roles or none, got 'falsifier,'" (flow/gates-refusal "--gates" "falsifier," ["falsifier"]))
+    (should= "--gates: 'qa' is not a gate role (see sf gates), got 'falsifier,qa'"
+             (flow/gates-refusal "--gates" "falsifier,qa" ["falsifier"]))
+    (should= "gates: 'none' is not a gate role (see sf gates), got 'none,falsifier'"
+             (flow/gates-refusal "gates" "none,falsifier" ["falsifier"]))))
 
 (def ^:private records
   [{:record "created" :sha "c1" :commit "c1"}

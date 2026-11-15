@@ -47,6 +47,9 @@ def world(monkeypatch):
     async def list_gates(params):
         return ["falsifier"]
 
+    async def task_gates(params):
+        return ["falsifier"]
+
     async def spec_judge_role(params):
         return "spec-judge"
 
@@ -81,6 +84,7 @@ def world(monkeypatch):
         "sync_checkout": sync_checkout,
         "read_task_state": read_task_state,
         "list_gates": list_gates,
+        "task_gates": task_gates,
         "spec_judge_role": spec_judge_role,
         "run_stage_role": run_stage_role,
         "run_gate": run_gate,

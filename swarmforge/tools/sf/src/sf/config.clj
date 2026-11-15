@@ -81,6 +81,11 @@
 (defn spec-judge? [role]
   (boolean (some #{"spec-judge"} (role-flags role))))
 
+(defn sends-back?
+  "True when the role may hand a task back to an earlier role on its route."
+  [role]
+  (boolean (some #{"send-back"} (role-flags role))))
+
 (defn named-routes []
   (rows "routes.conf"))
 
@@ -140,22 +145,24 @@
 
 (defn- flag-problems [role runs flags]
   (concat
-    (for [flag (distinct flags) :when (not (#{"audit" "optional" "gate" "spec-judge"} flag))]
-      (str "roles.conf: '" role "' has unknown flag '" flag "' (only audit, optional, gate, spec-judge)"))
+    (for [flag (distinct flags) :when (not (#{"audit" "optional" "gate" "spec-judge" "send-back"} flag))]
+      (str "roles.conf: '" role "' has unknown flag '" flag "' (only audit, optional, gate, spec-judge, send-back)"))
     (for [[flag n] (frequencies flags) :when (> n 1)]
       (str "roles.conf: '" role "' repeats flag '" flag "'"))
     (when (some #{"gate"} flags)
       (cond-> []
         (some #{"audit" "optional"} flags) (conj (str "roles.conf: '" role "' is a gate and cannot also be audit or optional"))
-        (not= "subagent" runs) (conj (str "roles.conf: '" role "' is a gate and must run as subagent"))))
+        (not= "subagent" runs) (conj (str "roles.conf: '" role "' is a gate and must run as subagent"))
+        (some #{"send-back"} flags) (conj (str "roles.conf: '" role "' is a gate and cannot also be send-back"))))
     (when (some #{"spec-judge"} flags)
       (cond-> []
         (some #{"audit" "optional" "gate"} flags) (conj (str "roles.conf: '" role "' is a spec-judge and cannot also be audit, optional or gate"))
-        (not= "subagent" runs) (conj (str "roles.conf: '" role "' is a spec-judge and must run as subagent"))))))
+        (not= "subagent" runs) (conj (str "roles.conf: '" role "' is a spec-judge and must run as subagent"))
+        (some #{"send-back"} flags) (conj (str "roles.conf: '" role "' is a spec-judge and cannot also be send-back"))))))
 
 (defn- check-role [[role tier runs & flags :as row] seen]
-  (if-not (<= 3 (count row) 5)
-    [(str "roles.conf: '" role "' needs <role> <tier> <runs-as> [audit] [optional]")]
+  (if-not (<= 3 (count row) 6)
+    [(str "roles.conf: '" role "' needs <role> <tier> <runs-as> [audit] [optional] [send-back]")]
     (cond-> (vec (flag-problems role runs flags))
       (not (re-matches #"[a-z][a-z0-9-]*" role)) (conj (str "roles.conf: role name '" role "' must be lowercase letters, digits, and hyphens"))
       (#{"done" "operator"} role) (conj (str "roles.conf: '" role "' is reserved"))

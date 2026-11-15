@@ -94,6 +94,16 @@ async def list_gates(params: RefInput) -> list[str]:
 
 
 @workflows.activity()
+async def task_gates(params: RefInput) -> list[str]:
+    """The gates the task chose (sf ls's gates column), kept to gate roles:
+    what a local sf run dispatches on the specification that waits for
+    approval."""
+    roles, _ = _load_catalogue(params.main)
+    gate_roles = set(catalogue.gates(roles))
+    return [g for g in sfkit.read_state(params.main, params.task_id).gates if g in gate_roles]
+
+
+@workflows.activity()
 async def spec_judge_role(params: RefInput) -> str | None:
     roles, _ = _load_catalogue(params.main)
     return catalogue.spec_judge(roles)
