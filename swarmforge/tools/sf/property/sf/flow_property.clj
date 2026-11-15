@@ -161,15 +161,17 @@
             (recur next route (conj records (handoff-record stage next route)) more)))))))
 
 (describe "send-backs"
-  (it "count the handoffs whose target comes before their sender on the route"
-    (should (passes? (prop/for-all [[r records] routed-records]
-                       (= (count (filter #(earlier-on? r (:stage %) (:from %)) records))
-                          (flow/send-backs records r))))))
+  (it "count the handoffs whose target comes before their sender on their own route"
+    (should (passes? (prop/for-all [[r records] routed-records
+                                    later route]
+                       (let [mixed (into records (map #(assoc % :route later) records))]
+                         (= (count (filter sent-back? mixed))
+                            (flow/send-backs mixed)))))))
 
   (it "ignore records that are not handoffs"
     (should (passes? (prop/for-all [[r records] routed-records
                                     type (gen/elements ["question" "answer" "review" "changes-requested"])]
-                       (zero? (flow/send-backs (mapv #(assoc % :record type) records) r)))))))
+                       (zero? (flow/send-backs (mapv #(assoc % :record type) records))))))))
 
 (describe "to-refusal with send-back"
   (it "keeps the forward-only rule for a stage without the flag, whatever the records"
@@ -189,7 +191,7 @@
                              state {:stage stage :route r :needs "none"}
                              back? (and (some #{to} roles) (earlier-on? r to stage))]
                          (if back?
-                           (= (and (not= "specifier" to) (< (flow/send-backs records r) flow/send-back-cap))
+                           (= (and (not= "specifier" to) (< (flow/send-backs records) flow/send-back-cap))
                               (nil? (flow/to-refusal state to true records)))
                            (= (flow/to-refusal state to) (flow/to-refusal state to true records))))))))
 
@@ -200,5 +202,6 @@
                        (let [records (walk r flagged steps)
                              backs (filter sent-back? records)]
                          (and (<= (count backs) flow/send-back-cap)
+                              (= (count backs) (flow/send-backs records))
                               (every? #(contains? flagged (:from %)) backs)
                               (not-any? #(= "specifier" (:stage %)) backs))))))))

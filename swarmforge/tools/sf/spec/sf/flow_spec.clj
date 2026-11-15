@@ -79,17 +79,21 @@
                        (handoff-record "pr-reviewer" "coder")]))
 
 (describe "send-backs"
-  (it "counts the handoff records whose target comes before their sender on the route"
-    (should= 0 (flow/send-backs [] review-route))
-    (should= 1 (flow/send-backs one-send-back review-route))
-    (should= 2 (flow/send-backs two-send-backs review-route)))
+  (it "counts the handoff records whose target comes before their sender on their route"
+    (should= 0 (flow/send-backs []))
+    (should= 1 (flow/send-backs one-send-back))
+    (should= 2 (flow/send-backs two-send-backs)))
+
+  (it "counts each handoff against its own route, not a later one"
+    (should= 1 (flow/send-backs [(assoc (handoff-record "pr-reviewer" "coder") :route review-route)
+                                 (assoc (handoff-record "pr-reviewer" "coder") :route "pr-reviewer,qa")
+                                 (assoc (handoff-record "cleaner" "coder") :route "cleaner,coder")])))
 
   (it "skips other records, a handoff to the sender's own stage, and a sender off the route"
-    (should= 0 (flow/send-backs [{:record "question" :from "pr-reviewer" :stage "coder"}
+    (should= 0 (flow/send-backs [{:record "question" :from "pr-reviewer" :stage "coder" :route review-route}
                                  (handoff-record "coder" "coder")
                                  (handoff-record "operator" "coder")
-                                 (handoff-record "specifier" "coder")]
-                                review-route))))
+                                 (handoff-record "specifier" "coder")]))))
 
 (describe "to-refusal with send-back"
   (it "lets a flagged stage send the task back to an earlier role twice"
