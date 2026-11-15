@@ -217,7 +217,8 @@
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ndoubter strong subagent gate\ncoder strong subagent\n")
     (let [id (new-id "Add login" "--route" "specifier,coder" "--gates" "falsifier")
           ran (atom [])]
-      (with-redefs [dispatch/dispatch (fn [[role id _]]
+      (with-redefs [shell/env (env-of {"SWARMFORGE_BACKEND" "claude"})
+                    dispatch/dispatch (fn [[role id _]]
                                         (swap! ran conj role)
                                         (when (= "specifier" role) (task/review [id "-m" "spec"])))]
         (let [result (support/captured #(dispatch/run [id]))]
