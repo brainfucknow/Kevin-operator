@@ -109,7 +109,7 @@ async def spec_judge_role(params: RefInput) -> str | None:
     return catalogue.spec_judge(roles)
 
 
-@workflows.activity(start_to_close_timeout=timedelta(hours=3))
+@workflows.activity(start_to_close_timeout=timedelta(hours=1))
 async def run_stage_role(params: StageRunInput) -> RoleOutcome:
     """Run one stage role as an Agents SDK agent on its tier's model. The agent
     works in the task worktree and hands off through sf."""
