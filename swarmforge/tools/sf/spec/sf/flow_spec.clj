@@ -68,7 +68,7 @@
 
 (def ^:private at-reviewer {:stage "pr-reviewer" :route review-route :needs "none"})
 
-(defn- handoff-record [from to] {:record "handoff" :from from :stage to})
+(defn- handoff-record [from to] {:record "handoff" :from from :stage to :route review-route})
 
 (def ^:private one-send-back
   [(handoff-record "coder" "cleaner") (handoff-record "cleaner" "pr-reviewer")
@@ -103,6 +103,10 @@
 
   (it "keeps forward targets open after two send-backs"
     (should-be-nil (flow/to-refusal at-reviewer "qa" true two-send-backs)))
+
+  (it "counts each send-back against its own route after a route change"
+    (should= "--to cleaner: task was sent back 2 times; ask the operator"
+             (flow/to-refusal (assoc at-reviewer :route "cleaner,pr-reviewer,qa") "cleaner" true two-send-backs)))
 
   (it "refuses a send-back to the specifier"
     (should= "--to specifier: a task cannot go back to the specifier"

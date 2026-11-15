@@ -113,13 +113,13 @@
   (gen/fmap #(str/join "," (filter (set %) review-catalogue))
             (gen/such-that #(<= 2 (count %)) (gen/set (gen/elements review-catalogue)))))
 
-(defn- handoff-record [from to] {:record "handoff" :from from :stage to})
+(defn- handoff-record [from to route] {:record "handoff" :from from :stage to :route route})
 
 (def ^:private routed-records
-  "A route and handoff records between any two of its roles."
+  "A route and handoff records on it between any two of its roles."
   (gen/let [r review-route
             pairs (gen/vector (gen/tuple (gen/elements (flow/route-list r)) (gen/elements (flow/route-list r))) 0 6)]
-    [r (mapv #(apply handoff-record %) pairs)]))
+    [r (mapv (fn [[from to]] (handoff-record from to r)) pairs)]))
 
 (defn- earlier-on?
   "True when a and b are on route and a comes before b."
@@ -127,19 +127,38 @@
   (let [roles (flow/route-list route)]
     (< -1 (.indexOf ^java.util.List roles a) (.indexOf ^java.util.List roles b))))
 
+(defn- sent-back?
+  "True when the handoff record's target comes before its sender on its own route."
+  [{:keys [route stage from]}]
+  (earlier-on? route stage from))
+
+(def ^:private step
+  "One step of a walk: a --to target, or a route change to the given roles plus
+  the current stage."
+  (gen/one-of [(gen/elements (conj review-catalogue "done"))
+               (gen/fmap (fn [roles] {:route roles}) (gen/set (gen/elements review-catalogue)))]))
+
+(defn- rerouted
+  "The catalogue-ordered route of roles and stage."
+  [roles stage]
+  (str/join "," (filter (conj roles stage) review-catalogue)))
+
 (defn- walk
-  "Hands the task along route from its first role, one target per step, with
-  the stages in flagged able to send back, keeping each handoff that
-  to-refusal allows. Returns the handoff records."
-  [route flagged targets]
-  (loop [stage (first (flow/route-list route)) records [] [to & more] targets]
-    (if (or (nil? to) (= "done" stage))
-      records
+  "Hands the task along route from its first role, one step at a time, with
+  the stages in flagged able to send back. A step is a target, kept when
+  to-refusal allows it, or a route change that holds the current stage.
+  Returns the handoff records."
+  [route flagged steps]
+  (loop [stage (first (flow/route-list route)) route route records [] [to & more] steps]
+    (cond
+      (or (nil? to) (= "done" stage)) records
+      (map? to) (recur stage (rerouted (:route to) stage) records more)
+      :else
       (let [state {:stage stage :route route :needs "none"}]
         (if (flow/to-refusal state to (contains? flagged stage) records)
-          (recur stage records more)
+          (recur stage route records more)
           (let [next (flow/next-stage state to)]
-            (recur next (conj records (handoff-record stage next)) more)))))))
+            (recur next route (conj records (handoff-record stage next route)) more)))))))
 
 (describe "send-backs"
   (it "count the handoffs whose target comes before their sender on the route"
@@ -174,12 +193,12 @@
                               (nil? (flow/to-refusal state to true records)))
                            (= (flow/to-refusal state to) (flow/to-refusal state to true records))))))))
 
-  (it "never lets a task collect more send-backs than the cap, nor one by an unflagged stage"
+  (it "never lets a task collect more send-backs than the cap, nor one by an unflagged stage, across route changes"
     (should (passes? (prop/for-all [r review-route
                                     flagged (gen/set (gen/elements review-catalogue))
-                                    targets (gen/vector (gen/elements (conj review-catalogue "done")) 0 40)]
-                       (let [records (walk r flagged targets)
-                             backs (filter #(earlier-on? r (:stage %) (:from %)) records)]
-                         (and (<= (flow/send-backs records r) flow/send-back-cap)
+                                    steps (gen/vector step 0 40)]
+                       (let [records (walk r flagged steps)
+                             backs (filter sent-back? records)]
+                         (and (<= (count backs) flow/send-back-cap)
                               (every? #(contains? flagged (:from %)) backs)
                               (not-any? #(= "specifier" (:stage %)) backs))))))))
