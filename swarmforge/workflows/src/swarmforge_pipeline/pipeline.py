@@ -2,9 +2,11 @@
 
 swarmforge-pipeline: one execution per task. It loops over the task's stages,
 running each as one Agents SDK agent on the role's tier model, with all sf
-bookkeeping on the task branch. When a specification waits for approval it
-runs the gates and the spec-judge as steps that record nothing and returns
-their reports and verdict with status blocked. When the task needs the
+bookkeeping on the task branch. When a stage this execution dispatched waits
+for approval it runs the gates and the spec-judge as steps that record
+nothing and returns their reports and verdict with status blocked; a task
+that already waited for approval when the execution started returns blocked
+without running them again, like a local sf run. When the task needs the
 operator it returns status blocked. On done it pushes the branch and returns
 done.
 
@@ -31,7 +33,6 @@ class SwarmforgePipeline:
     @workflows.workflow.entrypoint
     async def run(self, params: PipelineInput) -> PipelineResult:
         co = await activities.sync_checkout(activities.SyncInput(ref=params))
-        gated = False
         while True:
             state = await activities.read_task_state(
                 activities.RefInput(main=co.main, task_id=params.task_id)
@@ -42,25 +43,10 @@ class SwarmforgePipeline:
                 )
                 return PipelineResult(status="done", stage="done", needs="none")
             if state.needs in ("operator", "approval"):
-                result = PipelineResult(status="blocked", stage=state.stage, needs=state.needs)
-                if state.needs == "approval" and not gated:
-                    ref = activities.RefInput(main=co.main, task_id=params.task_id)
-                    for gate in await activities.list_gates(ref):
-                        result.reports.append(
-                            await activities.run_gate(
-                                activities.GateRunInput(co=co, task_id=params.task_id, gate=gate)
-                            )
-                        )
-                    judge = await activities.spec_judge_role(ref)
-                    if judge is not None:
-                        result.verdict = await activities.run_spec_judge(
-                            activities.JudgeRunInput(co=co, task_id=params.task_id, reports=result.reports)
-                        )
-                    gated = True
                 await activities.publish(
                     activities.PublishInput(co=co, remote=params.remote, task_id=params.task_id)
                 )
-                return result
+                return PipelineResult(status="blocked", stage=state.stage, needs=state.needs)
             outcome = await activities.run_stage_role(
                 activities.StageRunInput(co=co, task_id=params.task_id, role=state.stage)
             )
@@ -78,7 +64,7 @@ class SwarmforgePipeline:
                     needs=outcome.needs,
                     detail=outcome.report,
                 )
-                if outcome.needs == "approval" and not gated:
+                if outcome.needs == "approval":
                     ref = activities.RefInput(main=co.main, task_id=params.task_id)
                     for gate in await activities.list_gates(ref):
                         result.reports.append(
@@ -91,7 +77,6 @@ class SwarmforgePipeline:
                         result.verdict = await activities.run_spec_judge(
                             activities.JudgeRunInput(co=co, task_id=params.task_id, reports=result.reports)
                         )
-                    gated = True
                 return result
 
 

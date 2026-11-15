@@ -46,9 +46,9 @@ def agent_instructions(role: Role, repo: str, tiers: dict[str, dict[str, str]], 
         "run_shell runs a shell command in the task worktree; read_file and write_file "
         "work on paths relative to the worktree root."
         if writable
-        else "run_shell runs read-only inspection commands (sf show, sf ls, git log, "
-        "git diff, cat) in the task worktree; read_file reads files relative to the "
-        "worktree root. You have no write tool and must record nothing."
+        else "run_readonly_shell runs read-only inspection commands (swarmforge/bin/sf "
+        "show, git log, git diff, cat) in the task worktree; read_file reads files "
+        "relative to the worktree root. You have no write tool and must record nothing."
     )
     return (
         f"You are a SwarmForge role agent on model {model}. You work in a clone of the "

@@ -16,6 +16,11 @@ def _git(repo, *args):
     return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
+def _clear_git_config_env(monkeypatch):
+    for name in [n for n in os.environ if n.startswith("GIT_CONFIG_")]:
+        monkeypatch.delenv(name, raising=False)
+
+
 def _make_repo(path):
     os.makedirs(path)
     _git(path, "init", "-q", "-b", "main")
@@ -99,6 +104,7 @@ def test_push_task_error_names_token_env_without_leaking_values(monkeypatch):
 
 
 def test_git_env_strips_token_whitespace(monkeypatch):
+    _clear_git_config_env(monkeypatch)
     monkeypatch.setenv("GITHUB_TOKEN", "  secret-token\n")
     env = sfkit._git_env(["git", "push", "origin", "x"])
     assert env["GIT_CONFIG_VALUE_0"] == _basic_header("secret-token")
@@ -125,6 +131,7 @@ def test_read_state_parses_sf_ls(tmp_path, monkeypatch):
 
 
 def test_git_env_carries_token_on_push_only(monkeypatch):
+    _clear_git_config_env(monkeypatch)
     monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
     push = sfkit._git_env(["git", "push", "origin", "swarm/x:swarm/x"])
     assert push["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraHeader"
@@ -141,7 +148,25 @@ def test_git_env_carries_token_on_push_only(monkeypatch):
     assert "GIT_CONFIG_COUNT" not in sfkit._git_env(["git", "push", "origin", "x"])
 
 
+def test_git_env_appends_after_existing_config_entries(monkeypatch):
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "url.https://github.com/.insteadOf")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "git@github.com:")
+    monkeypatch.setenv("GIT_CONFIG_KEY_1", "core.sshCommand")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_1", "ssh -i /dev/null")
+    monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
+    env = sfkit._git_env(["git", "push", "origin", "swarm/x:swarm/x"])
+    assert env["GIT_CONFIG_COUNT"] == "3"
+    assert env["GIT_CONFIG_KEY_2"] == "http.https://github.com/.extraHeader"
+    assert env["GIT_CONFIG_VALUE_2"] == _basic_header("secret-token")
+    assert env["GIT_CONFIG_KEY_0"] == "url.https://github.com/.insteadOf"
+    assert env["GIT_CONFIG_VALUE_0"] == "git@github.com:"
+    assert env["GIT_CONFIG_KEY_1"] == "core.sshCommand"
+    assert env["GIT_CONFIG_VALUE_1"] == "ssh -i /dev/null"
+
+
 def test_run_does_not_leak_token_into_error(monkeypatch, tmp_path):
+    _clear_git_config_env(monkeypatch)
     monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
     with pytest.raises(sfkit.CommandError) as err:
         sfkit.run(["git", "push", "https://github.com/x/y.git", "main"], cwd=str(tmp_path))
@@ -171,6 +196,19 @@ def test_clone_or_update_replaces_a_clone_of_another_repository(tmp_path):
     # same dest path, different repository: the cached clone must be replaced
     sfkit.clone_or_update(str(src_b), str(dest), "origin", "main")
     assert (dest / "f").read_text() == "b"
+
+
+def test_clone_or_update_reuses_the_cache_with_a_named_remote(tmp_path):
+    src = tmp_path / "src"
+    _make_repo(str(src))
+    dest = tmp_path / "clone"
+    main = sfkit.clone_or_update(str(src), str(dest), "upstream", "main")
+    marker = os.path.join(main, ".git", "cache-marker")
+    with open(marker, "w") as fh:
+        fh.write("x")
+    sfkit.clone_or_update(str(src), str(dest), "upstream", "main")
+    assert os.path.exists(marker)
+    assert sfkit.git(main, "remote", "get-url", "upstream").stdout.strip() == str(src)
 
 
 def test_checkout_dir_namespaces_by_repository():

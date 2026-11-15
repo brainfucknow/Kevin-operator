@@ -14,12 +14,12 @@
 (def backends
   "The backends dispatch runs: the CLI backends a record can name, plus the
   Mistral Workflow backend."
-  (conj record/backends "mistral"))
+  record/backends)
 
 (def cli-backends
   "The backends that need their CLI on PATH; mistral is detected by
   MISTRAL_API_KEY instead."
-  (vec record/backends))
+  (vec (remove #{"mistral"} record/backends)))
 
 (defn- sf-mistral-path []
   (str (fs/path (shell/repo-root) "swarmforge" "bin" "sf-mistral")))

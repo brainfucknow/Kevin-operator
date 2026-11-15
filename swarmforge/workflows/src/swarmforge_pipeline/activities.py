@@ -141,7 +141,11 @@ async def run_gate(params: GateRunInput) -> GateReport:
     report = await runner.run_role_agent(agent, gate.name, prompts.gate_prompt(gate.name, params.task_id), params.co.worktree)
     after = sfkit.snapshot(params.co.main, params.task_id)
     if before != after:
-        raise RuntimeError(f"gate {gate.name} changed task {params.task_id}; a gate only reports")
+        raise workflows.WorkflowError(
+            f"gate {gate.name} changed task {params.task_id}; a gate only reports",
+            type="gate-changed-task",
+            non_retryable=True,
+        )
     return GateReport(role=gate.name, report=report)
 
 
@@ -170,7 +174,11 @@ async def run_spec_judge(params: JudgeRunInput) -> JudgeVerdict:
     )
     after = sfkit.snapshot(params.co.main, params.task_id)
     if before != after:
-        raise RuntimeError(f"spec-judge changed task {params.task_id}; it only reports")
+        raise workflows.WorkflowError(
+            f"spec-judge changed task {params.task_id}; it only reports",
+            type="spec-judge-changed-task",
+            non_retryable=True,
+        )
     verdict = _VERDICT.search(report)
     reason = _REASON.search(report)
     if not verdict:

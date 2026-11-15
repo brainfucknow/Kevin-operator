@@ -43,8 +43,20 @@
     (if (zero? exit) (chomp out)
         (die "the mistral backend needs a git remote '" remote "' to share the task branch"))))
 
-(defn- base-branch [main]
-  (chomp (:out (git* main "rev-parse" "--abbrev-ref" "HEAD"))))
+(defn- base-branch
+  "The branch the worker checks out: the operator's current branch when it
+  exists on the remote, else the remote's default branch. A local-only branch
+  or a detached HEAD would make the worker's checkout fail."
+  [main remote]
+  (let [current (chomp (:out (git* main "rev-parse" "--abbrev-ref" "HEAD")))]
+    (if (and (not (str/blank? current))
+             (not= "HEAD" current)
+             (not (str/blank? (:out (git* main "ls-remote" "--heads" remote current)))))
+      current
+      (let [m (re-find #"ref: refs/heads/(\S+)" (:out (git* main "ls-remote" "--symref" remote "HEAD")))]
+        (if m
+          (second m)
+          (die "could not resolve a base branch on remote '" remote "'; push the current branch first"))))))
 
 (defn- fetch! [dir remote branch]
   (let [{:keys [exit err]} (git* dir "fetch" remote branch)]
@@ -121,7 +133,7 @@
                                           :task_id id
                                           :role role
                                           :remote remote
-                                          :base_branch (base-branch main)}
+                                          :base_branch (base-branch main remote)}
                               execution-id)
                      (let [execution (wait-execution api key execution-id timeout)
                            result (:result execution)]
@@ -144,7 +156,7 @@
                 (execute api key wf {:repository repository
                                      :task_id id
                                      :remote remote
-                                     :base_branch (base-branch main)}
+                                     :base_branch (base-branch main remote)}
                          execution-id)
                 (let [execution (wait-execution api key execution-id timeout)
                       result (:result execution)]

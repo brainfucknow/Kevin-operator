@@ -147,7 +147,7 @@
 
 (describe "backend"
   (it "is the backend that dispatch names, dispatched, whatever CLAUDECODE says"
-    (doseq [name ["claude" "codex" "copilot"]]
+    (doseq [name record/backends]
       (should= {:backend name :dispatched "dispatched"} (record/backend "coder" name "1"))
       (should= {:backend name :dispatched "dispatched"} (record/backend "coder" name nil))))
 

@@ -22,9 +22,11 @@ class CommandError(RuntimeError):
 def _git_env(cmd: list[str]) -> dict[str, str]:
     """The environment for git commands. When GITHUB_TOKEN (or
     SWARMFORGE_GITHUB_TOKEN) is set, push commands authenticate github.com
-    through a git config env pair, so the token never appears in argv or error
-    messages. github.com's git endpoint answers 401 to Bearer tokens and
-    accepts Basic auth with the token as the password, so the header is
+    through a git config env pair appended after any GIT_CONFIG_* entries the
+    environment already holds, so the token never appears in argv or error
+    messages and existing entries stay in effect. github.com's git endpoint
+    answers 401 to Bearer tokens and accepts Basic auth with the token as the
+    password, so the header is
     Basic x-access-token:<token>, base64-encoded. Clone and fetch of public
     repositories stay anonymous: sending a bad token there makes GitHub
     answer 401 and git prompt for a username."""
@@ -34,9 +36,13 @@ def _git_env(cmd: list[str]) -> dict[str, str]:
     token = (os.environ.get("GITHUB_TOKEN") or os.environ.get("SWARMFORGE_GITHUB_TOKEN") or "").strip()
     if token:
         basic = base64.b64encode(f"x-access-token:{token}".encode()).decode("ascii")
-        env["GIT_CONFIG_COUNT"] = "1"
-        env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraHeader"
-        env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {basic}"
+        try:
+            index = int(env.get("GIT_CONFIG_COUNT", "0"))
+        except ValueError:
+            index = 0
+        env["GIT_CONFIG_COUNT"] = str(index + 1)
+        env[f"GIT_CONFIG_KEY_{index}"] = "http.https://github.com/.extraHeader"
+        env[f"GIT_CONFIG_VALUE_{index}"] = f"Authorization: Basic {basic}"
     return env
 
 
@@ -67,7 +73,7 @@ def clone_or_update(repository: str, dest: str, remote: str, base_branch: str) -
     clone of the same repository. A cached clone of a different repository is
     removed and re-cloned. Returns dest."""
     if os.path.isdir(os.path.join(dest, ".git")):
-        cached = git(dest, "remote", "get-url", "origin", check=False)
+        cached = git(dest, "remote", "get-url", remote, check=False)
         if cached.returncode != 0 or cached.stdout.strip() != repository:
             import shutil
 

@@ -119,14 +119,13 @@ async def test_pipeline_runs_stages_until_done(world):
     assert w.gate_runs == []
 
 
-async def test_pipeline_runs_gates_and_spec_judge_on_approval(world):
+async def test_pipeline_returns_blocked_without_gates_when_already_waiting_for_approval(world):
     w = world([TaskState(stage="specifier", needs="approval", route=["specifier", "coder"])])
     result = as_model(PipelineResult, await pipeline.SwarmforgePipeline().run(INPUT))
     assert result.status == "blocked"
     assert result.needs == "approval"
-    assert [r.role for r in result.reports] == ["falsifier"]
-    assert result.verdict is not None and result.verdict.verdict == "converged"
-    assert w.judge_runs == 1
+    assert result.reports == [] and result.verdict is None
+    assert w.gate_runs == [] and w.judge_runs == 0
     assert w.published == 1
 
 
