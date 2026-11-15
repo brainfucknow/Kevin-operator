@@ -952,10 +952,11 @@ b1="$(env CLAUDECODE=1 sf new "Backend one" -m x --route specifier,coder)"
 assert_eq "a Claude Code session records claude session" "$(carried "swarm/$b1")" "claude|session"
 assert_eq "show ends the record with its backend" "$(sf show "$b1" | grep -v '^$' | tail -1)" "backend: claude session"
 env CODEX_THREAD_ID=t1 sf ask "$b1" "q1" >/dev/null
-assert_eq "a Codex thread alone records nothing" "$(carried "swarm/$b1")" "|"
-assert_eq "show prints no backend line for a record that carries nothing" "$(sf show "$b1" | grep -v '^$' | tail -1)" "question: q1"
+assert_eq "a Codex session records codex session" "$(carried "swarm/$b1")" "codex|session"
+assert_eq "show ends the Codex record with its backend" "$(sf show "$b1" | grep -v '^$' | tail -1)" "backend: codex session"
 env CLAUDECODE=1 CODEX_THREAD_ID=t1 sf answer "$b1" "a1" >/dev/null
-assert_eq "CLAUDECODE wins over a Codex thread" "$(carried "swarm/$b1")" "claude|session"
+assert_eq "both session markers record nothing" "$(carried "swarm/$b1")" "|"
+assert_eq "show prints no backend for ambiguous markers" "$(sf show "$b1" | grep -v '^$' | tail -1)" "answer: a1"
 env CLAUDECODE=0 sf ask "$b1" "q2" >/dev/null
 assert_eq "CLAUDECODE other than 1 records nothing" "$(carried "swarm/$b1")" "|"
 env SWARMFORGE_BACKEND=codex sf answer "$b1" "a2" >/dev/null
@@ -1004,7 +1005,7 @@ assert_eq "the finished merge carries the backend of sf finish" "$(carried HEAD)
 bout="$(sf harvest)"
 assert_eq "harvest exports backend and dispatched" \
   "$(echo "$bout" | jq -c --arg id "$b1" 'select(.id == $id) | [.records[] | [.backend, .dispatched]] | .[0], .[1], .[-1]')" \
-  "$(printf '["claude",false]\n[null,null]\n["codex",true]')"
+  "$(printf '["claude",false]\n["codex",false]\n["codex",true]')"
 assert_eq "harvest dispatched is null exactly when backend is null" \
   "$(echo "$bout" | jq -c '[.records[] | select((.backend == null) != (.dispatched == null))] | length' | sort -u)" "0"
 assert_fails "hook refuses a SwarmForge-Backend trailer" git -C ".worktrees/$b2" commit -q --allow-empty -m "$(printf 'Forged\n\nSwarmForge-Backend: claude')"
