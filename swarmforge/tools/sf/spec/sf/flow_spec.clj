@@ -68,7 +68,7 @@
 
 (def ^:private at-reviewer {:stage "pr-reviewer" :route review-route :needs "none"})
 
-(defn- handoff-record [from to] {:record "handoff" :from from :stage to})
+(defn- handoff-record [from to] {:record "handoff" :from from :stage to :route review-route})
 
 (def ^:private one-send-back
   [(handoff-record "coder" "cleaner") (handoff-record "cleaner" "pr-reviewer")
@@ -79,17 +79,21 @@
                        (handoff-record "pr-reviewer" "coder")]))
 
 (describe "send-backs"
-  (it "counts the handoff records whose target comes before their sender on the route"
-    (should= 0 (flow/send-backs [] review-route))
-    (should= 1 (flow/send-backs one-send-back review-route))
-    (should= 2 (flow/send-backs two-send-backs review-route)))
+  (it "counts the handoff records whose target comes before their sender on their route"
+    (should= 0 (flow/send-backs []))
+    (should= 1 (flow/send-backs one-send-back))
+    (should= 2 (flow/send-backs two-send-backs)))
+
+  (it "counts each handoff against its own route, not a later one"
+    (should= 1 (flow/send-backs [(assoc (handoff-record "pr-reviewer" "coder") :route review-route)
+                                 (assoc (handoff-record "pr-reviewer" "coder") :route "pr-reviewer,qa")
+                                 (assoc (handoff-record "cleaner" "coder") :route "cleaner,coder")])))
 
   (it "skips other records, a handoff to the sender's own stage, and a sender off the route"
-    (should= 0 (flow/send-backs [{:record "question" :from "pr-reviewer" :stage "coder"}
+    (should= 0 (flow/send-backs [{:record "question" :from "pr-reviewer" :stage "coder" :route review-route}
                                  (handoff-record "coder" "coder")
                                  (handoff-record "operator" "coder")
-                                 (handoff-record "specifier" "coder")]
-                                review-route))))
+                                 (handoff-record "specifier" "coder")]))))
 
 (describe "to-refusal with send-back"
   (it "lets a flagged stage send the task back to an earlier role twice"
@@ -103,6 +107,10 @@
 
   (it "keeps forward targets open after two send-backs"
     (should-be-nil (flow/to-refusal at-reviewer "qa" true two-send-backs)))
+
+  (it "counts each send-back against its own route after a route change"
+    (should= "--to cleaner: task was sent back 2 times; ask the operator"
+             (flow/to-refusal (assoc at-reviewer :route "cleaner,pr-reviewer,qa") "cleaner" true two-send-backs)))
 
   (it "refuses a send-back to the specifier"
     (should= "--to specifier: a task cannot go back to the specifier"
