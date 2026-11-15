@@ -9,7 +9,7 @@ failures=0
 pass() { echo "ok   $1"; }
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
 assert_eq() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1: expected '$3', got '$2'"; fi; }
-assert_match() { if echo "$2" | grep -Eq "$3"; then pass "$1"; else fail "$1: '$2' does not match /$3/"; fi; }
+assert_match() { if grep -Eq "$3" <<<"$2"; then pass "$1"; else fail "$1: '$2' does not match /$3/"; fi; }
 assert_fails() { local name="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$name should fail"; else pass "$name fails"; fi; }
 
 scratch="$(mktemp -d)"
@@ -502,6 +502,9 @@ echo "Big_Role strong subagent" >> swarmforge/roles.conf
 check_fails "check rejects a bad role name" "CHECK: roles.conf: role name 'Big_Role'"
 echo "done strong subagent" >> swarmforge/roles.conf
 check_fails "check rejects a reserved role name" "CHECK: roles.conf: 'done' is reserved"
+echo "none strong subagent gate" >> swarmforge/roles.conf
+cp swarmforge/roles/falsifier.md swarmforge/roles/none.md
+check_fails "check rejects none as a reserved role name" "CHECK: roles.conf: 'none' is reserved"
 echo "scribe mythic subagent" >> swarmforge/roles.conf
 check_fails "check rejects an unknown tier" "CHECK: roles.conf: 'scribe' uses unknown tier 'mythic'"
 echo "scribe fast daemon" >> swarmforge/roles.conf

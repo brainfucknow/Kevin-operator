@@ -214,6 +214,14 @@
     (it "accepts a valid catalogue, the bbmain kind and the coverage rewrite"
       (should= [0 "CHECK: ok (3 roles, 2 routes)\n" [""]] (check)))
 
+    (it "refuses none as a reserved role name on a stage, gate or spec-judge row, even with its prompt"
+      (spit (str (fs/path *dir* "swarmforge/roles/none.md")) "fixture")
+      (doseq [row ["none strong subagent" "none strong subagent gate" "none strong subagent spec-judge"]]
+        (conf "roles.conf" (str "specifier strong session\ncoder strong subagent\nqa fast subagent\n" row "\n"))
+        (let [[status _ errors] (check)]
+          (should= 1 status)
+          (should (some #{"CHECK: roles.conf: 'none' is reserved"} errors)))))
+
     (it "reports missing tiers and roles files"
       (fs/delete (fs/path *dir* "swarmforge" "tiers.conf"))
       (fs/delete (fs/path *dir* "swarmforge" "roles.conf"))

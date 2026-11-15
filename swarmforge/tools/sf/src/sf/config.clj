@@ -165,7 +165,7 @@
     [(str "roles.conf: '" role "' needs <role> <tier> <runs-as> [audit] [optional] [send-back]")]
     (cond-> (vec (flag-problems role runs flags))
       (not (re-matches #"[a-z][a-z0-9-]*" role)) (conj (str "roles.conf: role name '" role "' must be lowercase letters, digits, and hyphens"))
-      (#{"done" "operator"} role) (conj (str "roles.conf: '" role "' is reserved"))
+      (#{"done" "operator" "none"} role) (conj (str "roles.conf: '" role "' is reserved"))
       (seen role) (conj (str "roles.conf: role '" role "' listed twice"))
       (not (tier-field tier 2)) (conj (str "roles.conf: '" role "' uses unknown tier '" tier "' (see tiers.conf)"))
       (not (#{"subagent" "session"} runs)) (conj (str "roles.conf: '" role "' runs-as must be subagent or session, not '" runs "'"))
