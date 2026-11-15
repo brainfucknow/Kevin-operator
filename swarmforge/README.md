@@ -93,6 +93,10 @@ Catalogue settings:
   turn it off.
 - `optional` excludes a role from fallback routes. Include it explicitly in a
   named route, `--route`, or `SWARMFORGE_ROUTE` to enable it; it can also use `audit`.
+- `send-back` lets a role run `sf handoff <id> --to <role>` with an earlier
+  role on the route, other than the specifier. The task then moves forward
+  along the route again. `sf` refuses the third send-back of a task. It
+  combines with `audit` and `optional`; a gate or a spec-judge cannot have it.
 
 Optional reviewers keep the usual approval and handoff flow. The `feature`
 route includes the security reviewer; drop it per task with `sf route`:
@@ -101,6 +105,7 @@ route includes the security reviewer; drop it per task with `sf route`:
 |---|---|---|
 | [Architecture design reviewer](roles/architecture-design-reviewer.md) | Migrations, public APIs, major dependency changes. | After specification approval, before coding; architect still reviews implementation. |
 | [Security reviewer](roles/security-reviewer.md) | Authentication, authorization, secrets, untrusted input, external execution. | After hardener, before QA; hardener retains mutation and quality gates. |
+| [Pull request reviewer](roles/pr-reviewer.md) | The online review bots are out of credits. Say "review pull request #<N>" on its head branch, or add the role to a task's route. | Alone, or before QA. It reports findings and changes no code; it sends obvious findings back to the coder. |
 
 ```sh
 sf new "Migrate public API" -m "..." --route specifier,architecture-design-reviewer,coder,architect,qa

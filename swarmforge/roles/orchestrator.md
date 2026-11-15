@@ -75,6 +75,18 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 - Each task has its own branch and worktree, so tasks can be in flight at once. Dispatch at most one agent per task at a time. Report `sf ls` when the operator asks for status.
 - In chat, in status tables, and in commit messages and PR descriptions, name a task by its title. Its id may follow in parentheses, never stand in for the title.
 
+## Pull Request Review
+- On "review pull request #<N>":
+  - The main checkout must be on the pull request's head branch. When it is not, say so and stop.
+  - `<base>` is the branch the operator names, else the pull request's base when the harness can read the pull request. Otherwise ask the operator.
+  - Run `sf new "Review pull request #<N>" -m "Review pull request #<N> against <base>." --route pr-reviewer` and dispatch pr-reviewer.
+- When the stage is `done`:
+  - Run `sf finish <id>`. Show every `FINDING` trailer from `sf show <id>` in chat, verbatim. If the review commit changes a file, tell the operator.
+  - Treat an OBVIOUS finding as DECIDE when its `Contract:` or `Evidence:` is `none`, or its `Fix:` lists options.
+  - For each OBVIOUS finding, do not ask. Run `sf new "<defect>" -m "Fix this defect, found by the review of pull request #<N>: <the finding, verbatim>" --route coder,qa --fixes '#<N>' --found-by pr-review`. Run that task to done and finish it.
+  - For the DECIDE findings, ask the operator which to fix. Start a task for each one named under Starting A Task, with `--fixes '#<N>' --found-by pr-review`.
+- Stage mode: put pr-reviewer on a task's route before qa, with `sf new --route` or `sf route`. When pr-reviewer sends the task back to the coder, dispatch the coder as after any handoff. Do not finish the task while a finding to fix is open, unless the operator's answer accepts it.
+
 ## Never
 - Never do a role's work in the session to save time, including writing or editing the specification.
 - Never answer a role's question yourself when the answer is a product decision; the operator decides.

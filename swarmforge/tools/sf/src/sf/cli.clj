@@ -44,7 +44,8 @@ Role commands
                                   record HEAD and move the task to the next stage; refused
                                   (exit 4) when a Not-tested trailer names a missing tool,
                                   unless --allow-missing-tool and an answered question
-                                  names each one
+                                  names each one; a send-back role may name an earlier
+                                  role in --to, at most twice per task
   ask <id> <text>                 record a question and stop: needs operator
   review <id> [--allow-missing-tool] [-m text]
                                   ask the operator to approve the specification; checks

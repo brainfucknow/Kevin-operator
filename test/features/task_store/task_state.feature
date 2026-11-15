@@ -29,6 +29,16 @@ Feature: sf task state
   '<route>' after stage:<stage>; hand off to the next role", and records
   nothing. Only sf route, the operator's, changes which roles a task visits.
 
+  If the role of the stage has the send-back flag in roles.conf, --to may
+  also name an earlier role on the route: a send-back. sf records an ordinary
+  handoff record, and the task moves forward along the route again from that
+  role. --to specifier backwards exits 1 with "sf: --to specifier: a task
+  cannot go back to the specifier". A send-back is a handoff record whose
+  target comes before its sender on the route; sf refuses the third one of a
+  task with "sf: --to <role>: task was sent back 2 times; ask the operator"
+  and exit status 1. A refusal records nothing. The shipped pr-reviewer has
+  the flag.
+
   Background:
     Given a project with swarmforge initialized
     And task "A" titled "Add login" was created on route "specifier,coder"
@@ -138,3 +148,54 @@ Feature: sf task state
       | done      | sf: --to done skips the rest of route 'coder,qa' after stage:coder; hand off to the next role |
       | cleaner   | sf: --to cleaner is not on route 'coder,qa' at or after stage:coder                           |
       | specifier | sf: --to specifier is not on route 'coder,qa' at or after stage:coder                         |
+
+  # sf task state 12
+  Scenario Outline: sf task state 12: a send-back stage hands the task back to an earlier role
+    Given task "C" titled "Review" was started on route "coder,cleaner,pr-reviewer,qa"
+    And task "C" was sent back from "pr-reviewer" to "coder" <sent> times
+    And task "C" was handed off to stage "pr-reviewer"
+    When I run "sf handoff $C --to <to>"
+    Then the exit status is 0
+    And the output matches "^HANDOFF: $C pr-reviewer -> <to> at "
+
+    Examples:
+      | sent | to    |
+      | 0    | coder |
+      | 1    | coder |
+      | 0    | qa    |
+
+  # sf task state 13
+  Scenario: sf task state 13: sf refuses the third send-back of a task
+    Given task "C" titled "Review" was started on route "coder,cleaner,pr-reviewer,qa"
+    And task "C" was sent back from "pr-reviewer" to "coder" 2 times
+    And task "C" was handed off to stage "pr-reviewer"
+    When I run "sf handoff $C --to coder"
+    Then the exit status is 1
+    And the error output has the line "sf: --to coder: task was sent back 2 times; ask the operator"
+    And the branch of task "C" did not move
+
+  # sf task state 14
+  Scenario: sf task state 14: a stage without the send-back flag cannot send a task back
+    Given task "C" titled "Review" was started on route "coder,cleaner,pr-reviewer,qa"
+    And task "C" was handed off to stage "cleaner"
+    When I run "sf handoff $C --to coder"
+    Then the exit status is 1
+    And the error output has the line "sf: --to coder is not on route 'coder,cleaner,pr-reviewer,qa' at or after stage:cleaner"
+    And the branch of task "C" did not move
+
+  # sf task state 15
+  Scenario: sf task state 15: a sent-back task moves forward along its route again
+    Given task "C" titled "Review" was started on route "coder,cleaner,pr-reviewer,qa"
+    And task "C" was sent back from "pr-reviewer" to "coder" 1 times
+    When I run "sf handoff $C"
+    Then the exit status is 0
+    And the output matches "^HANDOFF: $C coder -> cleaner at "
+
+  # sf task state 16
+  Scenario: sf task state 16: a send-back to the specifier is refused
+    Given task "C" titled "Review" was started on route "specifier,coder,pr-reviewer"
+    And task "C" was handed off to stage "pr-reviewer"
+    When I run "sf handoff $C --to specifier"
+    Then the exit status is 1
+    And the error output has the line "sf: --to specifier: a task cannot go back to the specifier"
+    And the branch of task "C" did not move
