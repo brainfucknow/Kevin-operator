@@ -88,9 +88,15 @@ def test_push_task_error_names_token_env_without_leaking_values(monkeypatch):
     monkeypatch.setattr(sfkit, "git", boom)
     with pytest.raises(sfkit.CommandError) as err:
         sfkit.push_task("/repo", "origin", "t-1")
-    assert "GITHUB_TOKEN" in str(err.value)
+    assert "GITHUB_TOKEN(len=12)" in str(err.value)
     assert "SWARMFORGE_GITHUB_TOKEN" not in str(err.value)
     assert "secret-token" not in str(err.value)
+
+
+def test_git_env_strips_token_whitespace(monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "  secret-token\n")
+    env = sfkit._git_env(["git", "push", "origin", "x"])
+    assert env["GIT_CONFIG_VALUE_0"] == "Authorization: Bearer secret-token"
 
 
 def test_read_state_parses_sf_ls(tmp_path, monkeypatch):

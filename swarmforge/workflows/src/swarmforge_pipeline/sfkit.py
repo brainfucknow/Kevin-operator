@@ -27,7 +27,7 @@ def _git_env(cmd: list[str]) -> dict[str, str]:
     env = {**os.environ}
     if "push" not in cmd[1:]:
         return env
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("SWARMFORGE_GITHUB_TOKEN")
+    token = (os.environ.get("GITHUB_TOKEN") or os.environ.get("SWARMFORGE_GITHUB_TOKEN") or "").strip()
     if token:
         env["GIT_CONFIG_COUNT"] = "1"
         env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraHeader"
@@ -105,10 +105,14 @@ def push_task(main: str, remote: str, task_id: str) -> None:
     try:
         git(main, "push", remote, f"{branch}:{branch}", check=True)
     except CommandError as err:
-        token_env = [n for n in ("GITHUB_TOKEN", "SWARMFORGE_GITHUB_TOKEN") if os.environ.get(n)]
+        token_env = [
+            f"{n}(len={len(os.environ[n].strip())})"
+            for n in ("GITHUB_TOKEN", "SWARMFORGE_GITHUB_TOKEN")
+            if os.environ.get(n)
+        ]
         raise CommandError(
             err.cmd, err.exit, err.out,
-            f"{err.err} (token env vars set: {token_env or 'none'}; never their values)",
+            f"{err.err} (token env vars set: {token_env or 'none'}; names and lengths only, never values)",
         ) from err
 
 
