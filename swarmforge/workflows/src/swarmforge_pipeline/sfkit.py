@@ -3,6 +3,7 @@ write goes through sf on the task branch; these helpers only call it."""
 
 from __future__ import annotations
 
+import base64
 import os
 import subprocess
 
@@ -22,16 +23,20 @@ def _git_env(cmd: list[str]) -> dict[str, str]:
     """The environment for git commands. When GITHUB_TOKEN (or
     SWARMFORGE_GITHUB_TOKEN) is set, push commands authenticate github.com
     through a git config env pair, so the token never appears in argv or error
-    messages. Clone and fetch of public repositories stay anonymous: sending a
-    bad token there makes GitHub answer 401 and git prompt for a username."""
+    messages. github.com's git endpoint answers 401 to Bearer tokens and
+    accepts Basic auth with the token as the password, so the header is
+    Basic x-access-token:<token>, base64-encoded. Clone and fetch of public
+    repositories stay anonymous: sending a bad token there makes GitHub
+    answer 401 and git prompt for a username."""
     env = {**os.environ}
     if "push" not in cmd[1:]:
         return env
     token = (os.environ.get("GITHUB_TOKEN") or os.environ.get("SWARMFORGE_GITHUB_TOKEN") or "").strip()
     if token:
+        basic = base64.b64encode(f"x-access-token:{token}".encode()).decode("ascii")
         env["GIT_CONFIG_COUNT"] = "1"
         env["GIT_CONFIG_KEY_0"] = "http.https://github.com/.extraHeader"
-        env["GIT_CONFIG_VALUE_0"] = f"Authorization: Bearer {token}"
+        env["GIT_CONFIG_VALUE_0"] = f"Authorization: Basic {basic}"
     return env
 
 

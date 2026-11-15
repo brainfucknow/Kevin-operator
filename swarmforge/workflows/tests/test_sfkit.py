@@ -1,3 +1,4 @@
+import base64
 import os
 import subprocess
 
@@ -5,6 +6,10 @@ import pytest
 
 from swarmforge_pipeline import sfkit
 from swarmforge_pipeline.models import TaskState
+
+
+def _basic_header(token):
+    return "Authorization: Basic " + base64.b64encode(f"x-access-token:{token}".encode()).decode("ascii")
 
 
 def _git(repo, *args):
@@ -96,7 +101,7 @@ def test_push_task_error_names_token_env_without_leaking_values(monkeypatch):
 def test_git_env_strips_token_whitespace(monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "  secret-token\n")
     env = sfkit._git_env(["git", "push", "origin", "x"])
-    assert env["GIT_CONFIG_VALUE_0"] == "Authorization: Bearer secret-token"
+    assert env["GIT_CONFIG_VALUE_0"] == _basic_header("secret-token")
 
 
 def test_read_state_parses_sf_ls(tmp_path, monkeypatch):
@@ -123,7 +128,7 @@ def test_git_env_carries_token_on_push_only(monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "secret-token")
     push = sfkit._git_env(["git", "push", "origin", "swarm/x:swarm/x"])
     assert push["GIT_CONFIG_KEY_0"] == "http.https://github.com/.extraHeader"
-    assert push["GIT_CONFIG_VALUE_0"] == "Authorization: Bearer secret-token"
+    assert push["GIT_CONFIG_VALUE_0"] == _basic_header("secret-token")
     assert push["GIT_CONFIG_COUNT"] == "1"
     for read_cmd in (["git", "clone", "https://github.com/a/b.git", "/tmp/x"],
                      ["git", "fetch", "origin", "swarm/x"],
@@ -131,7 +136,7 @@ def test_git_env_carries_token_on_push_only(monkeypatch):
         assert "GIT_CONFIG_COUNT" not in sfkit._git_env(read_cmd), read_cmd
     monkeypatch.delenv("GITHUB_TOKEN")
     monkeypatch.setenv("SWARMFORGE_GITHUB_TOKEN", "alt-token")
-    assert sfkit._git_env(["git", "push", "origin", "x"])["GIT_CONFIG_VALUE_0"] == "Authorization: Bearer alt-token"
+    assert sfkit._git_env(["git", "push", "origin", "x"])["GIT_CONFIG_VALUE_0"] == _basic_header("alt-token")
     monkeypatch.delenv("SWARMFORGE_GITHUB_TOKEN")
     assert "GIT_CONFIG_COUNT" not in sfkit._git_env(["git", "push", "origin", "x"])
 
