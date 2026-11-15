@@ -118,7 +118,41 @@
   (it "records the merge of a finished task"
     (should= {:record "finished" :from "operator" :stage "done" :route "coder" :needs "none"
               :merged-into "main"}
-             (flow/finished {:route "coder"} "main"))))
+             (flow/finished {:route "coder"} "main")))
+
+  (it "carries the task's gates into the next record, the handoff and the finished merge"
+    (let [state (assoc at-coder :gates "falsifier")]
+      (should= "falsifier" (:gates (flow/follow state "question" "coder" {:needs "operator"})))
+      (should= "falsifier" (:gates (flow/handoff state "coder" "cleaner" "abc1234" nil)))
+      (should= "falsifier" (:gates (flow/finished state "main")))))
+
+  (it "carries no gates for a task that has none"
+    (should-not (contains? (flow/handoff at-coder "coder" "cleaner" "abc1234" nil) :gates))
+    (should-not (contains? (flow/finished at-coder "main") :gates))))
+
+(describe "gates"
+  (it "lists a task's gates, none as empty"
+    (should= ["falsifier" "doubter"] (flow/gates-list "falsifier,doubter"))
+    (should= [] (flow/gates-list nil)))
+
+  (it "shows a task's gates, none when it has none"
+    (should= "falsifier" (flow/gates-shown {:gates "falsifier"}))
+    (should= "none" (flow/gates-shown {:route "coder"})))
+
+  (it "takes none or gate roles, without duplicates, in catalogue order"
+    (should-be-nil (flow/gates-value "none" ["falsifier"]))
+    (should= "falsifier" (flow/gates-value "falsifier,falsifier" ["falsifier"]))
+    (should= "falsifier,doubter" (flow/gates-value "doubter,falsifier" ["falsifier" "doubter"])))
+
+  (it "refuses an empty value, an empty name and a name that is not a gate role"
+    (should-be-nil (flow/gates-refusal "--gates" "none" ["falsifier"]))
+    (should-be-nil (flow/gates-refusal "--gates" "falsifier" ["falsifier"]))
+    (should= "--gates needs gate roles or none, got ''" (flow/gates-refusal "--gates" "" ["falsifier"]))
+    (should= "--gates needs gate roles or none, got 'falsifier,'" (flow/gates-refusal "--gates" "falsifier," ["falsifier"]))
+    (should= "--gates: 'qa' is not a gate role (see sf gates), got 'falsifier,qa'"
+             (flow/gates-refusal "--gates" "falsifier,qa" ["falsifier"]))
+    (should= "gates: 'none' is not a gate role (see sf gates), got 'none,falsifier'"
+             (flow/gates-refusal "gates" "none,falsifier" ["falsifier"]))))
 
 (def ^:private records
   [{:record "created" :sha "c1" :commit "c1"}

@@ -85,7 +85,8 @@
 
 (def ^:private trailers
   [["SwarmForge-Task" :task] ["SwarmForge-Record" :record] ["SwarmForge-From" :from]
-   ["SwarmForge-Stage" :stage] ["SwarmForge-Route" :route] ["SwarmForge-Needs" :needs]
+   ["SwarmForge-Stage" :stage] ["SwarmForge-Route" :route] ["SwarmForge-Gates" :gates]
+   ["SwarmForge-Needs" :needs]
    ["SwarmForge-Fixes" :fixes] ["SwarmForge-Found-By" :found-by]
    ["SwarmForge-Merged-Into" :merged-into] ["SwarmForge-Reviewed" :reviewed]
    ["SwarmForge-Audit-Refusals" :audit-refusals] ["SwarmForge-Spec-Verdict" :spec-verdict]
@@ -128,7 +129,7 @@
 
 (def ^:private record-types
   #{"created" "question" "answer" "review" "approval" "changes-requested"
-    "route" "handoff" "spec-verdict" "finished" "moved"})
+    "route" "gates" "handoff" "spec-verdict" "finished" "moved"})
 
 (defn recognized?
   "Whether parsed, legacy-normalized trailers identify a known task record."
@@ -301,7 +302,12 @@
   [{:keys [fixes found-by]}]
   (concat (when fixes [["fixes" fixes]]) (when found-by [["found-by" found-by]])))
 
-(defn- body-fields [{:keys [task record text stage route commit files merged-into] :as rec}]
+(defn shown-gates
+  "A :gates value as sf prints it: the comma list, or none."
+  [gates]
+  (if (str/blank? gates) "none" gates))
+
+(defn- body-fields [{:keys [task record text stage route gates commit files merged-into] :as rec}]
   (case record
     "created" (concat [["branch" (branch task)] ["commit" commit] ["route" route]]
                       (link-fields rec))
@@ -310,6 +316,7 @@
     "review" [["commit" commit] ["files" files] ["summary" text]]
     ("changes-requested" "spec-verdict") [["reason" text]]
     "route" [["route" route]]
+    "gates" [["gates" (shown-gates gates)]]
     "handoff" [["to" stage] ["branch" (branch task)] ["commit" commit] ["files" files] ["summary" text]]
     "finished" [["merged-into" merged-into]]
     "moved" [["path" text]]
