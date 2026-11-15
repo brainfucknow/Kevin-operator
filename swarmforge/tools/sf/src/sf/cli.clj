@@ -82,6 +82,12 @@ Environment
   SWARMFORGE_BACKEND   default backend for dispatch/run; set by dispatch and run to the
                        backend they start; under dispatch, records carry it
                        (handoff-protocol.md, Backend)
+  CLAUDECODE, CODEX_THREAD_ID
+                       outside dispatch, CLAUDECODE=1 alone records claude/session;
+                       nonblank CODEX_THREAD_ID alone records codex/session; both
+                       active or neither records nothing. Dispatch takes precedence.
+                       Child processes can inherit these markers; they identify the
+                       command environment, not the immediate parent harness.
   SWARMFORGE_USER, SWARMFORGE_EMAIL
                        author of record commits when git has no identity
                        (default: operator, <user>@swarmforge.local)

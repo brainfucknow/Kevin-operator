@@ -161,26 +161,38 @@
                 (record/parse {:sha "s" :parents ["p"] :message "sf changes-requested: t-1\n" :trailers trailers}))))))
 
 (describe "backend"
-  (it "is the backend that dispatch names, dispatched, whatever CLAUDECODE says"
-    (doseq [name ["claude" "codex" "copilot"]]
-      (should= {:backend name :dispatched "dispatched"} (record/backend "coder" name "1"))
-      (should= {:backend name :dispatched "dispatched"} (record/backend "coder" name nil))))
+  (it "uses the dispatched backend regardless of session markers"
+    (doseq [name ["claude" "codex" "copilot"]
+            claudecode [nil "1"]
+            thread [nil "thread-117"]]
+      (should= {:backend name :dispatched "dispatched"}
+               (record/backend "coder" name claudecode thread))))
 
-  (it "is nothing under dispatch without a known backend name"
-    (should-be-nil (record/backend "coder" nil "1"))
-    (should-be-nil (record/backend "coder" "vibe" "1"))
-    (should-be-nil (record/backend "coder" " claude" nil)))
+  (it "does not fall back to session markers under dispatch"
+    (doseq [name [nil "vibe" " claude"]
+            claudecode [nil "1"]
+            thread [nil "thread-117"]]
+      (should-be-nil (record/backend "coder" name claudecode thread))))
 
-  (it "is a claude session outside dispatch when CLAUDECODE is exactly 1"
-    (should= {:backend "claude" :dispatched "session"} (record/backend nil nil "1"))
-    (should= {:backend "claude" :dispatched "session"} (record/backend " " "codex" "1"))
-    (should= {:backend "claude" :dispatched "session"} (record/backend "" "codex" "1")))
+  (it "detects Claude only when the Codex marker is blank"
+    (doseq [dispatched [nil "" " "]
+            thread [nil "" " "]]
+      (should= {:backend "claude" :dispatched "session"}
+               (record/backend dispatched "codex" "1" thread))))
 
-  (it "is nothing in any other environment"
-    (should-be-nil (record/backend nil nil nil))
-    (should-be-nil (record/backend nil "codex" nil))
-    (should-be-nil (record/backend nil nil "0"))
-    (should-be-nil (record/backend nil nil "true"))))
+  (it "detects Codex only when the Claude marker is inactive"
+    (doseq [dispatched [nil "" " "]
+            claudecode [nil "" "0" "true" " 1"]]
+      (should= {:backend "codex" :dispatched "session"}
+               (record/backend dispatched "claude" claudecode "thread-117"))))
+
+  (it "omits metadata when both markers are active"
+    (should-be-nil (record/backend nil nil "1" "thread-117")))
+
+  (it "omits metadata when neither marker is active"
+    (doseq [claudecode [nil "" "0" "true"]
+            thread [nil "" " "]]
+      (should-be-nil (record/backend nil "codex" claudecode thread)))))
 
 (describe "a record that carries a backend"
   (it "writes the backend and dispatched trailers last and reads them back"

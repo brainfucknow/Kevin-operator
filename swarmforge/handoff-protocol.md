@@ -31,26 +31,27 @@ The hook rejects reserved `SwarmForge-*` trailers in role commits. Git's
 
 ### Backend
 
-sf stores on each record the backend that ran the `sf` command, in two
+sf stores on each record the backend detected in the command environment, in two
 sf-only trailers: `SwarmForge-Backend` (`claude`, `codex` or `copilot`) and
 `SwarmForge-Dispatched` (`dispatched` or `session`). A record has both or
-neither. The backend names the harness that ran `sf`, not who decided: the
-operator's records carry it too.
+neither. The operator's records carry the detected backend too.
 
 | Environment of the `sf` command | Record carries |
 |---|---|
 | `SWARMFORGE_DISPATCHED` not blank, `SWARMFORGE_BACKEND` a backend name | that backend, `dispatched` |
 | `SWARMFORGE_DISPATCHED` not blank, `SWARMFORGE_BACKEND` anything else | nothing |
-| `SWARMFORGE_DISPATCHED` blank or unset, `CLAUDECODE` is `1` | `claude`, `session` |
-| Any other | nothing |
+| `SWARMFORGE_DISPATCHED` blank or unset, `CLAUDECODE` is `1`, `CODEX_THREAD_ID` blank or unset | `claude`, `session` |
+| `SWARMFORGE_DISPATCHED` blank or unset, `CODEX_THREAD_ID` not blank, `CLAUDECODE` is not `1` | `codex`, `session` |
+| `SWARMFORGE_DISPATCHED` blank or unset, both session markers active or neither active | nothing |
 
 - `sf dispatch` and `sf run` start each role and gate with
   `SWARMFORGE_BACKEND` set to the backend they run. Outside dispatch sf does
-  not read `SWARMFORGE_BACKEND`. Under dispatch it does not read `CLAUDECODE`.
-- Only a Claude Code session is detected. A Codex, Copilot or Vibe session
-  and a plain terminal carry nothing.
-- A process started from a Claude Code session inherits `CLAUDECODE`. Its
-  records read `claude`, `session`, whatever tool it is.
+  not read `SWARMFORGE_BACKEND`. Under dispatch it ignores session markers.
+- A Copilot or Vibe session and a plain terminal without session markers
+  carry nothing.
+- Child processes can inherit `CLAUDECODE` and `CODEX_THREAD_ID`. These
+  markers identify the command environment, not the immediate parent
+  harness. Both active markers omit session metadata.
 - The handoff record that `sf approve` writes for the role carries what the
   review record it approves carries, not the backend of the `sf approve`
   command. The approval record carries the backend of the command.

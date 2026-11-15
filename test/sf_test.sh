@@ -957,6 +957,16 @@ assert_eq "show ends the Codex record with its backend" "$(sf show "$b1" | grep 
 env CLAUDECODE=1 CODEX_THREAD_ID=t1 sf answer "$b1" "a1" >/dev/null
 assert_eq "both session markers record nothing" "$(carried "swarm/$b1")" "|"
 assert_eq "show prints no backend for ambiguous markers" "$(sf show "$b1" | grep -v '^$' | tail -1)" "answer: a1"
+for thread in '' ' '; do
+  env CODEX_THREAD_ID="$thread" CLAUDECODE=1 sf ask "$b1" "blank Codex marker" >/dev/null
+  assert_eq "blank Codex marker preserves a Claude session" "$(carried "swarm/$b1")" "claude|session"
+  env CODEX_THREAD_ID="$thread" sf answer "$b1" "no active marker" >/dev/null
+  assert_eq "blank Codex marker alone records nothing" "$(carried "swarm/$b1")" "|"
+done
+env CLAUDECODE=0 CODEX_THREAD_ID=t1 SWARMFORGE_DISPATCHED=' ' SWARMFORGE_BACKEND=claude sf ask "$b1" "Codex with inactive Claude marker" >/dev/null
+assert_eq "Codex ignores inactive Claude and nondispatched backend values" "$(carried "swarm/$b1")" "codex|session"
+assert_eq "start prints the Codex session backend" "$(sf start "$b1" | grep -v '^$' | tail -1)" "backend: codex session"
+sf answer "$b1" "resume" >/dev/null
 env CLAUDECODE=0 sf ask "$b1" "q2" >/dev/null
 assert_eq "CLAUDECODE other than 1 records nothing" "$(carried "swarm/$b1")" "|"
 env SWARMFORGE_BACKEND=codex sf answer "$b1" "a2" >/dev/null
@@ -964,12 +974,18 @@ assert_eq "SWARMFORGE_BACKEND outside dispatch records nothing" "$(carried "swar
 env SWARMFORGE_DISPATCHED= CLAUDECODE=1 sf ask "$b1" "q3" >/dev/null
 assert_eq "a blank SWARMFORGE_DISPATCHED is a session" "$(carried "swarm/$b1")" "claude|session"
 sf answer "$b1" "a3" >/dev/null
-env SWARMFORGE_DISPATCHED=specifier CLAUDECODE=1 sf ask "$b1" "q4" >/dev/null
+env SWARMFORGE_DISPATCHED=specifier CLAUDECODE=1 CODEX_THREAD_ID=t1 sf ask "$b1" "q4" >/dev/null
 assert_eq "dispatch without a backend records nothing" "$(carried "swarm/$b1")" "|"
 sf answer "$b1" "a4" >/dev/null
-env SWARMFORGE_DISPATCHED=specifier SWARMFORGE_BACKEND=vibe sf ask "$b1" "q5" >/dev/null
+env SWARMFORGE_DISPATCHED=specifier SWARMFORGE_BACKEND=vibe CLAUDECODE=1 CODEX_THREAD_ID=t1 sf ask "$b1" "q5" >/dev/null
 assert_eq "dispatch with an unknown backend records nothing" "$(carried "swarm/$b1")" "|"
 sf answer "$b1" "a5" >/dev/null
+
+for backend in claude codex copilot; do
+  env SWARMFORGE_DISPATCHED=specifier SWARMFORGE_BACKEND="$backend" CLAUDECODE=1 CODEX_THREAD_ID=t1 sf ask "$b1" "dispatched backend" >/dev/null
+  assert_eq "dispatch takes precedence over both markers for $backend" "$(carried "swarm/$b1")" "$backend|dispatched"
+  sf answer "$b1" "resume" >/dev/null
+done
 
 fakes="$scratch/fake-backends"
 mkdir -p "$fakes"
