@@ -9,7 +9,7 @@ failures=0
 pass() { echo "ok   $1"; }
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
 assert_eq() { if [ "$2" = "$3" ]; then pass "$1"; else fail "$1: expected '$3', got '$2'"; fi; }
-assert_match() { if echo "$2" | grep -Eq "$3"; then pass "$1"; else fail "$1: '$2' does not match /$3/"; fi; }
+assert_match() { if grep -Eq "$3" <<<"$2"; then pass "$1"; else fail "$1: '$2' does not match /$3/"; fi; }
 assert_fails() { local name="$1"; shift; if "$@" >/dev/null 2>&1; then fail "$name should fail"; else pass "$name fails"; fi; }
 
 scratch="$(mktemp -d)"
@@ -336,6 +336,18 @@ assert_eq "a refused send-back records nothing" "$(git rev-parse "swarm/$sb") $(
 assert_match "the reviewer still hands off forward" "$(sf handoff "$sb" --to qa)" "pr-reviewer -> qa"
 assert_eq "harvest shows each send-back as a handoff from the reviewer to the coder" \
   "$(sf harvest | jq -c --arg id "$sb" 'select(.id == $id) | [.records[] | select(.type == "handoff" and .from == "pr-reviewer") | .stage]')" '["coder","coder","qa"]'
+rr="$(sf new "Send back across a route change" -m x --route coder,cleaner,pr-reviewer,qa)"
+sf start "$rr" >/dev/null
+rr_to_reviewer() { sf handoff "$rr" >/dev/null; sf handoff "$rr" >/dev/null; }
+rr_to_reviewer; sf handoff "$rr" --to coder >/dev/null
+rr_to_reviewer; sf handoff "$rr" --to coder >/dev/null
+rr_to_reviewer
+sf route "$rr" cleaner,pr-reviewer,qa >/dev/null
+tip="$(git rev-parse "swarm/$rr")"
+set +e; err="$(sf handoff "$rr" --to cleaner 2>&1)"; rc=$?; set -e
+assert_eq "a route change keeps the send-back count" "$rc $err" "1 sf: --to cleaner: task was sent back 2 times; ask the operator"
+assert_eq "a send-back refused after a route change records nothing" "$(git rev-parse "swarm/$rr") $(sf stage "$rr")" "$tip pr-reviewer"
+assert_match "the reviewer still hands off forward after a route change" "$(sf handoff "$rr")" "pr-reviewer -> qa"
 ss="$(sf new "Send back to spec" -m x --route specifier,coder,pr-reviewer)"
 sf start "$ss" >/dev/null
 git -C ".worktrees/$ss" commit -q --allow-empty -m "Spec"
@@ -490,6 +502,9 @@ echo "Big_Role strong subagent" >> swarmforge/roles.conf
 check_fails "check rejects a bad role name" "CHECK: roles.conf: role name 'Big_Role'"
 echo "done strong subagent" >> swarmforge/roles.conf
 check_fails "check rejects a reserved role name" "CHECK: roles.conf: 'done' is reserved"
+echo "none strong subagent gate" >> swarmforge/roles.conf
+cp swarmforge/roles/falsifier.md swarmforge/roles/none.md
+check_fails "check rejects none as a reserved role name" "CHECK: roles.conf: 'none' is reserved"
 echo "scribe mythic subagent" >> swarmforge/roles.conf
 check_fails "check rejects an unknown tier" "CHECK: roles.conf: 'scribe' uses unknown tier 'mythic'"
 echo "scribe fast daemon" >> swarmforge/roles.conf

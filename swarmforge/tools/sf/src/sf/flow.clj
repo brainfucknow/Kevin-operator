@@ -49,21 +49,25 @@
   "The send-backs a task may have."
   2)
 
-(defn send-backs
-  "The number of handoff records among records whose target comes before their
-  sender on route."
-  [records route]
+(defn- sent-back?
+  "True when rec is a handoff whose target comes before its sender on the
+  route the record carries."
+  [{:keys [record route stage from]}]
   (let [at #(.indexOf ^java.util.List (route-list route) %)]
-    (count (filter #(and (= "handoff" (:record %)) (< -1 (at (:stage %)) (at (:from %))))
-                   records))))
+    (and (= "handoff" record) (< -1 (at stage) (at from)))))
+
+(defn send-backs
+  "The number of send-backs among records, each counted against its own route."
+  [records]
+  (count (filter sent-back? records)))
 
 (defn- earlier? [{:keys [stage route]} to]
   (boolean (some #{to} (take-while #(not= stage %) (route-list route)))))
 
 (defn- send-back-refusal
   "Refuses a send-back to the specifier, and the one past the cap."
-  [{:keys [route]} to records]
-  (let [sent (send-backs records route)]
+  [to records]
+  (let [sent (send-backs records)]
     (cond (= "specifier" to) "--to specifier: a task cannot go back to the specifier"
           (>= sent send-back-cap) (str "--to " to ": task was sent back " sent " times; ask the operator"))))
 
@@ -81,7 +85,7 @@
          (= to (next-stage state nil)))
      nil
      (and send-back? (earlier? state to))
-     (send-back-refusal state to records)
+     (send-back-refusal to records)
      (= "done" to)
      (str "--to done skips the rest of route '" route "' after stage:" stage "; hand off to the next role")
      :else

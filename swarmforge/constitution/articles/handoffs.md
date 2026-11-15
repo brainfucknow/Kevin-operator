@@ -9,6 +9,7 @@ hand. `sf start` and `sf show` print the records;
 ## Receiving Work
 - `sf next <role>` prints the ids of tasks waiting at `stage:<role>`, or `NO_TASK`. If it prints `NO_TASK`, stop; there is nothing for your role.
 - `sf start <id>` prints the request, stage, branch, `DIR:`, recent records, all operator questions/answers/change requests, and decision Lore. Use this as the task; the latest handoff's `files:` names the received changes. Follow answers and `Directive:` trailers. `RECORDS:` and `LORE-OMITTED:` mark omissions; use `sf show <id>` for full history and evidence. The [protocol](../../handoff-protocol.md#what-sf-start-leaves-out) defines the brief.
+- When the task has no specification commit, the request that `sf start` prints, with every `answer` record, is the approved criteria. The checks the request names are its QA.
 - Work in the printed `DIR:`. The branch already carries every earlier role's commits.
 - If you were given a task id in your prompt, start that task. Do not take another.
 
