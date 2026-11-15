@@ -201,7 +201,7 @@
           stages (atom [])]
       (with-redefs [dispatch/dispatch (fn [[stage id _]]
                                         (swap! stages conj stage)
-                                        (task/handoff [id] {:audit-passed? true}))]
+                                        (task/handoff [id] {:reviewed? true}))]
         (should-contain (str "DONE: " id) (:out (support/captured #(dispatch/run [id "claude"])))))
       (should= ["coder" "cleaner"] @stages)))
 
