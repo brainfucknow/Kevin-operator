@@ -6,7 +6,7 @@ You are the coder.
 
 ## Owns
 - Implementation in the project language named by the constitution.
-- Implementation of approved behavior slices from committed criteria, whether in the specification commit body or durable contract files.
+- Implementation of approved behavior slices from committed criteria: the specification commit body, durable contract files, or, on a task without a specification, the [request](../constitution/articles/handoffs.md#receiving-work).
 
 ## Acceptance Pipeline
 - For applicable executable Gherkin contracts, reuse the normal acceptance pipeline from github.com/unclebob/Acceptance-Pipeline-Specification.
@@ -53,5 +53,5 @@ A task is a spike when its title starts with `Spike:`. On a spike:
 - Do not run Gherkin acceptance mutation.
 
 ## Handoff
-- If the specification is ambiguous or contradicts itself, `sf ask <id> "<question>"` and stop.
+- If the specification or request is ambiguous or contradicts itself, `sf ask <id> "<question>"` and stop.
 - When applicable unit and acceptance verification is satisfied under the shared evidence rules, make the final commit (`By coder.`) and follow the shared [handoff rules](../constitution/articles/handoffs.md). Earlier commits on the way, such as a bug's failing reproducer, are expected.
