@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import pytest
 
@@ -98,3 +99,29 @@ def test_shell_env_strips_secrets(monkeypatch):
         assert "probe" not in value, name
     for name in ("GITHUB_TOKEN", "SWARMFORGE_GITHUB_TOKEN", "MISTRAL_API_KEY", "MISTRAL_CLIENT_API_KEY", "MISTRAL_SA_TOKEN_PATH", "DB_PASSWORD"):
         assert name not in env
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("arguments", [
+    "unauthorized", "unauthorized HEAD", "-c main copied", "-C main copied",
+    "--copy main copied", "--copy=main copied", "--create-reflog unauthorized",
+])
+async def test_readonly_shell_refuses_branch_creation_and_copying(tmp_path, arguments):
+    subprocess.run(["git", "init", "-b", "main", str(tmp_path)], check=True, capture_output=True)
+    subprocess.run([
+        "git", "-c", "user.name=Codex", "-c", "user.email=codex@openai.com",
+        "commit", "--allow-empty", "-m", "Initial probe commit",
+    ], cwd=tmp_path, check=True, capture_output=True)
+    before = subprocess.check_output(["git", "show-ref"], cwd=tmp_path)
+    wt = runner.Worktree(path=str(tmp_path), role="falsifier")
+    with pytest.raises(runner.agents.ToolError):
+        await runner.run_readonly_shell(f"git branch {arguments}", wt)
+    assert subprocess.check_output(["git", "show-ref"], cwd=tmp_path) == before
+
+
+@pytest.mark.parametrize("arguments", [
+    "", "-a", "-r", "-vv", "--show-current", "--list 'swarm/*'",
+    "--list -a 'swarm/*'", "-l main", "--list -- main",
+])
+def test_readonly_argv_allows_branch_inspection(arguments):
+    assert runner._readonly_argv(f"git branch {arguments}")[:2] == ["git", "branch"]
