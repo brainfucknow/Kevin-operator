@@ -72,11 +72,12 @@ class SwarmforgePipeline:
                                 activities.GateRunInput(co=co, task_id=params.task_id, gate=gate)
                             )
                         )
-                    judge = await activities.spec_judge_role(ref)
-                    if judge is not None:
-                        result.verdict = await activities.run_spec_judge(
-                            activities.JudgeRunInput(co=co, task_id=params.task_id, reports=result.reports)
-                        )
+                    if result.reports:
+                        judge = await activities.spec_judge_role(ref)
+                        if judge is not None:
+                            result.verdict = await activities.run_spec_judge(
+                                activities.JudgeRunInput(co=co, task_id=params.task_id, reports=result.reports)
+                            )
                 return result
 
 
