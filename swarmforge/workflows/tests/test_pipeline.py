@@ -154,6 +154,30 @@ async def test_pipeline_blocks_with_gates_when_stage_ends_in_approval(world):
     assert w.gate_runs == ["falsifier"] and w.judge_runs == 1
 
 
+async def test_pipeline_skips_judge_when_approval_has_no_chosen_gates(world, monkeypatch):
+    w = world(
+        [
+            TaskState(stage="specifier", needs="none", route=["specifier", "coder"]),
+            TaskState(stage="specifier", needs="approval", route=["specifier", "coder"]),
+        ]
+    )
+
+    async def task_gates(params):
+        return []
+
+    async def run_spec_judge(params):
+        w.judge_runs += 1
+        return JudgeVerdict(verdict="converged", reason="no findings")
+
+    monkeypatch.setattr(activities, "task_gates", task_gates)
+    monkeypatch.setattr(activities, "run_spec_judge", run_spec_judge)
+    result = as_model(PipelineResult, await pipeline.SwarmforgePipeline().run(INPUT))
+    assert result.status == "blocked" and result.needs == "approval"
+    assert result.reports == []
+    assert w.gate_runs == [] and w.judge_runs == 0
+    assert result.verdict is None
+
+
 async def test_pipeline_fails_when_a_stage_makes_no_progress(world):
     world([TaskState(stage="coder", needs="none", route=["coder"])])
     with pytest.raises(Exception, match="made no progress"):
