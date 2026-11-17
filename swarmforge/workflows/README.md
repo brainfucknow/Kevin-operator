@@ -70,8 +70,28 @@ repositories works without it.
 ## Tests
 
 ```sh
-uv run pytest
+uv run --frozen pytest
 ```
 
 The workflow tests call the workflow's `run` method directly with the
 activities replaced by fakes, so no git, sf, model, or network runs.
+`--frozen` runs with the checked-in `uv.lock` as-is instead of re-resolving;
+CI runs the same command.
+
+## Shared uv state
+
+Harness sessions, task worktrees, and subagents share one uv state instead of
+rebuilding it per worktree. The session env, which the harness sources from
+the login shell for every command, exports:
+
+| Variable | Value |
+|---|---|
+| `UV_CACHE_DIR` | `~/.cache/uv` |
+| `UV_PYTHON_INSTALL_DIR` | `~/.local/share/uv/python` |
+| `UV_PROJECT_ENVIRONMENT` | `<repo>/swarmforge/workflows/.venv` |
+
+`~/.config/uv/uv.toml` pins `cache-dir` to the same shared cache. The project
+environment stays inside the repository, at the main checkout's `.venv`, so
+every worktree reuses it through the absolute path. `pyproject.toml` sets
+`pythonpath = ["src"]`, so tests in a task worktree still import that
+worktree's sources, not the main checkout's.
