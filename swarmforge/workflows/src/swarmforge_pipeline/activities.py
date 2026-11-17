@@ -118,6 +118,10 @@ async def run_stage_role(params: StageRunInput) -> RoleOutcome:
     if role is None or role.is_gate or role.is_spec_judge:
         raise ValueError(f"'{params.role}' is not a stage role")
     before = sfkit.read_state(params.co.main, params.task_id)
+    if before.needs in ("operator", "approval"):
+        return RoleOutcome(status="blocked", stage=before.stage, needs=before.needs)
+    if before.stage != params.role:
+        return RoleOutcome(status="advanced", stage=before.stage, needs=before.needs)
     agent = runner.build_agent(
         role,
         catalogue.mistral_model(tiers, role.tier),
