@@ -110,6 +110,20 @@ _READONLY_GIT_FORBIDDEN_ARGS = {
     "--git-dir", "--work-tree", "--config",
 }
 
+_READONLY_BRANCH_FLAGS = {
+    "-a", "--all", "-r", "--remotes", "-v", "-vv", "--verbose",
+    "-l", "--list", "--show-current", "--no-color", "--color=never",
+}
+
+
+def _readonly_branch_args(arguments: list[str]) -> bool:
+    listing = "--list" in arguments or "-l" in arguments
+    return all(
+        arg in _READONLY_BRANCH_FLAGS
+        or (listing and (arg == "--" or not arg.startswith("-")))
+        for arg in arguments
+    )
+
 
 def _readonly_argv(command: str) -> list[str]:
     """The argv a read-only command maps to, or a refusal. The command is
@@ -129,6 +143,8 @@ def _readonly_argv(command: str) -> list[str]:
         if len(parts) > 1 and parts[1] in _READONLY_SF:
             return ["swarmforge/bin/sf" if prog == "sf" else prog, *parts[1:]]
     elif prog == "git" and len(parts) > 1 and parts[1] in _READONLY_GIT:
+        if parts[1] == "branch" and not _readonly_branch_args(parts[2:]):
+            raise agents.ToolError(f"read-only shell refuses '{command}': use git branch inspection flags or --list patterns")
         if any(arg in _READONLY_GIT_FORBIDDEN_ARGS or arg.startswith("--output") for arg in parts[2:]):
             raise agents.ToolError(f"read-only shell refuses '{command}': that git option writes")
         return parts
