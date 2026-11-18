@@ -32,9 +32,9 @@ The hook rejects reserved `SwarmForge-*` trailers in role commits. Git's
 ### Backend
 
 sf stores on each record the backend detected in the command environment, in two
-sf-only trailers: `SwarmForge-Backend` (`claude`, `codex` or `copilot`) and
-`SwarmForge-Dispatched` (`dispatched` or `session`). A record has both or
-neither. The operator's records carry the detected backend too.
+sf-only trailers: `SwarmForge-Backend` (`claude`, `codex`, `copilot` or
+`mistral`) and `SwarmForge-Dispatched` (`dispatched` or `session`). A record
+has both or neither. The operator's records carry the detected backend too.
 
 | Environment of the `sf` command | Record carries |
 |---|---|

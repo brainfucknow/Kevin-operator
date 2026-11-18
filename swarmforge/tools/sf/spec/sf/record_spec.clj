@@ -162,7 +162,7 @@
 
 (describe "backend"
   (it "uses the dispatched backend regardless of session markers"
-    (doseq [name ["claude" "codex" "copilot"]
+    (doseq [name record/backends
             claudecode [nil "1"]
             thread [nil "thread-117"]]
       (should= {:backend name :dispatched "dispatched"}

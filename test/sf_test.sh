@@ -844,6 +844,62 @@ jq_spec() {
 }
 jl="$(jq_spec "Spec-judge loop")"
 assert_match "dispatch refuses the spec-judge" "$(sf dispatch spec-judge "$jl" claude 2>&1 || true)" "^sf: 'spec-judge' is the spec-judge: it needs the spec revision's gate reports"
+assert_match "dispatch refuses the spec-judge on the mistral backend too" "$(sf dispatch spec-judge "$jl" mistral 2>&1 || true)" "^sf: 'spec-judge' is the spec-judge"
+
+# backend detection must not depend on the machine's PATH: a copy of PATH
+# without the CLI backends, so a developer machine with claude installed runs
+# the same cases as CI
+cleanbin="$scratch/cleanbin"
+mkdir -p "$cleanbin"
+oldifs="$IFS"; IFS=:
+for d in $PATH; do
+  [ -d "$d" ] || continue
+  for f in "$d"/*; do
+    [ -e "$f" ] || continue
+    b="${f##*/}"
+    case "$b" in claude|codex|copilot) continue ;; esac
+    [ -e "$cleanbin/$b" ] || ln -s "$f" "$cleanbin/$b"
+  done
+done
+IFS="$oldifs"
+assert_match "no backend without a CLI or an API key" "$(env -u MISTRAL_API_KEY PATH="$cleanbin" sf dispatch coder "$jl" 2>&1 || true)" "^sf: no backend found \(claude, codex, copilot, mistral\)"
+assert_match "an explicit mistral backend without a key refuses" "$(env -u MISTRAL_API_KEY PATH="$cleanbin" sf dispatch coder "$jl" mistral 2>&1 || true)" "^sf-mistral: MISTRAL_API_KEY is not set"
+assert_match "mistral is detected with an API key and no CLI, and refuses without a remote" "$(env PATH="$cleanbin" MISTRAL_API_KEY=dummy sf dispatch coder "$jl" 2>&1 || true)" "^sf-mistral: the mistral backend needs a git remote 'origin'"
+assert_match "sf run with the mistral backend starts one pipeline execution" "$(env PATH="$cleanbin" MISTRAL_API_KEY=dummy sf run "$jl" mistral 2>&1 || true)" "^sf-mistral: the mistral backend needs a git remote 'origin'"
+
+# sf run <id> mistral against a loopback stub of the Workflows API: the
+# execution reports blocked, so sf run fetches the branch back and exits 2
+git init -q --bare "$scratch/origin.git"
+git remote add origin "$scratch/origin.git"
+# the worker checks out the base branch, so the remote must have it
+git push -q origin HEAD
+stub_port="$(bb -e '(import (java.net ServerSocket)) (with-open [s (ServerSocket. 0)] (.getLocalPort s))')"
+cat > "$scratch/stub.clj" <<'STUB_EOF'
+(require '[org.httpkit.server :as server])
+(def port (Integer/parseInt (first *command-line-args*)))
+(server/run-server
+  (fn [req]
+    {:status 200 :headers {"Content-Type" "application/json"}
+     :body (if (= :post (:request-method req))
+             "{\"execution_id\":\"sf-stub-1\"}"
+             "{\"status\":\"COMPLETED\",\"result\":{\"status\":\"blocked\",\"stage\":\"specifier\",\"needs\":\"approval\",\"reports\":[],\"verdict\":null,\"detail\":\"\"}}")})
+  {:port port})
+(Thread/sleep 120000)
+STUB_EOF
+bb "$scratch/stub.clj" "$stub_port" >/dev/null 2>&1 &
+stub_pid=$!
+for _ in $(seq 1 50); do
+  curl -fsS -o /dev/null "http://127.0.0.1:$stub_port/v1/workflows/executions/probe" 2>/dev/null && break
+  sleep 0.2
+done
+set +e
+run_out="$(env MISTRAL_API_URL="http://127.0.0.1:$stub_port" MISTRAL_API_KEY=dummy SWARMFORGE_MISTRAL_TIMEOUT_SECONDS=30 sf run "$jl" mistral 2>&1)"
+run_rc=$?
+set -e
+assert_eq "sf run with the mistral backend exits 2 when the execution reports blocked" "$run_rc" "2"
+assert_match "sf run with the mistral backend reports the blocked task" "$run_out" "^BLOCKED: $jl needs:approval"
+kill "$stub_pid" 2>/dev/null || true
+git remote remove origin
 assert_eq "spec-verdict continue prints its line" "$(sf spec-verdict "$jl" continue "r1")" "SPEC-VERDICT: $jl continue"
 assert_eq "start shows the send-back with its spec verdict" "$(sf start "$jl" | grep -A2 '^from: spec-judge$')" "$(printf 'from: spec-judge\nspec-verdict: continue\nreason: r1')"
 assert_match "the send-back has the new trailer" "$(git log -1 --format=%B "swarm/$jl")" "^SwarmForge-Spec-Verdict: continue$"
