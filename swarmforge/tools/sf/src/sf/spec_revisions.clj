@@ -144,6 +144,19 @@
       [(str "NOTE: total growth " (growth size s1) " over spec revision 1 (" s1 "); not a limit")]
       [])))
 
+(defn warnings
+  "The WARNING line on the newest spec revision's total growth over spec
+  revision 1: printed under the same condition as the NOTE, when the newest
+  spec revision's baseline is not spec revision 1, S1 is not 0 and its size is
+  more than half over S1. Not a limit: sf reject prints it too and is never
+  refused for it."
+  [sized-revisions]
+  (let [{s1 :size} (first sized-revisions)
+        {:keys [size baseline]} (peek (vec sized-revisions))]
+    (if (and size (not= 1 baseline) (over-limit? size s1))
+      [(str "WARNING: total growth " (growth size s1) " over spec revision 1 (" s1 "); more than half over across operator send-backs")]
+      [])))
+
 ;; output
 
 (defn- text-lines

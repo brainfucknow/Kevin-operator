@@ -338,7 +338,8 @@
         text (options/free-text args "reject needs a reason")
         rec (write! id "changes-requested" "operator"
                     (fn [state] (refuse (flow/approval-refusal state)) {:text text :needs "none"}))]
-    (println (str "REJECTED: " id " stays at stage:" (:stage rec)))))
+    (println (str "REJECTED: " id " stays at stage:" (:stage rec)))
+    (run! println (spec-revisions/warnings (:spec-revisions (history/spec-revisions (store/open-records id)))))))
 
 (defn spec-verdict
   "Records the spec-judge's spec verdict on the newest spec revision. Continue
@@ -369,7 +370,7 @@
     (shell/die "spec-revisions takes <id> [--full]"))
   (let [{:keys [records]} (history/view (store/resolve-id id-arg))
         {found :spec-revisions limits :limits} (history/spec-revisions records)]
-    (run! println (spec-revisions/report found (concat limits (spec-revisions/notes found))
+    (run! println (spec-revisions/report found (concat limits (spec-revisions/warnings found) (spec-revisions/notes found))
                                          (= ["--full"] flags)))))
 
 (defn- finished-message [id state target]
