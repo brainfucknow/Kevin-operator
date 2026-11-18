@@ -95,7 +95,7 @@
 
 (def backends
   "The backends that sf dispatch runs and that a record can name."
-  ["claude" "codex" "copilot"])
+  ["claude" "codex" "copilot" "mistral"])
 
 (defn backend
   "The backend that a record written in an environment carries, as :backend
