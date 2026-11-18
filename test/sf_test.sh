@@ -1151,5 +1151,123 @@ for pair in ".claude/skills/swarm/SKILL.md .agents/skills/swarm/SKILL.md"; do
   cmp -s "$HERE/$1" "$HERE/$2" && pass "$1 matches $2" || fail "$1 differs from $2"
 done
 
+# option-like free arguments of new/ask/answer/reject (issue #122)
+opt="$(sf new "Option probe" -m x)"
+branches_before="$(git for-each-ref --format='%(refname)' refs/heads/swarm/ | sort)"
+ls_before="$(sf ls)"
+needs_before="$(sf ls --needs)"
+
+new_entry="$(printf '%s\n' \
+  '  new <title> [-m text | -F file] [--route NAME|a,b,c] [--gates <gates>]' \
+  "      [--fixes <id>|'#N' [--found-by pr-review|ci|operator]]" \
+  '                                  create a task on a route; prints its id. <gates> is a' \
+  '                                  comma list of gate roles, or none (the default)')"
+ask_entry='  ask <id> <text>                 record a question and stop: needs operator'
+answer_entry="  answer <id> <text>              answer a role's question and clear needs operator"
+reject_entry='  reject <id> <text>              send the specification back to the specifier'
+
+# AC1: exact --help/-h as the title print the new entry, exit 0, no task
+for arg in --help -h; do
+  rc=0; out="$(sf new "$arg" 2>"$scratch/err")" || rc=$?
+  assert_eq "AC1 new $arg exits 0" "$rc" "0"
+  assert_eq "AC1 new $arg prints exactly the new entry" "$out" "$new_entry"
+  assert_eq "AC1 new $arg keeps stderr empty" "$(cat "$scratch/err")" ""
+done
+assert_eq "AC1 makes no task branch" "$(git for-each-ref --format='%(refname)' refs/heads/swarm/ | sort)" "$branches_before"
+assert_eq "AC1 leaves sf ls unchanged" "$(sf ls)" "$ls_before"
+
+# AC2: exact --help/-h as the text print the command's own line, exit 0, no record
+ac2() {
+  local cmd="$1" entry="$2" arg show0 rc out
+  for arg in --help -h; do
+    show0="$(sf show "$opt")"
+    rc=0; out="$(sf "$cmd" "$opt" "$arg" 2>"$scratch/err")" || rc=$?
+    assert_eq "AC2 $cmd <id> $arg exits 0" "$rc" "0"
+    assert_eq "AC2 $cmd <id> $arg prints exactly its usage line" "$out" "$entry"
+    assert_eq "AC2 $cmd <id> $arg keeps stderr empty" "$(cat "$scratch/err")" ""
+    assert_eq "AC2 $cmd <id> $arg appends no record" "$(sf show "$opt")" "$show0"
+  done
+}
+ac2 ask "$ask_entry"
+ac2 answer "$answer_entry"
+ac2 reject "$reject_entry"
+assert_eq "AC2 leaves the needs column unchanged" "$(sf ls --needs)" "$needs_before"
+
+# AC3: every other '-'-prefixed title is refused before option parsing
+for t in -x -- --bogus; do
+  rc=0; err="$(sf new "$t" 2>&1)" || rc=$?
+  assert_eq "AC3 new $t exits 1" "$rc" "1"
+  assert_eq "AC3 new $t refuses the title" "$err" "sf: new needs a title that does not start with '-'"
+done
+rc=0; err="$(sf new -m body 2>&1)" || rc=$?
+assert_eq "AC3 new -m body exits 1" "$rc" "1"
+assert_eq "AC3 new -m body refuses the title" "$err" "sf: new needs a title that does not start with '-'"
+assert_eq "AC3 makes no task branch" "$(git for-each-ref --format='%(refname)' refs/heads/swarm/ | sort)" "$branches_before"
+
+# AC4: every other '-'-prefixed text of ask/answer/reject is refused, nothing recorded
+ac4() {
+  local cmd="$1" msg="$2" text show0 rc err
+  for text in "-x" "--help extra"; do
+    show0="$(sf show "$opt")"
+    rc=0; err="$(sf "$cmd" "$opt" "$text" 2>&1)" || rc=$?
+    assert_eq "AC4 $cmd <id> '$text' exits 1" "$rc" "1"
+    assert_eq "AC4 $cmd <id> '$text' refuses the text" "$err" "sf: $msg"
+    assert_eq "AC4 $cmd <id> '$text' appends no record" "$(sf show "$opt")" "$show0"
+  done
+}
+ac4 ask "ask needs a question that does not start with '-'"
+ac4 answer "answer needs text that does not start with '-'"
+ac4 reject "reject needs a reason that does not start with '-'"
+
+# AC5: whitespace cannot bypass
+rc=0; out="$(sf new " --help " 2>"$scratch/err")" || rc=$?
+assert_eq "AC5 new ' --help ' exits 0" "$rc" "0"
+assert_eq "AC5 new ' --help ' prints the new entry" "$out" "$new_entry"
+rc=0; err="$(sf new " -x " 2>&1)" || rc=$?
+assert_eq "AC5 new ' -x ' exits 1" "$rc" "1"
+assert_eq "AC5 new ' -x ' refuses the title" "$err" "sf: new needs a title that does not start with '-'"
+show0="$(sf show "$opt")"
+rc=0; out="$(sf ask "$opt" " --help " 2>"$scratch/err")" || rc=$?
+assert_eq "AC5 ask <id> ' --help ' exits 0" "$rc" "0"
+assert_eq "AC5 ask <id> ' --help ' prints the ask line" "$out" "$ask_entry"
+assert_eq "AC5 ask <id> ' --help ' appends no record" "$(sf show "$opt")" "$show0"
+
+# AC6: the id resolves first; the text check precedes every state check
+rc=0; err="$(sf ask --help 2>&1)" || rc=$?
+assert_eq "AC6 ask --help exits 1" "$rc" "1"
+assert_eq "AC6 ask --help fails id resolution" "$err" "sf: no task '--help'"
+show0="$(sf show "$opt")"
+rc=0; out="$(sf reject "$opt" --help 2>"$scratch/err")" || rc=$?
+assert_eq "AC6 reject <id> --help on a task not awaiting approval exits 0" "$rc" "0"
+assert_eq "AC6 reject <id> --help prints the reject line" "$out" "$reject_entry"
+assert_eq "AC6 reject <id> --help records nothing" "$(sf show "$opt")" "$show0"
+rc=0; err="$(sf reject "$opt" -x 2>&1)" || rc=$?
+assert_eq "AC6 reject <id> -x fails with the text refusal" "$err" "sf: reject needs a reason that does not start with '-'"
+
+# AC7: unchanged behavior around the new checks
+id7="$(sf new "Real title" -m x)"
+assert_eq "AC7 new with a real title creates the branch" "$(git branch --list "swarm/$id7" | tr -d ' *')" "swarm/$id7"
+assert_match "AC7 ask records normal text" "$(sf ask "$opt" "why?")" "waits for the operator"
+assert_match "AC7 answer records text with a flag inside" "$(sf answer "$opt" "see --gates")" "resumes at stage:"
+rc=0; err="$(sf new 2>&1)" || rc=$?
+assert_eq "AC7 new without a title exits 1" "$rc" "1"
+assert_eq "AC7 new without a title message" "$err" "sf: new needs a title"
+rc=0; err="$(sf ask "$opt" 2>&1)" || rc=$?
+assert_eq "AC7 ask without text exits 1" "$rc" "1"
+assert_eq "AC7 ask without text message" "$err" "sf: ask needs a question"
+for h in --help -h help; do
+  rc=0; out="$(sf $h)" || rc=$?
+  assert_eq "AC7 sf $h exits 0" "$rc" "0"
+  assert_match "AC7 sf $h prints the full usage" "$out" '^usage: sf <command> \[args\]$'
+done
+rc=0; out="$(sf)" || rc=$?
+assert_match "AC7 bare sf prints the full usage" "$out" '^usage: sf <command> \[args\]$'
+rc=0; err="$(sf next --help 2>&1)" || rc=$?
+assert_match "AC7 next --help keeps its refusal" "$err" "unknown role '--help'"
+rc=0; err="$(sf ls --help 2>&1)" || rc=$?
+assert_eq "AC7 ls --help keeps its refusal" "$err" "sf: unknown ls option '--help'"
+rc=0; err="$(sf show --help 2>&1)" || rc=$?
+assert_eq "AC7 show --help keeps its refusal" "$err" "sf: no task '--help'"
+
 if [ "$failures" -gt 0 ]; then echo "$failures failure(s)" >&2; exit 1; fi
 echo "all tests passed"

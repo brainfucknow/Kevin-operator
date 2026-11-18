@@ -721,3 +721,61 @@
       (git *dir* "checkout" "-q" "main")
       (should= (str id "\tcoder\t\tcoder\tnone\tLegacy task") (out task/ls []))
       (should= "" (out task/gates [id])))))
+
+(def ^:private new-entry
+  "The new entry of the global usage, as the specification quotes it."
+  (str/join "\n" ["  new <title> [-m text | -F file] [--route NAME|a,b,c] [--gates <gates>]"
+                  "      [--fixes <id>|'#N' [--found-by pr-review|ci|operator]]"
+                  "                                  create a task on a route; prints its id. <gates> is a"
+                  "                                  comma list of gate roles, or none (the default)"]))
+
+(def ^:private text-commands
+  {"ask" [task/ask
+          "  ask <id> <text>                 record a question and stop: needs operator"
+          "ask needs a question that does not start with '-'"]
+   "answer" [task/answer
+             "  answer <id> <text>              answer a role's question and clear needs operator"
+             "answer needs text that does not start with '-'"]
+   "reject" [task/reject
+             "  reject <id> <text>              send the specification back to the specifier"
+             "reject needs a reason that does not start with '-'"]})
+
+(describe "option-like free arguments"
+  (around [it] (with-repo it))
+
+  (it "prints the new usage entry for a help title and creates no task"
+    (doseq [title ["--help" "-h" " --help "]]
+      (should= (str/trim new-entry) (out task/new-task [title])))
+    (should= (str new-entry "\n") (with-out-str (task/new-task ["--help"])))
+    (should= "" (out task/ls []))
+    (doseq [args [["-x"] ["--"] ["--bogus"] ["-m" "body"] [" -x "]]]
+      (fails-with "new needs a title that does not start with '-'" #(task/new-task args)))
+    (should= "" (out task/ls [])))
+
+  (it "prints the command's usage line for help text and records nothing"
+    (let [id (new-id "Probe")]
+      (doseq [[cmd [f entry]] text-commands
+              arg ["--help" "-h" " --help "]]
+        (let [before (out task/show [id])]
+          (should= (str/trim entry) (out f [id arg]))
+          (should= before (out task/show [id]))))
+      (should= (str (get-in text-commands ["ask" 1]) "\n")
+               (with-out-str (task/ask [id "--help"])))))
+
+  (it "refuses every other '-'-prefixed text and records nothing"
+    (let [id (new-id "Probe")]
+      (doseq [[cmd [f _ refusal]] text-commands
+              text ["-x" "--help extra"]]
+        (let [before (out task/show [id])]
+          (fails-with refusal #(f [id text]))
+          (should= before (out task/show [id]))))))
+
+  (it "resolves the id before the text check"
+    (fails-with "no task '--help'" #(task/ask ["--help"])))
+
+  (it "keeps normal titles and texts working"
+    (let [id (new-id "Real title")]
+      (should-contain "ASKED" (out task/ask [id "why?"]))
+      (should-contain "ANSWERED" (out task/answer [id "see --gates"]))
+      (fails-with "new needs a title" #(task/new-task []))
+      (fails-with "ask needs a question" #(task/ask [id])))))
