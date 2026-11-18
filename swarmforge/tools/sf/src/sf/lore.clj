@@ -156,7 +156,7 @@
             [tail fields] (take-tail more)]
         (recur fields (conj frames [header tail]))))))
 
-(defn no-tail
+(defn- no-tail
   "A take-tail for output without a per-commit tail: the header ends the commit."
   [fields]
   [[] fields])

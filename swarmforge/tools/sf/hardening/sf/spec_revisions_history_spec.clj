@@ -23,10 +23,7 @@
 (defn- commit-message!
   "Commits file with n lines under message, and returns the commit's short sha."
   [file n message]
-  (spit (str (fs/path *dir* file)) (apply str (repeat n "x\n")))
-  (git "add" file)
-  (git "commit" "-q" "-m" message)
-  (git "rev-parse" "--short" "HEAD"))
+  (git "rev-parse" "--short" (commit-lines! file n message)))
 
 (describe "history spec-revisions"
   (around [it]

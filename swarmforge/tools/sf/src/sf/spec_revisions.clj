@@ -117,8 +117,8 @@
   parents, message, trailers and numstat per commit."
   [output]
   (vec (for [[[sha parents message trailers] numstat] (lore/read-frames output 4 take-numstat)]
-         {:sha sha :parents (vec (remove str/blank? (str/split (or parents "") #" ")))
-          :message message :trailers (vec (remove str/blank? (str/split-lines (or trailers ""))))
+         {:sha sha :parents (vec (remove str/blank? (str/split parents #" ")))
+          :message message :trailers (vec (remove str/blank? (str/split-lines trailers)))
           :numstat (vec numstat)})))
 
 ;; growth and limits
