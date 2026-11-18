@@ -18,6 +18,16 @@
 
 (def review {:record "review" :stage "specifier"})
 
+(def ^:private spec-commits @#'sf.history/spec-commits)
+
+(defn- commit-message!
+  "Commits file with n lines under message, and returns the commit's sha."
+  [file n message]
+  (spit (str (fs/path *dir* file)) (apply str (repeat n "x\n")))
+  (git "add" file)
+  (git "commit" "-q" "-m" message)
+  (git "rev-parse" "HEAD"))
+
 (describe "history spec-revisions"
   (around [it]
     (let [dir (str (fs/create-temp-dir {:prefix "spec-revisions-history-spec-"}))]
@@ -48,4 +58,16 @@
 
   (it "counts every commit up to reviewed when no created record is readable"
     (let [a (commit-lines! "a.txt" 4 "Spec A")]
-      (should= [6] (map :size (:spec-revisions (history/spec-revisions [(assoc review :reviewed a)])))))))
+      (should= [6] (map :size (:spec-revisions (history/spec-revisions [(assoc review :reviewed a)]))))))
+
+  (it "reads commits whose messages hold 0x1f and 0x1e whole, with their numstat"
+    (let [base (git "rev-parse" "HEAD")
+          a (commit-message! "a.txt" 2 "Spec\u001fwith 0x1f\n\nBy specifier.\n\nTested: whole\n")
+          b (commit-message! "b.txt" 1 "More\u001ewith 0x1e\n\nBy coder.\n")
+          commits (spec-commits base b)]
+      (should= [b a] (map :sha commits))
+      (should= [[a] [base]] (map :parents commits))
+      (should= ["More\u001ewith 0x1e\n\nBy coder.\n" "Spec\u001fwith 0x1f\n\nBy specifier.\n\nTested: whole\n"]
+               (map :message commits))
+      (should= [[] ["Tested: whole"]] (map :trailers commits))
+      (should= [[["1" "0"]] [["2" "0"]]] (map :numstat commits)))))
