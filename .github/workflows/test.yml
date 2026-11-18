@@ -7,6 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Cache Maven and git dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: deps-${{ runner.os }}-${{ hashFiles('swarmforge/tools.conf', 'swarmforge/tools/*/bb.edn', 'test/acceptance/bb.edn') }}
+          restore-keys: deps-${{ runner.os }}-
       - name: Install the oldest Babashka sf supports
         env:
           BB_VERSION: 1.12.215
@@ -20,12 +28,31 @@ jobs:
           tar -xzf bb.tar.gz -C "$HOME/bin"
           rm bb.tar.gz
           "$HOME/bin/bb" --version
+      - name: Download dependencies with retries
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if bb --config swarmforge/tools/sf/bb.edn -e nil; then
+              exit 0
+            fi
+            echo "dependency download failed on attempt $attempt (Maven Central may answer HTTP 429); retrying" >&2
+            sleep $((attempt * 15))
+          done
+          echo "dependency download kept failing" >&2
+          exit 1
       - name: Test sf
         run: bash test/sf_test.sh
   sf:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Cache Maven and git dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: deps-${{ runner.os }}-${{ hashFiles('swarmforge/tools.conf', 'swarmforge/tools/*/bb.edn', 'test/acceptance/bb.edn') }}
+          restore-keys: deps-${{ runner.os }}-
       - name: No mutation manifests in the tree
         run: bash test/no_manifests.sh
       - name: Test the manifest guard
@@ -43,6 +70,17 @@ jobs:
           tar -xzf bb.tar.gz -C "$HOME/bin"
           rm bb.tar.gz
           "$HOME/bin/bb" --version
+      - name: Download dependencies with retries
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if bb --config swarmforge/tools/sf/bb.edn -e nil; then
+              exit 0
+            fi
+            echo "dependency download failed on attempt $attempt (Maven Central may answer HTTP 429); retrying" >&2
+            sleep $((attempt * 15))
+          done
+          echo "dependency download kept failing" >&2
+          exit 1
       - name: Test sf
         run: bash test/sf_test.sh
       - name: Test sf tool
