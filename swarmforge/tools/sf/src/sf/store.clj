@@ -182,7 +182,7 @@
   this sf command: :backend and :dispatched, or nil."
   []
   (record/backend (shell/env "SWARMFORGE_DISPATCHED" nil) (shell/env "SWARMFORGE_BACKEND" nil)
-                (shell/env "CLAUDECODE" nil)))
+                (shell/env "CLAUDECODE" nil) (shell/env "CODEX_THREAD_ID" nil)))
 
 (defn create!
   "Makes swarm/<id> at HEAD with one commit that changes no file."

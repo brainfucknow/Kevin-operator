@@ -1,10 +1,21 @@
 (ns sf.store-spec
-  (:require [speclj.core :refer [around describe it should should-not should= should-throw]]
+  (:require [speclj.core :refer [around describe it should should-not should= should-throw should-be-nil]]
             [sf.flow :as flow]
             [sf.record :as record]
             [sf.repo-support :as repo :refer [*dir* with-repo]]
             [sf.shell :as shell]
             [sf.store :as store]))
+
+(describe "recording-backend"
+  (it "records the Codex session marker from the command environment"
+    (with-redefs [shell/env (fn [name fallback]
+                             (get {"CODEX_THREAD_ID" "thread-117"} name fallback))]
+      (should= {:backend "codex" :dispatched "session"} (store/recording-backend))))
+
+  (it "omits backend metadata when both session markers are inherited"
+    (with-redefs [shell/env (fn [name fallback]
+                             (get {"CODEX_THREAD_ID" "thread-117" "CLAUDECODE" "1"} name fallback))]
+      (should-be-nil (store/recording-backend)))))
 
 (describe "resolve-id discovery cost"
   (it "resolves exact live and finished ids without scanning unclosed history"

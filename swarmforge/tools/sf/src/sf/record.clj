@@ -98,17 +98,20 @@
   ["claude" "codex" "copilot" "mistral"])
 
 (defn backend
-  "The backend that a record written in an environment carries, as :backend
-  and :dispatched, or nil for nothing. dispatched, backend and claudecode are
-  the values of SWARMFORGE_DISPATCHED, SWARMFORGE_BACKEND and CLAUDECODE, nil
-  when unset. A blank dispatched is not a dispatch, as in
-  flow/operator-refusal."
-  [dispatched backend claudecode]
-  (cond (not (str/blank? dispatched))
-        (when (some #{backend} backends) {:backend backend :dispatched "dispatched"})
+  "The backend metadata for a command environment, or nil. Arguments are
+  SWARMFORGE_DISPATCHED, SWARMFORGE_BACKEND, CLAUDECODE and CODEX_THREAD_ID.
+  Dispatch takes precedence; ambiguous session markers carry nothing."
+  [dispatched backend claudecode codex-thread-id]
+  (let [claude? (= "1" claudecode)
+        codex? (not (str/blank? codex-thread-id))]
+    (cond (not (str/blank? dispatched))
+          (when (some #{backend} backends) {:backend backend :dispatched "dispatched"})
 
-        (= "1" claudecode)
-        {:backend "claude" :dispatched "session"}))
+          (and claude? (not codex?))
+          {:backend "claude" :dispatched "session"}
+
+          (and codex? (not claude?))
+          {:backend "codex" :dispatched "session"})))
 
 (defn- carried-backend
   "The fields without :backend and :dispatched unless both hold a value that

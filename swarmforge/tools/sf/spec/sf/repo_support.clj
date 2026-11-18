@@ -31,7 +31,7 @@
 (def ^:private harness-variables
   "The variables that decide the backend on a record; a spec run inside a
   harness or a dispatch must not see them."
-  #{"CLAUDECODE" "SWARMFORGE_BACKEND" "SWARMFORGE_DISPATCHED"})
+  #{"CLAUDECODE" "CODEX_THREAD_ID" "SWARMFORGE_BACKEND" "SWARMFORGE_DISPATCHED"})
 
 (defn- without-harness [env]
   (fn [name default]
