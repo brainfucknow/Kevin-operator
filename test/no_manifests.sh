@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Fails when the git index holds a mutation manifest: a gherkin-mutator block
-# in a tracked .feature file, a tracked file under a .metrics/ directory, or
-# committed Cloverage output under a target/coverage/ directory.
+# Fails when the git index holds a mutation manifest or coverage output: a
+# gherkin-mutator block in a tracked .feature file, a tracked file under a
+# .metrics/ directory, or Cloverage output under a target/coverage/ directory.
 # Needs only bash and git, so CI runs it before installing anything else.
 set -euo pipefail
 
