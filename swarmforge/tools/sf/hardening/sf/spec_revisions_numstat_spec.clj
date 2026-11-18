@@ -3,6 +3,10 @@
             [sf.spec-revisions :as spec-revisions]))
 
 (describe "read-log"
-  (it "keeps only tab-separated numstat rows, not a stray line"
-    (let [output (str "\u001eabc\u001f\u001fmsg\u001f\u001f\n\n3\t1\ta.clj\nstray\n\n")]
-      (should= [["3" "1"]] (:numstat (first (spec-revisions/read-log output)))))))
+  (it "reads each numstat row whole: a normal row, a rename's two paths, a binary row"
+    (let [output (str "abc\u0000p\u0000msg\u0000\u0000"
+                      "\n3\t1\ta.clj\u0000"
+                      "0\t0\t\u0000old.txt\u0000new.txt\u0000"
+                      "-\t-\tbin.png\u0000")]
+      (should= [{:sha "abc" :parents ["p"] :message "msg" :trailers [] :numstat [["3" "1"] ["0" "0"] ["-" "-"]]}]
+               (spec-revisions/read-log output)))))

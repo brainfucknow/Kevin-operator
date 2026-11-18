@@ -150,11 +150,11 @@
              (lore/lines [{:sha "c1" :message "V\n\nBy qa.\n" :trailers ["Rejected: a | b: c"]}]))))
 
 (describe "read-log"
-  (it "reads the commits that git log prints in log-format"
+  (it "reads the commits that git log -z prints in log-format"
     (should= [{:sha "c1" :message "Spec\n\nBy specifier.\n\nTested: x\n" :trailers ["Tested: x"]}
               {:sha "c2" :message "Code\n" :trailers []}]
-             (lore/read-log (str "c1\u001fSpec\n\nBy specifier.\n\nTested: x\n\u001fTested: x\n\u001e\n"
-                                 "c2\u001fCode\n\u001f\u001e\n"))))
+             (lore/read-log (str "c1\u0000Spec\n\nBy specifier.\n\nTested: x\n\u0000Tested: x\n\u0000"
+                                 "c2\u0000Code\n\u0000\u0000"))))
 
   (it "reads no commits from empty output"
     (should= [] (lore/read-log ""))))

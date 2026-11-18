@@ -82,12 +82,13 @@
                              (commit "m" "Merge main\nmore\n" :parents ["p" "q"] :numstat [["300" "0"]])]))))
 
 (describe "read-log"
-  (it "reads the commits and numstat lines of git log --numstat with log-format"
+  (it "reads the commits and numstat rows of git log -z --numstat with log-format"
     (should= [{:sha "abc" :parents ["p1"] :message "Spec\n\nBody\n\nLore-id: 1\n" :trailers ["Lore-id: 1"]
                :numstat [["3" "1"] ["-" "-"]]}
               {:sha "def" :parents ["p1" "p2"] :message "Merge\n" :trailers [] :numstat []}]
-             (spec-revisions/read-log (str "\u001eabc\u001fp1\u001fSpec\n\nBody\n\nLore-id: 1\n\u001fLore-id: 1\n\u001f\n\n3\t1\ta.md\n-\t-\tbin.png\n"
-                                   "\u001edef\u001fp1 p2\u001fMerge\n\u001f\u001f\n")))))
+             (spec-revisions/read-log (str "abc\u0000p1\u0000Spec\n\nBody\n\nLore-id: 1\n\u0000Lore-id: 1\n\u0000"
+                                           "\n3\t1\ta.md\u0000-\t-\tbin.png\u0000"
+                                           "def\u0000p1 p2\u0000Merge\n\u0000\u0000")))))
 
 (describe "growth"
   (it "is the rounded-down percentage over the baseline, - when it is 0"
