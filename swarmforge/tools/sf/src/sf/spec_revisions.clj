@@ -93,24 +93,33 @@
     (+ (reduce + (map message-lines (lore/current commits))) (tracked-lines commits))))
 
 (def log-format
-  "The git log --numstat --format that read-log reads."
-  "%x1e%h%x1f%p%x1f%B%x1f%(trailers:only,unfold)%x1f")
+  "The git log -z --numstat --format that read-log reads: four NUL-terminated
+  fields per commit, then the commit's NUL-terminated numstat rows. git keeps
+  NUL out of a commit message, so no header field can end early."
+  "%h%x00%p%x00%B%x00%(trailers:only,unfold)")
 
-(defn- numstat-rows [text]
-  (vec (for [line (str/split-lines (or text ""))
-             :let [[added removed] (str/split line #"\t")]
-             :when (and removed (not (str/blank? added)))]
-         [added removed])))
+(defn- take-numstat
+  "Reads a commit's numstat tail fields, returning [rows remaining-fields].
+  Under -z git NUL-terminates every row as `added\\tremoved\\tpath`; a
+  rename's two paths are two extra fields after its empty-path row, and a
+  binary row is `-\\t-\\tpath`. Only the [added removed] pair is kept."
+  [fields]
+  (loop [fields fields rows []]
+    (if (or (empty? fields) (not (str/includes? (first fields) "\t")))
+      [rows fields]
+      (let [[added removed path] (str/split (str/replace (first fields) #"^\n" "") #"\t" -1)]
+        (if (= "" (or path ""))
+          (recur (drop 3 fields) (conj rows [added removed]))
+          (recur (rest fields) (conj rows [added removed])))))))
 
 (defn read-log
-  "The commits in git log --numstat output made with log-format."
+  "The commits in git log -z --numstat output made with log-format: sha,
+  parents, message, trailers and numstat per commit."
   [output]
-  (vec (for [entry (str/split output #"\x1e")
-             :let [[sha parents message trailers numstat] (str/split entry #"\x1f" -1)]
-             :when (not (str/blank? sha))]
-         {:sha sha :parents (vec (remove str/blank? (str/split (or parents "") #" ")))
-          :message message :trailers (vec (remove str/blank? (str/split-lines (or trailers ""))))
-          :numstat (numstat-rows numstat)})))
+  (vec (for [[[sha parents message trailers] numstat] (lore/read-frames output 4 take-numstat)]
+         {:sha sha :parents (vec (remove str/blank? (str/split parents #" ")))
+          :message message :trailers (vec (remove str/blank? (str/split-lines trailers)))
+          :numstat (vec numstat)})))
 
 ;; growth and limits
 

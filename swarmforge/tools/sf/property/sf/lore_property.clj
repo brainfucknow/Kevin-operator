@@ -73,10 +73,10 @@
     {:sha sha :message message :trailers trailers}))
 
 (defn- git-log
-  "The output git log --format=lore/log-format prints for commits."
+  "The output git log -z --format=lore/log-format prints for commits."
   [commits]
   (apply str (for [{:keys [sha message trailers]} commits]
-               (str sha "\u001f" message "\u001f" (apply str (map #(str % "\n") trailers)) "\u001e\n"))))
+               (str sha "\u0000" message "\u0000" (apply str (map #(str % "\n") trailers)) "\u0000"))))
 
 (describe "read-log"
   (it "reads back the commits git log prints"
