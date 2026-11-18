@@ -332,6 +332,11 @@
     (handoff [id] {:role (acting-role state) :reviewed? true
                    :carried (select-keys (approved-review (store/open-records id)) [:backend :dispatched])})))
 
+(defn- print-total-growth-warnings
+  "Prints the WARNING lines of the task's newest spec revision after sf reject."
+  [id]
+  (run! println (spec-revisions/warnings (:spec-revisions (history/spec-revisions (store/open-records id))))))
+
 (defn reject [[id-arg & args]]
   (operator-only! "reject")
   (let [id (open-task id-arg)
@@ -339,7 +344,7 @@
         rec (write! id "changes-requested" "operator"
                     (fn [state] (refuse (flow/approval-refusal state)) {:text text :needs "none"}))]
     (println (str "REJECTED: " id " stays at stage:" (:stage rec)))
-    (run! println (spec-revisions/warnings (:spec-revisions (history/spec-revisions (store/open-records id)))))))
+    (print-total-growth-warnings id)))
 
 (defn spec-verdict
   "Records the spec-judge's spec verdict on the newest spec revision. Continue
