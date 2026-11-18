@@ -16,6 +16,7 @@
   - `Security code scanner absent: <reason>`
   - `Dependency audit absent: <reason>`
 - The architect, hardener, and QA own property-test verification for affected behavior; keep it separate from normal unit, coverage, and mutation runs.
+- `sf finish` runs the sf property suite (`bb --config swarmforge/tools/sf/bb.edn property`) on every task's merge candidate through `swarmforge/verify.conf`, so property verification no longer depends on architect, hardener or qa being on the route (closes #125).
 - Security code scanner absent for `swarmforge/workflows/`: no Python scanner is installed in this project; the sf tools cover the Clojure code.
 - Dependency audit absent for `swarmforge/workflows/`: its Python dependencies are pinned in `swarmforge/workflows/uv.lock`; no audit tool is configured.
 
