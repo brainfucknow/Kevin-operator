@@ -128,24 +128,25 @@
 
 (defn new-task [[title & args]]
   (operator-only! "new")
-  (when (str/blank? title) (shell/die "new needs a title"))
-  (when-not (options/option-like "new" (str/trim title) "new needs a title that does not start with '-'")
-    (let [{:keys [body route fixes found-by gates] :or {body title}}
-          (options/parse "new" args {"-m" :body "-F" [:body options/read-file] "--route" :route
-                                     "--fixes" :fixes "--found-by" :found-by "--gates" :gates}
-                         {} #{"--fixes" "--found-by"})
-          route (if route (config/resolve-route route) (config/default-route))
-          gates (when gates (gate-choice "--gates" gates))
-          _ (refuse (record/link-refusal {:fixes fixes :found-by found-by}))
-          fixes (if (and fixes (not (record/pull-request? fixes))) (store/resolve-id fixes) fixes)
-          title (record/one-line title)
-          id (store/new-id title)]
-      (store/create! id (record/message (merge (cond-> (assoc (flow/created title body route) :task id)
-                                                 gates (assoc :gates gates)
-                                                 fixes (assoc :fixes fixes)
-                                                 found-by (assoc :found-by found-by))
-                                               (store/recording-backend))))
-      (println id))))
+  (let [complaint "new needs a title"]
+    (when (str/blank? title) (shell/die complaint))
+    (when-not (options/option-like "new" (str/trim title) complaint)
+      (let [{:keys [body route fixes found-by gates] :or {body title}}
+            (options/parse "new" args {"-m" :body "-F" [:body options/read-file] "--route" :route
+                                       "--fixes" :fixes "--found-by" :found-by "--gates" :gates}
+                           {} #{"--fixes" "--found-by"})
+            route (if route (config/resolve-route route) (config/default-route))
+            gates (when gates (gate-choice "--gates" gates))
+            _ (refuse (record/link-refusal {:fixes fixes :found-by found-by}))
+            fixes (if (and fixes (not (record/pull-request? fixes))) (store/resolve-id fixes) fixes)
+            title (record/one-line title)
+            id (store/new-id title)]
+        (store/create! id (record/message (merge (cond-> (assoc (flow/created title body route) :task id)
+                                                   gates (assoc :gates gates)
+                                                   fixes (assoc :fixes fixes)
+                                                   found-by (assoc :found-by found-by))
+                                                 (store/recording-backend))))
+        (println id)))))
 
 (defn- recorded-value [id field]
   (let [value (get (store/state id) field)]
@@ -272,16 +273,18 @@
 
 (defn ask [[id-arg & args]]
   (let [id (open-task id-arg)
-        text (options/free-text args "ask needs a question")]
-    (when-not (options/option-like "ask" text "ask needs a question that does not start with '-'")
+        complaint "ask needs a question"
+        text (options/free-text args complaint)]
+    (when-not (options/option-like "ask" text complaint)
       (write! id "question" acting-role (constantly {:text text :needs "operator"}))
       (println (str "ASKED: " id " waits for the operator")))))
 
 (defn answer [[id-arg & args]]
   (operator-only! "answer")
   (let [id (open-task id-arg)
-        text (options/free-text args "answer needs text")]
-    (when-not (options/option-like "answer" text "answer needs text that does not start with '-'")
+        complaint "answer needs text"
+        text (options/free-text args complaint)]
+    (when-not (options/option-like "answer" text complaint)
       (let [rec (write! id "answer" "operator" (constantly {:text text :needs "none"}))]
         (println (str "ANSWERED: " id " resumes at stage:" (:stage rec)))))))
 
@@ -338,8 +341,9 @@
 (defn reject [[id-arg & args]]
   (operator-only! "reject")
   (let [id (open-task id-arg)
-        text (options/free-text args "reject needs a reason")]
-    (when-not (options/option-like "reject" text "reject needs a reason that does not start with '-'")
+        complaint "reject needs a reason"
+        text (options/free-text args complaint)]
+    (when-not (options/option-like "reject" text complaint)
       (let [rec (write! id "changes-requested" "operator"
                         (fn [state] (refuse (flow/approval-refusal state)) {:text text :needs "none"}))]
         (println (str "REJECTED: " id " stays at stage:" (:stage rec)))))))

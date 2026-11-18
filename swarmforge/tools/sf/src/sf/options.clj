@@ -103,7 +103,6 @@ Environment
                        remote the task branch is pushed to (default origin) and
                        how long sf-mistral waits for the execution (default 3600s)")
 
-
 (defn read-file [path]
   (shell/chomp (slurp path)))
 
@@ -149,14 +148,13 @@ Environment
             (take-while #(str/starts-with? % "   ") (drop (inc at) lines))))))
 
 (defn option-like
-  "Handles a free text argument that must not look like an option. Exactly
-  --help or -h prints the command's entry of the usage and returns true; any
-  other text that starts with '-' stops with the refusal message; any other
-  text returns false."
-  [command text refusal]
+  "Guards a free text argument: exactly --help or -h prints command's entry of
+  the usage and returns true (handled); any other '-'-prefixed text stops with
+  complaint as the refusal message."
+  [command text complaint]
   (cond
     (contains? #{"--help" "-h"} text) (do (run! println (usage-entry command)) true)
-    (str/starts-with? text "-") (shell/die refusal)
+    (str/starts-with? text "-") (shell/die complaint " that does not start with '-'")
     :else false))
 
 (defn message
