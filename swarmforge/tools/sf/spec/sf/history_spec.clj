@@ -48,7 +48,18 @@
       (should= [] (lore-lines "HEAD" [{:record "created" :commit base}]))))
 
   (it "is nil when there is no created record"
-    (should-be-nil (lore-lines "HEAD" [{:record "question"}]))))
+    (should-be-nil (lore-lines "HEAD" [{:record "question"}])))
+
+  (it "reads commit messages that hold 0x1f and 0x1e whole"
+    (let [base (git *dir* "rev-parse" "--short" "HEAD")
+          _ (git *dir* "commit" "-q" "--allow-empty" "-m" "Code\u001fwith 0x1f\n\nBy coder.\n\nTested: control\n")
+          _ (git *dir* "commit" "-q" "--allow-empty" "-m" "Docs\u001ewith 0x1e\n\nBy qa.\n")
+          commits (lore-commits "HEAD" [{:record "created" :commit base}])]
+      (should= [(git *dir* "rev-parse" "--short" "HEAD~1") (git *dir* "rev-parse" "--short" "HEAD")]
+               (map :sha commits))
+      (should= ["Code\u001fwith 0x1f\n\nBy coder.\n\nTested: control\n" "Docs\u001ewith 0x1e\n\nBy qa.\n"]
+               (map :message commits))
+      (should= [["Tested: control"] []] (map :trailers commits)))))
 
 (defn- finish-through-second-parent!
   "Task t-1 in dir, finished into the branch pr, which main then merges: its

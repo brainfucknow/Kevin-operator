@@ -12,7 +12,7 @@
 (defn- commits-after
   "The first-parent commits of rev after base, as lore/read-log reads them."
   [base rev]
-  (lore/read-log (shell/must {:dir (shell/repo-root)} "git" "log" "--reverse" "--first-parent"
+  (lore/read-log (shell/must {:dir (shell/repo-root)} "git" "log" "-z" "--reverse" "--first-parent"
                              (str "--format=" lore/log-format) (str base ".." rev))))
 
 (defn- lore-commits
@@ -88,7 +88,7 @@
   spec-revisions/read-log reads them; every commit up to reviewed when created
   is nil."
   [created reviewed]
-  (spec-revisions/read-log (shell/must {:dir (shell/repo-root)} "git" "log" "--first-parent" "--numstat"
+  (spec-revisions/read-log (shell/must {:dir (shell/repo-root)} "git" "log" "-z" "--first-parent" "--numstat"
                                        (str "--format=" spec-revisions/log-format)
                                        (if created (str created ".." reviewed) reviewed) "--")))
 
