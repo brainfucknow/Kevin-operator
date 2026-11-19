@@ -203,8 +203,17 @@
       (with-redefs [dispatch/dispatch (fn [[stage id _]]
                                         (swap! stages conj stage)
                                         (task/handoff [id] {:reviewed? true}))]
-        (should-contain (str "DONE: " id) (:out (support/captured #(dispatch/run [id "claude"])))))
+        (should-contain (str "DONE: " id "; run: sf finish " id)
+                        (:out (support/captured #(dispatch/run [id "claude"])))))
       (should= ["coder" "cleaner"] @stages)))
+
+  (it "reports completed spikes without a finish hint on either run path"
+    (let [id (new-id "Spike: Try a different approach" "--route" "coder,cleaner")]
+      (with-out-str (doseq [_ (range 2)] (task/handoff [id] {:reviewed? true})))
+      (with-redefs [p/shell (backend-shell (constantly {:exit 0}))]
+        (should= (repeat 2 {:status 0 :out (str "DONE: " id)})
+                 (for [backend ["codex" "mistral"]]
+                   (select-keys (support/captured #(dispatch/run [id backend])) [:status :out]))))))
 
   (it "stops with status 2 when the operator is needed"
     (let [id (new-id "Add login")]

@@ -236,6 +236,23 @@
       (fails-with "is finished" #(task/ask [id "q"]))
       (should= "" (out task/ls []))))
 
+  (it "refuses to finish a completed spike without touching either branch or the worktree"
+    (git *dir* "branch" "release")
+    (let [id (new-id "Spike: Try a different approach" "--route" "coder,cleaner")
+          release-tip (git *dir* "rev-parse" "release")]
+      (out task/start [id])
+      (commit-in-worktree id "experiment")
+      (doseq [_ (range 2)] (task/handoff [id] {:reviewed? true}))
+      (let [before (snapshot id)]
+        (doseq [options [[] ["--into" "release"]]]
+          (let [result (captured #(task/finish (into [id] options)))]
+            (should= 1 (:status result))
+            (should-contain "spike" (:err result))
+            (should= "" (:out result))
+            (should= before (snapshot id))
+            (should= release-tip (git *dir* "rev-parse" "release"))
+            (should= "x" (slurp (str (worktree id) "/experiment"))))))))
+
   (it "stops a conflicting finish with the files and resumes it once the merge is committed"
     (let [id (conflicting-task)
           dir (str *dir* "/.worktrees/" id)
