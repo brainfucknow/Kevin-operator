@@ -17,8 +17,8 @@ jobs:
           restore-keys: deps-${{ runner.os }}-
       - name: Install the oldest Babashka sf supports
         env:
-          BB_VERSION: 1.12.215
-          BB_SHA256: 8248ed0bf9cac6f118613d034f1def14fc6db88c6d6aec785b2da7245c58e225
+          BB_VERSION: 1.12.216
+          BB_SHA256: 920b2d6e6b6580795a8cf1698aa124733bb26065bb10956842272caf8e5299ae
         run: |
           mkdir -p "$HOME/bin"
           echo "$HOME/bin" >> "$GITHUB_PATH"
@@ -41,6 +41,28 @@ jobs:
           exit 1
       - name: Test sf
         run: bash test/sf_test.sh
+      - name: Run the CRAP gate on the minimum Babashka
+        run: |
+          swarmforge/bin/sf tool ensure crap4clj
+          mkdir -p tmp
+          if ! .swarmforge/bin/crap4clj --source-root swarmforge/tools/core/src > tmp/crap4clj.log 2>&1; then
+            cat tmp/crap4clj.log
+            echo "crap4clj failed on bb $(bb --version)" >&2
+            exit 1
+          fi
+          cat tmp/crap4clj.log
+          grep -q "CRAP Report" tmp/crap4clj.log || { echo "no CRAP report in the crap4clj output" >&2; exit 1; }
+          if grep -q "Exception" tmp/crap4clj.log; then
+            echo "a stack trace appears in the crap4clj output" >&2
+            exit 1
+          fi
+          if ! bb -e '(let [entries (:entries (read-string (slurp "swarmforge/tools/core/.metrics/crap.edn")))]
+                         (when (or (empty? entries) (every? #(zero? (:coverage %)) entries))
+                           (println "every function reads 0.0% coverage; the coverage gate did not instrument")
+                           (System/exit 1)))'; then
+            echo "the CRAP report shows 0.0% coverage for every function on bb $(bb --version)" >&2
+            exit 1
+          fi
   sf:
     runs-on: ubuntu-latest
     steps:

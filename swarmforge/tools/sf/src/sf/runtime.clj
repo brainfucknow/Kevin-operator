@@ -3,11 +3,12 @@
   other, so an older Babashka gets a clear refusal instead of a load error.")
 
 (def minimum
-  "The oldest Babashka sf is tested on: the sf-min-bb job of
-  .github/workflows/test.yml runs test/sf_test.sh on it. 1.12.215 is the first
-  Babashka with the clojure.test.junit namespace and the tools.reader
-  indexing-push-back-reader that the crap4clj coverage gate needs."
-  "1.12.215")
+  "The oldest Babashka sf runs on: the sf-min-bb job of
+  .github/workflows/test.yml runs test/sf_test.sh and the crap4clj CRAP gate
+  on it. 1.12.216 is the first Babashka whose sci.lang.Var exposes the ns and
+  sym fields that Cloverage's instrumentation reads ((.-ns var), (.-sym var)),
+  so the crap4clj coverage/CRAP gate runs on the minimum."
+  "1.12.216")
 
 (defn- parts
   "The major, minor and patch numbers of version, 0 when missing."
