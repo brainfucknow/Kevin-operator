@@ -122,6 +122,31 @@
       (should-not-contain "LIMIT: growth" (revisions-of id))
       (should-contain "NOTE: total growth 70% over spec revision 1 (10); not a limit" (revisions-of id))))
 
+  (it "prints the WARNING before the NOTE across operator send-backs, without refusing continue or reject"
+    (let [id (reviewed-task)]
+      (out task/spec-verdict [id "continue" "r1"])
+      (rework! id 5)
+      (should-contain "LIMIT: growth size 16 is more than half over 10" (refused id "continue" "r2"))
+      ;; the newest spec revision's baseline is still 1, so no WARNING on reject
+      (let [reject-out (out task/reject [id "operator"])]
+        (should-contain (str "REJECTED: " id " stays at stage:specifier") reject-out)
+        (should-not-contain "WARNING" reject-out))
+      (rework! id 0)
+      (let [lines (str/split-lines (revisions-of id))]
+        (should-contain "size:17 growth:0% total:70% spec-verdict:-" (nth lines 2))
+        (should-not-contain "LIMIT:" (revisions-of id))
+        (should= ["WARNING: total growth 70% over spec revision 1 (10); more than half over across operator send-backs"
+                  "NOTE: total growth 70% over spec revision 1 (10); not a limit"]
+                 (subvec lines (- (count lines) 2))))
+      ;; the WARNING never refuses continue
+      (should= (str "SPEC-VERDICT: " id " continue") (out task/spec-verdict [id "continue" "r2"]))
+      (rework! id 0)
+      (let [reject-out (out task/reject [id "again"])
+            state (store/state id)]
+        (should= ["changes-requested" "operator"] ((juxt :record :from) state))
+        (should-contain (str "REJECTED: " id " stays at stage:specifier") reject-out)
+        (should-contain "WARNING: total growth 80% over spec revision 1 (10); more than half over across operator send-backs" reject-out))))
+
   (it "refuses continue with the growth line when the spec revision is over the limit"
     (let [id (reviewed-task)]
       (out task/spec-verdict [id "continue" "r1"])
@@ -160,7 +185,7 @@
                 "LIMIT: cap 2 of 2 automatic send-backs used" "LIMIT: growth size 18 is more than half over 10"]
                (map #(str/replace % #"^(SPEC-REVISION \d+) .*" "$1") (str/split-lines (revisions-of id))))))
 
-  (it "prints the total over spec revision 1 and a NOTE that is not a limit after an operator send-back"
+  (it "prints the total over spec revision 1 and a WARNING and NOTE that are not limits after an operator send-back"
     (let [id (reviewed-task)]
       (out task/spec-verdict [id "needs-operator" "decide"])
       (out task/reject [id "more"])
@@ -168,7 +193,9 @@
       (let [lines (str/split-lines (revisions-of id))]
         (should-contain "size:10 growth:0% total:0% spec-verdict:needs-operator" (first lines))
         (should-contain "size:16 growth:0% total:60% spec-verdict:-" (second lines))
-        (should= ["NOTE: total growth 60% over spec revision 1 (10); not a limit"] (subvec lines 2)))
+        (should= ["WARNING: total growth 60% over spec revision 1 (10); more than half over across operator send-backs"
+                  "NOTE: total growth 60% over spec revision 1 (10); not a limit"]
+                 (subvec lines 2)))
       (should= (str "SPEC-VERDICT: " id " continue") (out task/spec-verdict [id "continue" "again"]))
       (should-contain "size:16 growth:0% total:60% spec-verdict:continue" (revisions-of id))))
 

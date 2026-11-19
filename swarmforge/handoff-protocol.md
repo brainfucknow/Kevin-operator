@@ -214,8 +214,10 @@ With a `spec-judge` row in `roles.conf`, the specification gate of a task with g
 - `sf spec-revisions <id> [--full]` only reads. It runs for any role on any task `sf show` reads, and refuses any other argument. It prints `NO_SPEC_REVISIONS`, or:
   - per spec revision, `SPEC-REVISION <n> <sha> size:<size> growth:<growth> total:<total> spec-verdict:<spec-verdict or ->`; with `--full`, the text of its spec-verdict and changes-requested records under it;
   - one line per limit that holds for the newest spec revision: `LIMIT: cap 2 of 2 automatic send-backs used` and `LIMIT: growth size <size> is more than half over <B>`;
-  - `NOTE: total growth <total> over spec revision 1 (<S1>); not a limit`, when the newest spec revision's baseline is not spec revision 1, S1 is not 0 and `(size - S1) * 100 > 50 * S1`. With baseline spec revision 1, `LIMIT: growth` says it.
-- The NOTE is not a limit: `sf spec-verdict continue` is not refused for it.
+  - `WARNING: total growth <total> over spec revision 1 (<S1>); more than half over across operator send-backs`, when the newest spec revision's baseline is not spec revision 1, S1 is not 0 and `(size - S1) * 100 > 50 * S1`;
+  - `NOTE: total growth <total> over spec revision 1 (<S1>); not a limit`, under the same condition as the WARNING. With baseline spec revision 1, `LIMIT: growth` says it.
+- The WARNING and the NOTE are not limits: `sf spec-verdict continue` is not refused for them; only the LIMIT lines refuse it.
+- `sf reject <id> <text>` prints the WARNING line after `REJECTED: <id> stays at stage:<stage>` when the condition holds for the newest spec revision, the one it sends back. The reject still exits 0 and writes the changes-requested record; it is never refused.
 - `sf show <id>` prints the record texts with or without `--full`.
 
 ## Sharing

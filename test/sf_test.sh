@@ -948,9 +948,15 @@ sf spec-verdict "$jn" needs-operator "decide" >/dev/null
 sf reject "$jn" "more" >/dev/null
 git -C ".worktrees/$jn" commit -q --allow-empty -m "$(printf 'Rework\n1\n2\n3\n4\n5')"
 sf review "$jn" >/dev/null
-assert_eq "spec-revisions totals growth over spec revision 1 across a send-back and notes it" "$(sf spec-revisions "$jn" | sed 's/ [0-9a-f]* size:/ size:/')" \
-  "$(printf 'SPEC-REVISION 1 size:11 growth:0%% total:0%% spec-verdict:needs-operator\nSPEC-REVISION 2 size:18 growth:0%% total:63%% spec-verdict:-\nNOTE: total growth 63%% over spec revision 1 (11); not a limit')"
-assert_eq "the NOTE does not refuse continue" "$(sf spec-verdict "$jn" continue "again")" "SPEC-VERDICT: $jn continue"
+assert_eq "spec-revisions totals growth over spec revision 1 across a send-back and warns and notes it" "$(sf spec-revisions "$jn" | sed 's/ [0-9a-f]* size:/ size:/')" \
+  "$(printf 'SPEC-REVISION 1 size:11 growth:0%% total:0%% spec-verdict:needs-operator\nSPEC-REVISION 2 size:18 growth:0%% total:63%% spec-verdict:-\nWARNING: total growth 63%% over spec revision 1 (11); more than half over across operator send-backs\nNOTE: total growth 63%% over spec revision 1 (11); not a limit')"
+assert_eq "the WARNING does not refuse continue" "$(sf spec-verdict "$jn" continue "again")" "SPEC-VERDICT: $jn continue"
+jw="$(jq_spec "Spec-judge warn")"
+sf spec-verdict "$jw" needs-operator "decide" >/dev/null
+sf reject "$jw" "more" >/dev/null
+git -C ".worktrees/$jw" commit -q --allow-empty -m "$(printf 'Rework\n1\n2\n3\n4\n5')"
+sf review "$jw" >/dev/null
+assert_eq "reject prints the WARNING after REJECTED and is not refused" "$(sf reject "$jw" "back again")" "$(printf 'REJECTED: %s stays at stage:specifier\nWARNING: total growth 63%% over spec revision 1 (11); more than half over across operator send-backs' "$jw")"
 assert_eq "a task without a review has no spec revisions" "$(sf spec-revisions "$(sf new "Unreviewed" -m x)")" "NO_SPEC_REVISIONS"
 
 # old records: type verdict and SwarmForge-Verdict read as the new ones

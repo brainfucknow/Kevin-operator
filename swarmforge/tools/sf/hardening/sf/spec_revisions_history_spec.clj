@@ -50,6 +50,24 @@
       (should= [(git "rev-parse" "--short" a) (git "rev-parse" "--short" b)] (map :short found))
       (should= (spec-revisions/limits 1 8 5) limits)))
 
+  (it "resets the baseline on an operator changes-requested, so the newest revision carries the warning condition at 0% growth"
+    (let [base (git "rev-parse" "HEAD")
+          a (commit-lines! "a.txt" 4 "Spec A")
+          b (commit-lines! "b.txt" 2 "Spec B")
+          records [{:record "created" :commit base}
+                   (assoc review :reviewed a)
+                   {:record "changes-requested" :from "operator"}
+                   (assoc review :reviewed b)]
+          {found :spec-revisions limits :limits} (history/spec-revisions records)
+          newest (peek found)]
+      (should= [5 8] (map :size found))
+      (should= [1 2] (map :baseline found))
+      (should= "0%" (:growth newest))
+      (should= "60%" (:total newest))
+      (should= [] limits)
+      (should= ["WARNING: total growth 60% over spec revision 1 (5); more than half over across operator send-backs"]
+               (spec-revisions/warnings found))))
+
   (it "has no spec revisions and no limits before the first review"
     (should= {:spec-revisions [] :limits []} (history/spec-revisions [{:record "created" :commit (git "rev-parse" "HEAD")}])))
 
