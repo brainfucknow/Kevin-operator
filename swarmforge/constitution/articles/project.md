@@ -16,6 +16,7 @@
   - `Security code scanner absent: <reason>`
   - `Dependency audit absent: <reason>`
 - The architect, hardener, and QA own property-test verification for affected behavior; keep it separate from normal unit, coverage, and mutation runs.
+- `sf finish` runs the sf property suite (`bb --config swarmforge/tools/sf/bb.edn property`) on every task's merge candidate through `swarmforge/verify.conf`.
 - Security code scanner absent for `swarmforge/workflows/`: no Python scanner is installed in this project; the sf tools cover the Clojure code.
 - Dependency audit absent for `swarmforge/workflows/`: its Python dependencies are pinned in `swarmforge/workflows/uv.lock`; no audit tool is configured.
 - Dependency audit absent without `NVD_API_TOKEN` or network access to the NVD API and clojars.org: the security reviewer records `Not-tested: dependency audit: absent, <reason>` and continues; see the Clojure guide to provide the token.
