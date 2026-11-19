@@ -165,6 +165,15 @@
       (record/read-task-file (show-file sha file))
       (record/title-and-request text))))
 
+(defn spike?
+  "Whether the task's recorded title starts with the spike prefix."
+  [id]
+  (let [rev (if-let [finished (finished-record id)]
+              (str (:sha finished) "^2")
+              (ref-of id))
+        {:keys [title]} (title-and-request (records-at rev id))]
+    (str/starts-with? (or title "") "Spike:")))
+
 (defn open-records
   "The records of the task branch, oldest first; stops when it has none."
   [id]

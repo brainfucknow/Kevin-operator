@@ -116,6 +116,9 @@
       (when (not= before (gate-snapshot id))
         (shell/die "gate " gate " changed task " id "; a gate only reports")))))
 
+(defn- report-done [id]
+  (println (str "DONE: " id (when-not (store/spike? id) (str "; run: sf finish " id)))))
+
 (defn- run-mistral
   "One swarmforge-pipeline execution drives the task as far as it can without
   the operator: sf-mistral run polls it, then fetches the task branch back.
@@ -127,7 +130,7 @@
                             (catch java.io.IOException e
                               (shell/die "mistral: " (ex-message e))))]
     (cond
-      (zero? exit) (println (str "DONE: " id "; run: sf finish " id))
+      (zero? exit) (report-done id)
       (= 2 exit) (do (println (str "BLOCKED: " id " needs:" (:needs (store/state id))))
                      (shell/fail 2 nil))
       :else (shell/fail (if (pos? exit) exit 1) nil))))
@@ -142,7 +145,7 @@
     (let [{:keys [stage needs] :as state} (store/state id)]
       (cond
         (= "done" stage)
-        (println (str "DONE: " id "; run: sf finish " id))
+        (report-done id)
 
         (flow/waiting? state)
         (do (when (and dispatched? (= "approval" needs))
