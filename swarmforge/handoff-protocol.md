@@ -187,23 +187,11 @@ writes the finished-record trailers manually.
 ### Architecture rule changes
 
 A task whose diff touches an architecture rule file needs `architect` on its
-route. The trigger set is every tracked file under `swarmforge/tools/`
-matching `:(glob)swarmforge/tools/**/architecture*`, currently exactly
-`swarmforge/tools/sf/spec/sf/architecture_spec.clj`,
-`swarmforge/tools/core/test/sfcore/architecture_test.clj` and
-`swarmforge/tools/java/spec/sfjava/architecture_spec.clj`.
-
-At every stage check and again before `sf finish`, the orchestrator runs in
-the main checkout:
-
-```text
-git diff --name-only "$(git merge-base HEAD swarm/<id>)" swarm/<id> -- ':(glob)swarmforge/tools/**/architecture*'
-```
-
-When the output is non-empty, `sf route <id>` does not list `architect`, the
-current stage comes before `architect` in the catalogue, and the task is not
-a spike, the orchestrator adds `architect` with `sf route <id> <route>` (never
-on a spike). This is a prompt rule only; no sf code enforces it.
+route. The trigger set, the check command, and the route-change rule live in
+one canonical place: the
+[Architecture Rule Changes](roles/orchestrator.md#architecture-rule-changes)
+section of `swarmforge/roles/orchestrator.md`. Do not repeat them here. This is
+a prompt rule only; no sf code enforces it.
 
 ## Spec revisions
 
