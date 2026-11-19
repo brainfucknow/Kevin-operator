@@ -142,14 +142,33 @@
     {:lines (map line kept)
      :omitted (- (count (mapcat commit-trailers commits)) (count kept))}))
 
+(defn read-frames
+  "The commits in NUL-framed git log -z output, each as [header-fields
+  tail-fields]: a commit's header is the next n fields of the \\x00-split
+  output, and take-tail reads the fields after the header, returning
+  [tail-fields remaining-fields]. The final NUL leaves one empty trailing
+  field; no commit header starts with a blank field, so the log ends there."
+  [output n take-tail]
+  (loop [fields (str/split output #"\x00" -1) frames []]
+    (if (or (empty? fields) (str/blank? (first fields)) (< (count fields) n))
+      frames
+      (let [[header more] (split-at n fields)
+            [tail fields] (take-tail more)]
+        (recur fields (conj frames [header tail]))))))
+
+(defn- no-tail
+  "A take-tail for output without a per-commit tail: the header ends the commit."
+  [fields]
+  [[] fields])
+
 (def log-format
-  "The git log --format that read-log reads."
-  "%h%x1f%B%x1f%(trailers:only,unfold)%x1e")
+  "The git log -z --format that read-log reads: three NUL-terminated fields per
+  commit. git keeps NUL out of a commit message, so no field can end early."
+  "%h%x00%B%x00%(trailers:only,unfold)")
 
 (defn read-log
-  "The commits in git log output made with log-format."
+  "The commits in git log -z output made with log-format: sha, message and
+  trailers per commit."
   [output]
-  (vec (for [entry (str/split output #"\x1e")
-             :let [[sha message trailers] (str/split (str/replace entry #"^\n" "") #"\x1f" -1)]
-             :when (not (str/blank? sha))]
+  (vec (for [[[sha message trailers] _tail] (read-frames output 3 no-tail)]
          {:sha sha :message message :trailers (vec (remove str/blank? (str/split-lines trailers)))})))

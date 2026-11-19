@@ -338,6 +338,11 @@
     (handoff [id] {:role (acting-role state) :reviewed? true
                    :carried (select-keys (approved-review (store/open-records id)) [:backend :dispatched])})))
 
+(defn- print-total-growth-warnings
+  "Prints the WARNING lines of the task's newest spec revision after sf reject."
+  [id]
+  (run! println (spec-revisions/warnings (:spec-revisions (history/spec-revisions (store/open-records id))))))
+
 (defn reject [[id-arg & args]]
   (operator-only! "reject")
   (let [id (open-task id-arg)
@@ -346,7 +351,8 @@
     (when-not (options/option-like "reject" text complaint)
       (let [rec (write! id "changes-requested" "operator"
                         (fn [state] (refuse (flow/approval-refusal state)) {:text text :needs "none"}))]
-        (println (str "REJECTED: " id " stays at stage:" (:stage rec)))))))
+        (println (str "REJECTED: " id " stays at stage:" (:stage rec)))
+        (print-total-growth-warnings id)))))
 
 (defn spec-verdict
   "Records the spec-judge's spec verdict on the newest spec revision. Continue
@@ -377,7 +383,7 @@
     (shell/die "spec-revisions takes <id> [--full]"))
   (let [{:keys [records]} (history/view (store/resolve-id id-arg))
         {found :spec-revisions limits :limits} (history/spec-revisions records)]
-    (run! println (spec-revisions/report found (concat limits (spec-revisions/notes found))
+    (run! println (spec-revisions/report found (concat limits (spec-revisions/warnings found) (spec-revisions/notes found))
                                          (= ["--full"] flags)))))
 
 (defn- finished-message [id state target]

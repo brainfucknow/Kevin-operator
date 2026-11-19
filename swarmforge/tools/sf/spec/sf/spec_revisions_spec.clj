@@ -82,12 +82,13 @@
                              (commit "m" "Merge main\nmore\n" :parents ["p" "q"] :numstat [["300" "0"]])]))))
 
 (describe "read-log"
-  (it "reads the commits and numstat lines of git log --numstat with log-format"
+  (it "reads the commits and numstat rows of git log -z --numstat with log-format"
     (should= [{:sha "abc" :parents ["p1"] :message "Spec\n\nBody\n\nLore-id: 1\n" :trailers ["Lore-id: 1"]
                :numstat [["3" "1"] ["-" "-"]]}
               {:sha "def" :parents ["p1" "p2"] :message "Merge\n" :trailers [] :numstat []}]
-             (spec-revisions/read-log (str "\u001eabc\u001fp1\u001fSpec\n\nBody\n\nLore-id: 1\n\u001fLore-id: 1\n\u001f\n\n3\t1\ta.md\n-\t-\tbin.png\n"
-                                   "\u001edef\u001fp1 p2\u001fMerge\n\u001f\u001f\n")))))
+             (spec-revisions/read-log (str "abc\u0000p1\u0000Spec\n\nBody\n\nLore-id: 1\n\u0000Lore-id: 1\n\u0000"
+                                           "\n3\t1\ta.md\u0000-\t-\tbin.png\u0000"
+                                           "def\u0000p1 p2\u0000Merge\n\u0000\u0000")))))
 
 (describe "growth"
   (it "is the rounded-down percentage over the baseline, - when it is 0"
@@ -137,6 +138,26 @@
 
   (it "prints nothing without a spec revision"
     (should= [] (spec-revisions/notes []))))
+
+(describe "warnings"
+  (it "prints the total growth over spec revision 1 when the newest spec revision is more than half over it after a reset"
+    (should= ["WARNING: total growth 70% over spec revision 1 (10); more than half over across operator send-backs"]
+             (spec-revisions/warnings (sized [10 1] [17 2])))
+    (should= ["WARNING: total growth 109% over spec revision 1 (11); more than half over across operator send-backs"]
+             (spec-revisions/warnings (sized [11 1] [16 2] [21 3] [23 3]))))
+
+  (it "prints nothing at half over spec revision 1 or less"
+    (should= [] (spec-revisions/warnings (sized [10 1] [15 2])))
+    (should= [] (spec-revisions/warnings (sized [11 1] [16 2]))))
+
+  (it "prints nothing when the newest spec revision's baseline is spec revision 1, where LIMIT: growth says it"
+    (should= [] (spec-revisions/warnings (sized [10 1] [16 1]))))
+
+  (it "prints nothing when spec revision 1 has size 0"
+    (should= [] (spec-revisions/warnings (sized [0 1] [16 2]))))
+
+  (it "prints nothing without a spec revision"
+    (should= [] (spec-revisions/warnings []))))
 
 (def ^:private found
   [{:n 1 :short "abc1234" :size 10 :growth "0%" :total "0%"
