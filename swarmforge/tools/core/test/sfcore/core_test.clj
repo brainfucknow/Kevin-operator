@@ -29,6 +29,17 @@
     (is (= {"a.js" #{1}}
            (changes/changed-lines-from-diff
             (diff "--- a/a.js" "+++ b/a.js" "@@ -1,2 +0,0 @@" "-one" "-two")))))
+  (testing "a deletion between context lines changes the line that follows it"
+    (is (= {"a.js" #{2}}
+           (changes/changed-lines-from-diff
+            (diff "--- a/a.js" "+++ b/a.js" "@@ -1,3 +1,2 @@"
+                  " first" "-gone" " last")))))
+  (testing "a contextual hunk anchors each deletion, including after the last context line"
+    (is (= {"a.js" #{1 2 3}}
+           (changes/changed-lines-from-diff
+            (diff "--- a/a.js" "+++ b/a.js" "@@ -1,5 +1,2 @@"
+                  "-one" " first" "-two" " last" "-three"
+                  "\\ No newline at end of file")))))
   (testing "deletions and additions in one file"
     (is (= {"a.js" #{2 7}}
            (changes/changed-lines-from-diff
