@@ -465,6 +465,7 @@
         _ (when (store/merging?) (shell/die "a merge is in progress; commit the merge first"))
         state (store/state id)
         _ (when (not= "done" (:stage state)) (shell/die "task is at stage:" (:stage state) ", not done"))
+        _ (when (store/spike? id) (shell/die "task " id " is a spike and cannot be finished"))
         _ (check-worktree! id)
         root (shell/repo-root)
         dir (worktree-of id)
