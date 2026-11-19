@@ -200,10 +200,10 @@ the main checkout:
 git diff --name-only "$(git merge-base HEAD swarm/<id>)" swarm/<id> -- ':(glob)swarmforge/tools/**/architecture*'
 ```
 
-When the output is non-empty, `sf route <id>` does not list `architect`, and
-the current stage comes before `architect` in the catalogue, the orchestrator
-adds `architect` with `sf route <id> <route>`. This is a prompt rule only; no
-sf code enforces it.
+When the output is non-empty, `sf route <id>` does not list `architect`, the
+current stage comes before `architect` in the catalogue, and the task is not
+a spike, the orchestrator adds `architect` with `sf route <id> <route>` (never
+on a spike). This is a prompt rule only; no sf code enforces it.
 
 ## Spec revisions
 
