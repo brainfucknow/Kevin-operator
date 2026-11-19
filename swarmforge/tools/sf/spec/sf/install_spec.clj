@@ -27,7 +27,8 @@
   (let [source (fs/path *dir* "source checkout")]
     (fs/create-dirs source)
     (fs/copy (fs/path checkout "install.sh") (fs/path source "install.sh"))
-    (doseq [relative ["swarmforge" ".agents/skills" ".claude/skills" ".kilo/command"]]
+    (doseq [relative ["swarmforge" ".agents/skills" ".claude/skills" ".kilo/command" ".vibe/skills"]
+            :when (fs/exists? (fs/path checkout relative))]
       (fs/copy-tree (fs/path checkout relative) (fs/path source relative)))
     (binding [*source* (str source)] (example))))
 
