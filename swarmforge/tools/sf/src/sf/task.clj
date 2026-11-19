@@ -462,7 +462,7 @@
   (operator-only! "finish")
   (let [id (store/resolve-id id-arg)
         _ (store/refuse-unclosed! id)
-        requested-target (:target (options/parse "finish" args {"--into" :target} {}))
+        requested-target (not-empty (:target (options/parse "finish" args {"--into" :target} {})))
         _ (when (store/merging?) (shell/die "a merge is in progress; commit the merge first"))
         state (store/state id)
         _ (when (not= "done" (:stage state)) (shell/die "task is at stage:" (:stage state) ", not done"))

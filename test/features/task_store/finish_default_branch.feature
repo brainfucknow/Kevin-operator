@@ -12,7 +12,9 @@ Feature: sf finish default branch
   the pull-request alternative, and changes nothing: no verification runs,
   no merge, no finished record, no checkout of another branch; the task
   branch and the worktree stay as they were. An explicit --into BRANCH always
-  chooses the target, also when BRANCH is the default branch. The refusal
+  chooses the target, also when BRANCH is the default branch, but a blank
+  --into, an empty string as from a quoted empty variable, counts as no
+  --into and refuses the same way. The refusal
   applies only when sf finish would merge the task branch into the current
   branch, that is when HEAD has neither the task's finished record nor its
   tip; when HEAD already contains the tip, sf finish <id> without --into
@@ -115,3 +117,18 @@ Feature: sf finish default branch
     And the HEAD of the main checkout is a merge whose second parent is T1
     And the branch "swarm/$A" does not exist
     And the worktree of task "A" does not exist
+
+  # sf finish default branch 8
+  Scenario: sf finish default branch 8: a blank --into refuses like a bare finish
+    Given the HEAD of the main checkout is named M1
+    And the tip of the branch of task "A" is named T1
+    When I run "sf finish $A --into" with the text ""
+    Then the exit status is 1
+    And the output is ""
+    And the error output has the line "sf: refusing to merge swarm/$A into main without --into: main is the default branch of this repository; run sf finish $A --into BRANCH to choose the target, or push swarm/$A and open a pull request into main to review and merge it there"
+    And the HEAD of the main checkout is M1
+    And the main checkout has no file "src/a.clj" and no uncommitted change
+    And the branch of task "A" did not move
+    And the branch "swarm/$A" exists
+    And the worktree of task "A" exists
+    And the worktree of task "A" has no uncommitted change
