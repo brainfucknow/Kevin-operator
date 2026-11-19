@@ -93,9 +93,10 @@ task worktree `.worktrees/<id>` (created when missing, refused when it is on
 another branch), and `sf run <id>` loops through the stages until the task
 is done or waiting on you. Headless runs need tool permissions you grant
 yourself; pass them in `SWARMFORGE_CLAUDE_ARGS`, `SWARMFORGE_CODEX_ARGS`, or
-`SWARMFORGE_COPILOT_ARGS`. Claude runs with `--permission-mode acceptEdits`
-and Codex with `--full-auto`; sf grants Copilot no tool permissions on its
-own, so set them there, for example
+`SWARMFORGE_COPILOT_ARGS`. For ordinary stages, Claude uses
+`--permission-mode acceptEdits` and Codex uses `--sandbox workspace-write`.
+Codex gates use `--sandbox read-only`. Set Copilot tool permissions through its
+extra arguments, for example
 `SWARMFORGE_COPILOT_ARGS="--allow-all-tools"`.
 
 ## Roles, routes, and model tiers

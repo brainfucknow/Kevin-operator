@@ -63,7 +63,7 @@
                        (when (and model (not= "inherit" model)) ["--model" model])
                        (extra-args "SWARMFORGE_CLAUDE_ARGS")
                        [prompt])
-      "codex" (concat ["codex" "exec"] (if gate? ["--sandbox" "read-only"] ["--full-auto"])
+      "codex" (concat ["codex" "exec" "--sandbox" (if gate? "read-only" "workspace-write")]
                       ["-c" (str "model_reasoning_effort=\"" model "\"")]
                       (extra-args "SWARMFORGE_CODEX_ARGS")
                       [prompt])
