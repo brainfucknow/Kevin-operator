@@ -42,7 +42,7 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 - If the harness cannot run subagents, run `sf dispatch <role> <id>` instead; it starts a headless backend session with the same prompt. `sf run <id>` repeats that until the task is done or blocked. With no `claude`, `codex` or `copilot` on PATH, set `MISTRAL_API_KEY` (or `SWARMFORGE_BACKEND=mistral`) and the backend is the Mistral Workflow in `swarmforge/workflows/`: one execution per task, one agent per role, `sf` bookkeeping on the task branch, gates and spec-judge as workflow steps that record nothing.
 
 ## Architecture Rule Changes
-- At every stage check of a task - after `sf stage <id>` and `sf ls --needs`, before dispatching the next role - and again before `sf finish`, run in the main checkout:
+- At every stage check (after `sf stage <id>` and `sf ls --needs`, before dispatching the next role) and again before `sf finish`, run in the main checkout:
   `git diff --name-only "$(git merge-base HEAD swarm/<id>)" swarm/<id> -- ':(glob)swarmforge/tools/**/architecture*'`
 - The trigger set is every tracked file under `swarmforge/tools/` matching that glob, currently exactly `swarmforge/tools/sf/spec/sf/architecture_spec.clj`, `swarmforge/tools/core/test/sfcore/architecture_test.clj` and `swarmforge/tools/java/spec/sfjava/architecture_spec.clj`.
 - When the output is non-empty, `sf route <id>` does not list `architect`, and the task's current stage comes before `architect` in the catalogue, insert `architect` with `sf route <id> <route>` (catalogue order, current stage kept, no role removed, never on a spike) and say so in chat.

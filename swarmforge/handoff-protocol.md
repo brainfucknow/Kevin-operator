@@ -185,15 +185,22 @@ a merge of the tip. It never rewrites a commit HEAD already has. Nobody
 writes the finished-record trailers manually.
 
 ### Architecture rule changes
+
 A task whose diff touches an architecture rule file needs `architect` on its
 route. The trigger set is every tracked file under `swarmforge/tools/`
 matching `:(glob)swarmforge/tools/**/architecture*`, currently exactly
 `swarmforge/tools/sf/spec/sf/architecture_spec.clj`,
 `swarmforge/tools/core/test/sfcore/architecture_test.clj` and
-`swarmforge/tools/java/spec/sfjava/architecture_spec.clj`. At every stage
-check and again before `sf finish`, the orchestrator runs in the main
-checkout `git diff --name-only "$(git merge-base HEAD swarm/<id>)" swarm/<id> -- ':(glob)swarmforge/tools/**/architecture*'`;
-when the output is non-empty, `sf route <id>` does not list `architect`, and
+`swarmforge/tools/java/spec/sfjava/architecture_spec.clj`.
+
+At every stage check and again before `sf finish`, the orchestrator runs in
+the main checkout:
+
+```text
+git diff --name-only "$(git merge-base HEAD swarm/<id>)" swarm/<id> -- ':(glob)swarmforge/tools/**/architecture*'
+```
+
+When the output is non-empty, `sf route <id>` does not list `architect`, and
 the current stage comes before `architect` in the catalogue, the orchestrator
 adds `architect` with `sf route <id> <route>`. This is a prompt rule only; no
 sf code enforces it.
