@@ -27,7 +27,8 @@
   (let [source (fs/path *dir* "source checkout")]
     (fs/create-dirs source)
     (fs/copy (fs/path checkout "install.sh") (fs/path source "install.sh"))
-    (doseq [relative ["swarmforge" ".agents/skills" ".claude/skills" ".kilo/command"]]
+    (doseq [relative ["swarmforge" ".agents/skills" ".claude/skills" ".kilo/command" ".vibe/skills"]
+            :when (fs/exists? (fs/path checkout relative))]
       (fs/copy-tree (fs/path checkout relative) (fs/path source relative)))
     (binding [*source* (str source)] (example))))
 
@@ -120,12 +121,19 @@
           (write-file! *dir* path (before path))))
       (should= 0 (:exit (install!)))))
 
+  (it "ships .vibe/skills into the consumer project"
+    (with-source
+      #(do (write-file! *source* ".vibe/skills/swarm/SKILL.md" "vibe override\n")
+           (should= 0 (:exit (install!)))
+           (should= "vibe override\n" (slurp (str (fs/path *dir* ".vibe/skills/swarm/SKILL.md")))))))
+
   (it "refreshes shipped runtime and lists unshipped payload files without deleting them"
     (with-source
       #(let [retired "swarmforge/roles/retired.md"
              old-tool "swarmforge/tools/retired/src/Old.clj"
              user-guide "swarmforge/languages/My Guide.md"
              user-skill ".agents/skills/custom/SKILL.md"
+             user-vibe-skill ".vibe/skills/custom/SKILL.md"
              runtime "swarmforge/handoff-protocol.md"]
          (write-file! *source* retired "retired role\n")
          (write-file! *source* old-tool "retired source\n")
@@ -134,10 +142,11 @@
          (fs/delete (fs/path *source* old-tool))
          (write-file! *dir* user-guide "user guide\n")
          (write-file! *dir* user-skill "user skill\n")
+         (write-file! *dir* user-vibe-skill "user vibe skill\n")
          (write-file! *dir* "swarmforge/tools/sf/.cpcache/old" "cache\n")
          (write-file! *dir* ".codex/agents/user.toml" "user agent\n")
          (write-file! *source* runtime "updated runtime payload\n")
-         (let [unknown [retired old-tool user-guide user-skill]
+         (let [unknown [retired old-tool user-guide user-skill user-vibe-skill]
                before (contents unknown)
                first-result (install!)
                second-result (install!)]

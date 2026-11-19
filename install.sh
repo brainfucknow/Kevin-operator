@@ -62,6 +62,9 @@ copy_file() {
 
 copy_tree() {
   local src="$1" dst="$2" entry
+  # A payload directory the source checkout does not have (yet) ships nothing
+  # and must not leave an empty directory in the target.
+  [ -d "$src" ] || return 0
   mkdir -p "$dst"
   for entry in "$src"/* "$src"/.[!.]* "$src"/..?*; do
     [ -e "$entry" ] || [ -L "$entry" ] || continue
@@ -97,6 +100,7 @@ done
 copy_tree "$HERE/.claude/skills" "$target/.claude/skills"
 copy_tree "$HERE/.agents/skills" "$target/.agents/skills"
 copy_tree "$HERE/.kilo/command" "$target/.kilo/command"
+copy_tree "$HERE/.vibe/skills" "$target/.vibe/skills"
 
 append_once() {
   local file="$1" line="$2"
@@ -136,7 +140,8 @@ printf '%s\0' "${shipped[@]}" | (cd "$HERE" && bb -e '
         remember (fn [path _] (swap! found conj (str (fs/relativize root path))) :continue)
         caches #{".git" ".swarmforge" ".metrics" ".worktrees" ".cpcache" "node_modules" "tmp"}
         managed ["swarmforge/bin" "swarmforge/constitution" "swarmforge/languages"
-                 "swarmforge/roles" "swarmforge/tools" ".claude/skills" ".agents/skills" ".kilo/command"]]
+                 "swarmforge/roles" "swarmforge/tools" ".claude/skills" ".agents/skills"
+                 ".kilo/command" ".vibe/skills"]]
     (doseq [relative managed :let [directory (fs/path root relative)] :when (fs/exists? directory)]
       (fs/walk-file-tree directory
         {:pre-visit-dir (fn [path _] (if (caches (fs/file-name path)) :skip-subtree :continue))
