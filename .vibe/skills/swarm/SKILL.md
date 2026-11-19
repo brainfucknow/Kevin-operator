@@ -27,6 +27,8 @@ reaches `done`:
    the body when the task fixes GitHub issue #N.
 3. Run the `pr-reviewer` review of that pull request, per the Pull Request
    Review section of `swarmforge/roles/orchestrator.md`.
-4. Merge the pull request only after the review finishes and the operator
-   accepts its findings. Never run `sf finish <id>` into `main` unless the
-   operator explicitly asks for it.
+4. A pull request merges only after a human has reviewed and approved it on
+   GitHub (branch protection on `main` requires one approving review) and
+   the `pr-reviewer` review is done, and only when the operator accepts its
+   findings. Never run `sf finish <id>` into `main` unless the operator
+   explicitly asks for it.
