@@ -59,7 +59,7 @@
     sf.dispatch #{sf.config sf.flow sf.record sf.shell sf.store sf.task}
     sf.missing-tools #{sf.record}
     sf.task #{sf.audit sf.config sf.flow sf.git sf.harvest sf.history sf.hook sf.lore sf.metrics sf.missing-tools sf.options sf.record sf.spec-revisions sf.shell sf.store sf.tool sf.verify}
-    sf.cli #{sf.adapters sf.config sf.dispatch sf.hook sf.shell sf.task sf.tool}})
+    sf.cli #{sf.adapters sf.config sf.dispatch sf.hook sf.options sf.shell sf.task sf.tool}})
 
 (defn- source-namespaces []
   (let [dir (fs/parent (fs/path (io/resource (source-path 'sf.cli))))]
