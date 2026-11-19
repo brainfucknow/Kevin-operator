@@ -58,7 +58,9 @@ Catalogue commands
   stage <id>                      print the task's current stage
   spec-revisions <id> [--full]    print each spec revision of the specification gate: size,
                                   growth, total growth over spec revision 1 and spec verdict,
-                                  then the LIMIT lines and an informational NOTE; --full adds
+                                  then the LIMIT lines, then the WARNING when the newest spec
+                                  revision is more than half over spec revision 1 across
+                                  operator send-backs, then the informational NOTE; --full adds
                                   what each spec revision sent back
   harvest                         print every task's history as one JSON line each, finished
                                   tasks first (handoff-protocol.md describes the keys)

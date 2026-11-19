@@ -139,6 +139,26 @@
   (it "prints nothing without a spec revision"
     (should= [] (spec-revisions/notes []))))
 
+(describe "warnings"
+  (it "prints the total growth over spec revision 1 when the newest spec revision is more than half over it after a reset"
+    (should= ["WARNING: total growth 70% over spec revision 1 (10); more than half over across operator send-backs"]
+             (spec-revisions/warnings (sized [10 1] [17 2])))
+    (should= ["WARNING: total growth 109% over spec revision 1 (11); more than half over across operator send-backs"]
+             (spec-revisions/warnings (sized [11 1] [16 2] [21 3] [23 3]))))
+
+  (it "prints nothing at half over spec revision 1 or less"
+    (should= [] (spec-revisions/warnings (sized [10 1] [15 2])))
+    (should= [] (spec-revisions/warnings (sized [11 1] [16 2]))))
+
+  (it "prints nothing when the newest spec revision's baseline is spec revision 1, where LIMIT: growth says it"
+    (should= [] (spec-revisions/warnings (sized [10 1] [16 1]))))
+
+  (it "prints nothing when spec revision 1 has size 0"
+    (should= [] (spec-revisions/warnings (sized [0 1] [16 2]))))
+
+  (it "prints nothing without a spec revision"
+    (should= [] (spec-revisions/warnings []))))
+
 (def ^:private found
   [{:n 1 :short "abc1234" :size 10 :growth "0%" :total "0%"
     :records [(continued "r1 first\nsecond\n\nfourth")]}
