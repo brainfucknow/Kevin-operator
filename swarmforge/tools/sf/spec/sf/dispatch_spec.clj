@@ -38,7 +38,7 @@
                                      "SWARMFORGE_COPILOT_ARGS" "--z"})]
       (should= ["claude" "-p" "--permission-mode" "acceptEdits" "--model" "opus" "--verbose" "--x" "prompt"]
                (vec (command-for "claude" "coder" "prompt")))
-      (should= ["codex" "exec" "--full-auto" "-c" "model_reasoning_effort=\"medium\"" "--y" "prompt"]
+      (should= ["codex" "exec" "--sandbox" "workspace-write" "-c" "model_reasoning_effort=\"medium\"" "--y" "prompt"]
                (vec (command-for "codex" "coder" "prompt")))
       (should= ["copilot" "-p" "prompt" "--model" "gpt-5" "--z"]
                (vec (command-for "copilot" "coder" "prompt")))))
