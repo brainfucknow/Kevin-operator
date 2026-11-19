@@ -56,5 +56,42 @@ assert_eq "every manifest is reported, blocks first" "$status:$err" "1:mutation 
 tracked file under .metrics/: .metrics/a.edn
 tracked file under .metrics/: tools/.metrics/b.edn"
 
+git reset -q
+rm -rf z.feature .metrics tools metrics
+guard
+assert_eq "the index back at HEAD passes again" "$status:$out:$err" "0::"
+
+mkdir -p swarmforge/tools/sf/target/coverage target/coverage swarmforge/tools/sf/target/classes swarmforge/tools/sf/target/coverage-old
+echo x > swarmforge/tools/sf/target/coverage/index.html
+echo x > target/coverage/lcov.info
+echo x > swarmforge/tools/sf/target/classes/x.class
+echo x > swarmforge/tools/sf/target/coverage-old/y
+git add -f swarmforge/tools/sf/target target/coverage
+guard
+assert_eq "tracked files under target/coverage/ fail" "$status" "1"
+assert_eq "each coverage file is named on stderr, other target/ output is not" "$err" "tracked coverage output under target/coverage/: swarmforge/tools/sf/target/coverage/index.html
+tracked coverage output under target/coverage/: target/coverage/lcov.info"
+assert_eq "a coverage report leaves stdout empty" "$out" ""
+
+git reset -q
+rm -rf swarmforge target
+mkdir -p swarmforge/tools/sf/target
+echo x > swarmforge/tools/sf/target/coverage
+git add -f swarmforge
+guard
+assert_eq "a bare file named target/coverage passes" "$status:$out:$err" "0::"
+
+git reset -q
+rm -rf swarmforge
+mkdir -p a/target/coverage .metrics
+echo x > a/target/coverage/z
+echo x > .metrics/m.edn
+printf '# mutation-stamp: sha256=cd\n' > m.feature
+git add -f a .metrics m.feature
+guard
+assert_eq "blocks, then .metrics/, then coverage output" "$status:$err" "1:mutation manifest block in a tracked feature file: m.feature
+tracked file under .metrics/: .metrics/m.edn
+tracked coverage output under target/coverage/: a/target/coverage/z"
+
 echo
 if [ "$failures" -eq 0 ]; then echo "all no_manifests tests passed"; else echo "$failures failure(s)" >&2; exit 1; fi

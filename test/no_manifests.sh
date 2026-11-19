@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Fails when the git index holds a mutation manifest: a gherkin-mutator block
-# in a tracked .feature file, or a tracked file under a .metrics/ directory.
+# Fails when the git index holds a mutation manifest or coverage output: a
+# gherkin-mutator block in a tracked .feature file, a tracked file under a
+# .metrics/ directory, or Cloverage output under a target/coverage/ directory.
 # Needs only bash and git, so CI runs it before installing anything else.
 set -euo pipefail
 
@@ -8,6 +9,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 blocks="$(git grep --cached -l -E '^# (mutation-stamp:|acceptance-mutation-manifest-begin)' -- '*.feature')" || [ $? -eq 1 ]
 metrics="$(git ls-files -- ':(glob)**/.metrics/**')"
+coverage="$(git ls-files -- ':(glob)**/target/coverage/**')"
 
 found=0
 report() {
@@ -20,4 +22,5 @@ report() {
 }
 report "mutation manifest block in a tracked feature file: " <<<"$blocks"
 report "tracked file under .metrics/: " <<<"$metrics"
+report "tracked coverage output under target/coverage/: " <<<"$coverage"
 exit "$found"
