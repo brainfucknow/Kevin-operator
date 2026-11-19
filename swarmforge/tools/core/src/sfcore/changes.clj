@@ -6,8 +6,11 @@
 (defn- hunk-header [line]
   (re-find #"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@" line))
 
+(defn- advance-line [state]
+  (-> state (update :pending-new dec) (update :cursor inc)))
+
 (defn- note-line [{:keys [current cursor] :as state}]
-  (cond-> (-> state (update :pending-new dec) (update :cursor inc))
+  (cond-> (advance-line state)
     current (update-in [:result current] (fnil conj (sorted-set)) cursor)))
 
 (defn- start-file [state raw]
@@ -17,7 +20,10 @@
       file (update :result #(if (contains? % file) % (assoc % file (sorted-set)))))))
 
 (defn- read-hunk-line [state raw]
-  (if (str/starts-with? raw "+") (note-line state) state))
+  (case (first raw)
+    \+ (note-line state)
+    \space (advance-line state)
+    state))
 
 (defn- note-deletion
   "A deletion-only hunk sits between new-side lines `start` and `start`+1; the
@@ -41,7 +47,7 @@
     :else (read-header-line state raw)))
 
 (defn changed-lines-from-diff
-  "Reads `git diff -U0` output into a map from new-side path to the sorted set
+  "Reads unified git diff output into a map from new-side path to the sorted set
   of line numbers that were added or rewritten, plus the line that follows
   each deletion-only hunk."
   [text]
