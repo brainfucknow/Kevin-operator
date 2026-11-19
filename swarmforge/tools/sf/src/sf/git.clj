@@ -37,25 +37,27 @@
   remote or its HEAD ref does not exist."
   []
   (when-let [remote (first (shell/lines (:out (run {} "remote"))))]
-    (let [head (str "refs/remotes/" remote "/HEAD")
-          result (run {} "symbolic-ref" head)]
+    (let [prefix (str "refs/remotes/" remote "/")
+          result (run {} "symbolic-ref" (str prefix "HEAD"))]
       (when (shell/ok? result)
-        (let [target (shell/chomp (:out result))
-              prefix (str "refs/remotes/" remote "/")]
+        (let [target (shell/chomp (:out result))]
           (when (str/starts-with? target prefix)
             (subs target (count prefix))))))))
+
+(defn- config-default-branch
+  "The init.defaultBranch configuration when set to a non-blank value, else nil."
+  []
+  (let [result (run {} "config" "--get" "init.defaultBranch")]
+    (when (shell/ok? result)
+      (let [value (shell/chomp (:out result))]
+        (when-not (str/blank? value) value)))))
 
 (defn default-branch
   "The repository's default branch: the branch that the first remote's HEAD
   names when that ref exists, else the init.defaultBranch configuration when
   set, else master, git's built-in default."
   []
-  (or (remote-default-branch)
-      (let [result (run {} "config" "--get" "init.defaultBranch")]
-        (when (shell/ok? result)
-          (let [value (shell/chomp (:out result))]
-            (when-not (str/blank? value) value))))
-      "master"))
+  (or (remote-default-branch) (config-default-branch) "master"))
 
 (defn author
   "git's user.name and user.email, or SWARMFORGE_USER and SWARMFORGE_EMAIL
