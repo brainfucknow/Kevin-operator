@@ -498,6 +498,21 @@
       (should-not (fs/exists? (str *dir* "/a")))
       (should= "" (git dir "status" "--porcelain"))))
 
+  (it "refuses a blank --into like a bare finish and changes nothing"
+    (default-main!)
+    (let [id (done-task)
+          dir (worktree id)
+          before (snapshot id)]
+      (should= {:status 1 :out ""
+                :err (str "refusing to merge swarm/" id " into main without --into: "
+                          "main is the default branch of this repository; run sf finish " id
+                          " --into BRANCH to choose the target, or push swarm/" id
+                          " and open a pull request into main to review and merge it there")}
+               (select-keys (captured #(task/finish [id "--into" ""])) [:status :out :err]))
+      (should= before (snapshot id))
+      (should-not (fs/exists? (str *dir* "/a")))
+      (should= "" (git dir "status" "--porcelain"))))
+
   (it "still merges with an explicit --into into the default branch"
     (default-main!)
     (let [id (done-task)
