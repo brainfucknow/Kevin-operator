@@ -77,9 +77,19 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 
 ## Pull Request Review
 - On "review pull request #<N>":
-  - The main checkout must be on the pull request's head branch. When it is not, say so and stop.
+  - `sf new` makes the review task's branch at the main checkout's HEAD, so put the main checkout on the pull request's head branch first. When the head branch is a task branch `swarm/<id>` that is still checked out in `.worktrees/<id>`, git refuses that branch in the main checkout. Free it with a temp ref; do not remove or detach the task worktree:
+    ```sh
+    git fetch origin swarm/<id>:refs/heads/pr-<N>-head
+    git checkout pr-<N>-head
+    ```
+    When the head branch is not a task branch, check it out directly. When the head branch is unknown, ask the operator.
   - `<base>` is the branch the operator names, else the pull request's base when the harness can read the pull request. Otherwise ask the operator.
-  - Run `sf new "Review pull request #<N>" -m "Review pull request #<N> against <base>." --route pr-reviewer` and dispatch pr-reviewer.
+  - Run `sf new "Review pull request #<N>" -m "Review pull request #<N> against <base>." --route pr-reviewer` and dispatch pr-reviewer. The pr-reviewer reads the diff in its own task worktree, so the main checkout only seeds the review branch.
+  - After `sf new`, return the main checkout to `<base>` and delete the temp ref:
+    ```sh
+    git checkout <base>
+    git branch -D pr-<N>-head
+    ```
 - When the stage is `done`:
   - Run `sf finish <id>`. Show every `FINDING` trailer from `sf show <id>` in chat, verbatim. If the review commit changes a file, tell the operator.
   - Treat an OBVIOUS finding as DECIDE when its `Contract:` or `Evidence:` is `none`, or its `Fix:` lists options.
