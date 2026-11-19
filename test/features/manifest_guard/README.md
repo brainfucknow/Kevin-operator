@@ -2,7 +2,8 @@
 
 `manifest_guard.feature` specifies when
 [`test/no_manifests.sh`](../../no_manifests.sh) rejects tracked `.metrics/`
-files or gherkin-mutator blocks in tracked `.feature` files.
+files, coverage output under `target/coverage/`, or gherkin-mutator blocks in
+tracked `.feature` files.
 
 Run `bash test/acceptance.sh` from the repository root, or
 `bash test/no_manifests_test.sh` for the direct guard tests. The
