@@ -1,0 +1,20 @@
+{
+  "name": "swarmforge",
+  "version": "0.1.0",
+  "description": "Run a feature request through SwarmForge roles on Git task branches. Adds the swarm skill, which installs SwarmForge into the project on first use.",
+  "author": { "name": "brainfucknow" },
+  "homepage": "https://github.com/brainfucknow/swarm-forge-harness",
+  "repository": "https://github.com/brainfucknow/swarm-forge-harness",
+  "license": "MIT",
+  "keywords": ["swarmforge", "agents", "workflow", "specification", "review"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SwarmForge",
+    "shortDescription": "Run a feature request through SwarmForge roles on Git task branches.",
+    "developerName": "brainfucknow",
+    "category": "Coding",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/brainfucknow/swarm-forge-harness",
+    "defaultPrompt": ["Use the swarm skill to specify, build and verify a feature."]
+  }
+}

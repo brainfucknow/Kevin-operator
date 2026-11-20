@@ -1,0 +1,12 @@
+{
+  "name": "swarm-forge-harness",
+  "owner": { "name": "brainfucknow" },
+  "description": "SwarmForge for Claude Code.",
+  "plugins": [
+    {
+      "name": "swarmforge",
+      "source": "./",
+      "description": "Run a feature request through SwarmForge roles on Git task branches."
+    }
+  ]
+}
