@@ -356,4 +356,30 @@
     (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncoder strong session\ncleaner fast subagent\n")
     (let [before (snapshot)]
       (should= 1 (:status (captured #(adapters/adapters []))))
-      (should= before (snapshot)))))
+      (should= before (snapshot))))
+
+  (it "generates no vibe-plugin tree outside the source checkout"
+    (adapters/adapters [])
+    (should-not (fs/exists? (fs/path *dir* "vibe-plugin"))))
+
+  (it "generates the vibe plugin's subagents in the source checkout as the vibe adapters plus the schema version"
+    (write-agent "install.sh" "#!/usr/bin/env bash\n")
+    (should= 0 (:status (captured #(adapters/adapters []))))
+    (doseq [role ["specifier" "coder" "cleaner"]]
+      (let [plugin (str (fs/path *dir* "vibe-plugin/ai.mistral.vibe/agents" (str role ".toml")))
+            vibe (str (fs/path *dir* ".vibe/agents" (str role ".toml")))]
+        (should (fs/exists? plugin))
+        (should= (str "schema_version = 1\n" (slurp vibe)) (slurp plugin))))
+    (let [read-plugin (fn [] (into {} (for [file (fs/glob (fs/path *dir* "vibe-plugin") "**/*")]
+                                        [(str file) (slurp (str file))])))
+          before (read-plugin)]
+      (should= 0 (:status (captured #(adapters/adapters []))))
+      (should= before (read-plugin))))
+
+  (it "removes the plugin tree when the checkout stops being the source checkout"
+    (write-agent "install.sh" "#!/usr/bin/env bash\n")
+    (adapters/adapters [])
+    (should (fs/exists? (fs/path *dir* "vibe-plugin")))
+    (fs/delete (fs/path *dir* "install.sh"))
+    (should= 0 (:status (captured #(adapters/adapters []))))
+    (should-not (fs/exists? (fs/path *dir* "vibe-plugin")))))
