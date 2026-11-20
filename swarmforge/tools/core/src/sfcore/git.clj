@@ -53,7 +53,9 @@
   (let [root (repo-root :dir dir)
         merge-base (str/trim (git ["merge-base" base "HEAD"] :dir dir))
         committed (changes/changed-lines-from-diff
-                   (git (into ["diff" "-U0" "--no-color" "--no-ext-diff" merge-base "--"] pathspecs) :dir root))
+                   (git (into ["diff" "-U0" "--no-color" "--no-ext-diff"
+                               "--src-prefix=a/" "--dst-prefix=b/" "--inter-hunk-context=0"
+                               merge-base "--"] pathspecs) :dir root))
         untracked (remove str/blank?
                           (str/split-lines
                            (git (into ["ls-files" "--others" "--exclude-standard" "--full-name" "--"] pathspecs) :dir root)))]

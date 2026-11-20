@@ -29,6 +29,17 @@
     (is (= {"a.js" #{1}}
            (changes/changed-lines-from-diff
             (diff "--- a/a.js" "+++ b/a.js" "@@ -1,2 +0,0 @@" "-one" "-two")))))
+  (testing "a deletion between context lines changes the line that follows it"
+    (is (= {"a.js" #{2}}
+           (changes/changed-lines-from-diff
+            (diff "--- a/a.js" "+++ b/a.js" "@@ -1,3 +1,2 @@"
+                  " first" "-gone" " last")))))
+  (testing "a contextual hunk anchors each deletion, including after the last context line"
+    (is (= {"a.js" #{1 2 3}}
+           (changes/changed-lines-from-diff
+            (diff "--- a/a.js" "+++ b/a.js" "@@ -1,5 +1,2 @@"
+                  "-one" " first" "-two" " last" "-three"
+                  "\\ No newline at end of file")))))
   (testing "deletions and additions in one file"
     (is (= {"a.js" #{2 7}}
            (changes/changed-lines-from-diff
@@ -48,6 +59,13 @@
     (is (= {"a.js" #{4 5}}
            (changes/changed-lines-from-diff
             (diff "--- a/a.js" "+++ b/a.js" "@@ -3,0 +4,2 @@" "+++ b/b.js" "+z"))))))
+
+(deftest context-advances-the-new-side-line-number
+  (is (= {"a.js" #{3 6}}
+         (changes/changed-lines-from-diff
+          (diff "--- a/a.js" "+++ b/a.js" "@@ -2,5 +2,5 @@"
+                " first" "-old one" "+new one" " between" " between again"
+                "-old two" "\\ No newline at end of file" "+new two")))))
 
 (deftest path-matching-among-several-changed-files
   (let [changed {"src/a.js" #{1} "src/b.js" #{2}}]
@@ -190,6 +208,30 @@
       (is (not (contains? lines 0)))
       (is (= #{"new.js"} (set (keys changed)))))
     (is (nil? (git/changed-since-base {:all true} ["*.js"])))))
+
+(deftest changed-lines-ignore-git-display-settings
+  (with-repo [dir "main"]
+    (let [file (str (fs/path dir "b" "a.js"))
+          base "one\ntwo\nthree\nfour\nfive\nsix\nseven\n"
+          settings ["diff.mnemonicPrefix" "diff.noprefix" "diff.interHunkContext"]]
+      (fs/create-dirs (fs/path dir "b"))
+      (spit file base)
+      (sh dir "git" "add" "b/a.js")
+      (sh dir "git" "commit" "--quiet" "-m" "seven source lines")
+      (sh dir "git" "switch" "--quiet" "-c" "task")
+      (spit file (str/replace base "three" "third"))
+      (sh dir "git" "commit" "--quiet" "-am" "change line three")
+      (spit file (str/replace (slurp file) "seven" "seventh"))
+      (spit (str (fs/path dir "notes.txt")) "outside the source scope\n")
+      (doseq [values [["false" "false" "0"] ["true" "false" "0"]
+                      ["false" "true" "0"] ["false" "false" "5"]
+                      ["true" "true" "5"]]]
+        (testing (pr-str (zipmap settings values))
+          (doseq [[setting value] (map vector settings values)]
+            (sh dir "git" "config" "--local" setting value))
+          (is (= {"b/a.js" #{3 7}}
+                 (git/collect-changed-lines {:base "main" :dir dir :pathspecs ["*.js"]})))
+          (is (= values (mapv #(str/trim (git/git ["config" "--local" "--get" %] :dir dir)) settings))))))))
 
 (deftest commands-receive-their-arguments
   (let [seen (atom nil)
