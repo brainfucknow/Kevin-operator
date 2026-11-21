@@ -149,3 +149,35 @@
     (should (passes? (prop/for-all [records history limit (gen/choose 0 12)]
                        (let [shown (:records (record/brief records limit))]
                          (= {:records shown :omitted 0} (record/brief shown limit))))))))
+
+(defn- legacy-message
+  "message with every Kevin- record trailer written in the legacy SwarmForge- form."
+  [message]
+  (str/replace message #"(?m)^Kevin-" "SwarmForge-"))
+
+(def ^:private trailer-name
+  (gen/fmap #(str/join "-" (map str/capitalize %)) (gen/not-empty (gen/vector word 1 3))))
+
+(describe "legacy records"
+  (it "parse as the same record as their Kevin- form"
+    (should (passes? (prop/for-all [r rec sha hex7 parent hex7]
+                       (let [message (record/message r)
+                             old (legacy-message message)
+                             parse #(record/parse {:sha sha :parents [parent] :message %
+                                                   :trailers (trailer-lines %)})]
+                         (= (parse message) (parse old)))))))
+
+  (it "trailer-key maps both families to the Kevin- key and is idempotent"
+    (should (passes? (prop/for-all [n trailer-name]
+                       (let [k (record/trailer-key (str "Kevin-" n))]
+                         (and (= k (record/trailer-key (str "SwarmForge-" n)))
+                              (= k (record/trailer-key k))))))))
+
+  (it "task-trailer? and trailer-grep match a task line of either family and agree"
+    (should (passes? (prop/for-all [id value family (gen/elements ["Kevin" "SwarmForge" "Kevinx" "Other"])]
+                       (let [line (str family "-Task: " id)
+                             known (contains? #{"Kevin" "SwarmForge"} family)
+                             grep (re-pattern (record/trailer-grep "Task" (str (java.util.regex.Pattern/quote id) "$")))]
+                         (= known
+                            (record/task-trailer? line)
+                            (boolean (re-find grep line)))))))))

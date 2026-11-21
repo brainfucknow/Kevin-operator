@@ -131,6 +131,11 @@
   rename to kevin."
   "SwarmForge-")
 
+(def ^:private families
+  "The regular expression group that matches the prefix word of a record
+  trailer of either family: Kevin, or the legacy SwarmForge."
+  "(Kevin|SwarmForge)")
+
 (defn trailer-key
   "The record trailer key that key stands for: a renamed trailer as the one
   that took its place, and SwarmForge-<name> as Kevin-<name>. Any other key
@@ -143,7 +148,7 @@
 (defn task-trailer?
   "True when line is a Kevin-Task trailer line, or one in its legacy form."
   [line]
-  (boolean (re-find #"^(Kevin|SwarmForge)-Task:" line)))
+  (boolean (re-find (re-pattern (str "^" families "-Task:")) line)))
 
 (defn record-key?
   "True when key names the Kevin-Record trailer, or its legacy form."
@@ -155,7 +160,7 @@
   line of the trailer Kevin-<name> or its legacy form with value, which may
   itself be a regular expression."
   [name value]
-  (str "^(Kevin|SwarmForge)-" name ": " value))
+  (str "^" families "-" name ": " value))
 
 (def ^:private old-records
   "The record types written before a rename, with the type that took each one's place."
@@ -397,4 +402,5 @@
   "The first key that starts with Kevin- or SwarmForge-, in any letter case,
   or nil."
   [keys]
-  (first (filter #(re-find #"(?i)^(kevin|swarmforge)-" %) keys)))
+  (let [family (re-pattern (str "(?i)^" families "-"))]
+    (first (filter #(re-find family %) keys))))
