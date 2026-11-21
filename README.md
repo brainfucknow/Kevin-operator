@@ -1,6 +1,7 @@
 # Kevin operator
 
-A harness-integrated Kevin swarm, built on [SwarmForge](https://github.com/brainfucknow/swarm-forge).
+A harness-integrated Kevin swarm. It started as a fork of
+[SwarmForge](https://github.com/brainfucknow/swarm-forge) and has since diverged.
 Run its roles in Kilo, Mistral Vibe, Claude Code, Codex CLI, or Copilot CLI. Roles pass work
 through Git task branches; the operator handles questions and approvals in chat.
 
