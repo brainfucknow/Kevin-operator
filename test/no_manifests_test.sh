@@ -61,28 +61,28 @@ rm -rf z.feature .metrics tools metrics
 guard
 assert_eq "the index back at HEAD passes again" "$status:$out:$err" "0::"
 
-mkdir -p swarmforge/tools/sf/target/coverage target/coverage swarmforge/tools/sf/target/classes swarmforge/tools/sf/target/coverage-old
-echo x > swarmforge/tools/sf/target/coverage/index.html
+mkdir -p kevin/tools/sf/target/coverage target/coverage kevin/tools/sf/target/classes kevin/tools/sf/target/coverage-old
+echo x > kevin/tools/sf/target/coverage/index.html
 echo x > target/coverage/lcov.info
-echo x > swarmforge/tools/sf/target/classes/x.class
-echo x > swarmforge/tools/sf/target/coverage-old/y
-git add -f swarmforge/tools/sf/target target/coverage
+echo x > kevin/tools/sf/target/classes/x.class
+echo x > kevin/tools/sf/target/coverage-old/y
+git add -f kevin/tools/sf/target target/coverage
 guard
 assert_eq "tracked files under target/coverage/ fail" "$status" "1"
-assert_eq "each coverage file is named on stderr, other target/ output is not" "$err" "tracked coverage output under target/coverage/: swarmforge/tools/sf/target/coverage/index.html
+assert_eq "each coverage file is named on stderr, other target/ output is not" "$err" "tracked coverage output under target/coverage/: kevin/tools/sf/target/coverage/index.html
 tracked coverage output under target/coverage/: target/coverage/lcov.info"
 assert_eq "a coverage report leaves stdout empty" "$out" ""
 
 git reset -q
-rm -rf swarmforge target
-mkdir -p swarmforge/tools/sf/target
-echo x > swarmforge/tools/sf/target/coverage
-git add -f swarmforge
+rm -rf kevin target
+mkdir -p kevin/tools/sf/target
+echo x > kevin/tools/sf/target/coverage
+git add -f kevin
 guard
 assert_eq "a bare file named target/coverage passes" "$status:$out:$err" "0::"
 
 git reset -q
-rm -rf swarmforge
+rm -rf kevin
 mkdir -p a/target/coverage .metrics
 echo x > a/target/coverage/z
 echo x > .metrics/m.edn

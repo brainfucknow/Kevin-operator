@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# End-to-end check of sf-rb against the real Ruby gems, on the small project in
+# End-to-end check of kevin-rb against the real Ruby gems, on the small project in
 # test/ruby_project. Needs Ruby 3.3 with Bundler, Babashka, Node, and
 # rubygems.org. Never runs mutant itself: it needs a licence usage.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
-SF_RB="$HERE/swarmforge/bin/sf-rb"
+SF_RB="$HERE/kevin/bin/kevin-rb"
 
 failures=0
 pass() { echo "ok   $1"; }
@@ -32,7 +32,7 @@ git add -A && git commit -q -m base
 git checkout -q -b work
 cp -R "$HERE/test/ruby_project/lib" "$HERE/test/ruby_project/spec" "$HERE/test/ruby_project/.mutant.yml" .
 git add -A && git commit -q -m work
-export SWARMFORGE_BASE=main
+export KEVIN_BASE=main
 
 run() { # sets $out and $status
   status=0
@@ -68,5 +68,5 @@ run "$SF_RB" mutate
 assert_status "mutate without a mutant usage" "$status" 2
 assert_match "mutate says mutation is optional" "$out" "mutation is optional"
 
-[ "$failures" -eq 0 ] && echo "all sf-rb end-to-end checks passed"
+[ "$failures" -eq 0 ] && echo "all kevin-rb end-to-end checks passed"
 exit "$failures"

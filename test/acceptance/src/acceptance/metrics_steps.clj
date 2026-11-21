@@ -1,7 +1,7 @@
 (ns acceptance.metrics-steps
   "Step handlers for test/features/metrics_cache (see its README for the step
   meanings): the steps of acceptance.store-steps, and the ones for the
-  swarmforge/metrics branch, the gherkin-mutator wrapper and install.sh."
+  kevin/metrics branch, the gherkin-mutator wrapper and install.sh."
   (:require [acceptance.store-steps :as store :refer [expected git must-in run-in when-step worktree write-file]]
             [acceptance.support :as support :refer [check require-ok]]
             [babashka.fs :as fs]
@@ -9,22 +9,22 @@
 
 (def new-world store/new-world)
 
-(def ^:private branch "refs/heads/swarmforge/metrics")
+(def ^:private branch "refs/heads/kevin/metrics")
 
 (defn- tip [world]
   (get (store/tips world) branch))
 
-(defn- hold
-  "Commits path with text and a newline on top of the metrics branch, or as its
-  first commit, past sf and without a checkout."
-  [world path text]
+(defn hold-on
+  "Commits path with text and a newline on top of ref, or as its first commit,
+  past kevin and without a checkout."
+  [world ref path text]
   (let [scratch (fs/path (:repo world) ".git" "acceptance")
         env {"GIT_INDEX_FILE" (str (fs/path scratch "index"))}
         indexed (fn [& cmd]
                   (let [result (run-in world (:repo world) cmd env)]
                     (require-ok result (str/join " " cmd))
                     (str/trim-newline (:out result))))
-        parent (tip world)]
+        parent (get (store/tips world) ref)]
     (fs/delete-tree scratch)
     (write-file scratch "blob" (str text "\n"))
     (if parent (indexed "git" "read-tree" parent) (indexed "git" "read-tree" "--empty"))
@@ -32,8 +32,11 @@
              (str "100644," (git world "hash-object" "-w" (str (fs/path scratch "blob"))) "," path))
     (let [commit (apply indexed "git" "commit-tree" (indexed "git" "write-tree") "-m" "seed metrics"
                         (when parent ["-p" parent]))]
-      (git world "update-ref" branch commit))
+      (git world "update-ref" ref commit))
     world))
+
+(defn- hold [world path text]
+  (hold-on world branch path text))
 
 (defn- fake-gherkin-mutator
   "A tool source whose gherkin-mutator task saves the --feature file it sees,
@@ -52,8 +55,8 @@
                             (spit feature# (str ~block "\n\n" (clojure.string/join "\n" body#)))
                             (System/exit ~status))))
     (spit (str (fs/path dir "bb.edn")) (pr-str {:tasks {'gherkin-mutator (list 'load-file script)}}))
-    (require-ok (run-in world (:repo world) ["sf" "tool" "ensure" "gherkin-mutator"] {"SWARMFORGE_TOOL_SRC" dir})
-                "sf tool ensure gherkin-mutator")
+    (require-ok (run-in world (:repo world) ["kevin" "tool" "ensure" "gherkin-mutator"] {"KEVIN_TOOL_SRC" dir})
+                "kevin tool ensure gherkin-mutator")
     (assoc world :fake dir)))
 
 (defn- holds? [file text]
@@ -68,7 +71,7 @@
 
 (def ^:private metrics-handlers
   [;; Given
-   [#"a project with swarmforge initialized and .metrics/ ignored"
+   [#"a project with kevin initialized and .metrics/ ignored"
     (fn [world]
       (let [repo (support/project true)]
         (spit (str (fs/path repo ".gitignore")) ".metrics/\n" :append true)
@@ -97,7 +100,7 @@
    [#"gherkin-mutator is a fake that writes the block \"([^\"]*)\" and exits with status (\d+)"
     (fn [world block status] (fake-gherkin-mutator world (expected world block) (parse-long status)))]
 
-   [#"a git repository with one commit and no swarmforge"
+   [#"a git repository with one commit and no kevin"
     (fn [world]
       (let [repo (str (fs/path @support/scratch (str "bare-" (random-uuid))))]
         (fs/create-dirs repo)
@@ -108,7 +111,7 @@
    ;; When
    [#"I run the gherkin-mutator wrapper with \"([^\"]*)\" in (?:the directory \"([^\"]+)\" of )?the worktree of task \"(\w)\""
     (fn [world args dir name]
-      (let [wrapper (str (fs/path (:repo world) ".swarmforge" "bin" "gherkin-mutator"))]
+      (let [wrapper (str (fs/path (:repo world) ".kevin" "bin" "gherkin-mutator"))]
         (when-step world #(run-in % (str (fs/path (worktree % name) (or dir ""))) (cons wrapper (str/split args #" "))))))]
 
    [#"I run install.sh into it (\d+) times( from that working directory)?"

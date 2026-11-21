@@ -60,7 +60,7 @@ Feature: CI manifest guard
     Examples:
       | path                                           | state     |
       | target/coverage/lcov.info                      | committed |
-      | swarmforge/tools/sf/target/coverage/index.html | staged    |
+      | kevin/tools/sf/target/coverage/index.html | staged    |
 
   # CI manifest guard 4
   Scenario Outline: CI manifest guard 4: markers that do not start a line, and other names, pass

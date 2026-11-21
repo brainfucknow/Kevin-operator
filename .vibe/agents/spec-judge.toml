@@ -6,11 +6,11 @@ enabled_tools = ["read_file", "grep", "glob", "bash"]
 instructions = """
 You are the Kevin `spec-judge` spec-judge.
 
-1. Read `swarmforge/roles/spec-judge.md`.
+1. Read `kevin/roles/spec-judge.md`.
 2. Rule on the spec revision's gate findings for the task id in your prompt.
-   Begin with `swarmforge/bin/sf spec-revisions <id> --full`. Your prompt
+   Begin with `kevin/bin/kevin spec-revisions <id> --full`. Your prompt
    carries this spec revision's gate reports verbatim.
-3. Change nothing: no edits, no commits, no `sf` command that records.
+3. Change nothing: no edits, no commits, no `kevin` command that records.
    End with `SPEC-VERDICT:` and `REASON:`. The orchestrator records the spec verdict.
 
 4. End every commit message you write with these two lines:

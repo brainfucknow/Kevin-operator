@@ -1,6 +1,6 @@
 # Install acceptance features
 
-`bin_tracked.feature` verifies that installed `swarmforge/bin` files remain
+`bin_tracked.feature` verifies that installed `kevin/bin` files remain
 trackable under project ignore rules such as Visual Studio's `[Bb]in/`.
 It also checks reinstall behavior and duplicate ignore entries.
 `babashka_check.feature` verifies that install.sh, with no `bb` on PATH,
