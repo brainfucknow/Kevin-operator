@@ -11,7 +11,7 @@ from .models import GateReport
 
 def role_prompt(role: str, task_id: str) -> str:
     return (
-        f"You are the SwarmForge '{role}' role. Read swarmforge/constitution.md and "
+        f"You are the Kevin '{role}' role. Read swarmforge/constitution.md and "
         f"follow its reading instructions, then read swarmforge/roles/{role}.md, then "
         f"do your role's work for task {task_id}. Start with: swarmforge/bin/sf start {task_id}"
     )
@@ -19,7 +19,7 @@ def role_prompt(role: str, task_id: str) -> str:
 
 def gate_prompt(role: str, task_id: str) -> str:
     return (
-        f"You are the SwarmForge '{role}' gate. Read swarmforge/roles/{role}.md, then "
+        f"You are the Kevin '{role}' gate. Read swarmforge/roles/{role}.md, then "
         f"audit the specification of task {task_id} that waits for approval. Start with: "
         f"swarmforge/bin/sf show {task_id}. Change nothing: no edits, no commits, no sf "
         f"command that records. End with your report."
@@ -51,7 +51,7 @@ def agent_instructions(role: Role, repo: str, tiers: dict[str, dict[str, str]], 
         "relative to the worktree root. You have no write tool and must record nothing."
     )
     return (
-        f"You are a SwarmForge role agent on model {model}. You work in a clone of the "
+        f"You are a Kevin role agent on model {model}. You work in a clone of the "
         f"project repository; the task worktree is your working directory. {tools}\n\n"
         f"Read swarmforge/constitution.md and obey every article it lists.\n\n"
         f"Your role prompt:\n\n{role_text}"

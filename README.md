@@ -1,7 +1,6 @@
 # Kevin operator
 
-A harness-integrated Kevin swarm. It started as a fork of
-[SwarmForge](https://github.com/brainfucknow/swarm-forge) and has since diverged.
+A harness-integrated Kevin swarm.
 Run its roles in Kilo, Mistral Vibe, Claude Code, Codex CLI, or Copilot CLI. Roles pass work
 through Git task branches; the operator handles questions and approvals in chat.
 
@@ -22,7 +21,7 @@ cd your-project
 ../Kevin-operator/install.sh
 ```
 
-The installer copies the SwarmForge runtime, guidance, and `swarm` skill into
+The installer copies the Kevin runtime, guidance, and `swarm` skill into
 the project, adds instructions to `AGENTS.md`, `CLAUDE.md`, and
 `.github/copilot-instructions.md`, generates the agents, and installs the
 commit-msg hook. It also writes `swarmforge/.gitignore` so that a project

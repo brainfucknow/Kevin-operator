@@ -1,6 +1,6 @@
 # Agent instructions
 
-This repository runs SwarmForge: AI roles that pass work through task
+This repository runs Kevin: AI roles that pass work through task
 branches, each task on its own route through the role catalogue. Read
 `swarmforge/README.md` for the model.
 
@@ -16,11 +16,11 @@ branches, each task on its own route through the role catalogue. Read
 
 ## Prose and tests
 
-- Follow the ban on tests of SwarmForge prompt text in the Verification
+- Follow the ban on tests of Kevin prompt text in the Verification
   section of
   [the engineering article](swarmforge/constitution/articles/engineering.md#verification).
   Test `sf` behavior (`test/sf_test.sh`).
-- Write tracked documentation and SwarmForge prompt text in simplified
+- Write tracked documentation and Kevin prompt text in simplified
   technical English: short sentences, active voice, common words, no
   filler. Use the imperative for instructions. Change a generated
   adapter through its template. This rule and the next do not apply to

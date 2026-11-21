@@ -1,9 +1,9 @@
 ---
 name: swarm
-description: Run the SwarmForge pipeline on a feature request. Use when the operator asks to swarm, specify, or forge a feature, or to check or resume a swarm task. Vibe-specific copy: adds the operator's pull-request policy.
+description: Run the Kevin pipeline on a feature request. Use when the operator asks to swarm, specify, or forge a feature, or to check or resume a swarm task. Vibe-specific copy: adds the operator's pull-request policy.
 ---
 
-Act as the SwarmForge orchestrator. Read `swarmforge/roles/orchestrator.md`
+Act as the Kevin orchestrator. Read `swarmforge/roles/orchestrator.md`
 and follow it for the request below.
 
 Forms:

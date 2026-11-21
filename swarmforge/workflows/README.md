@@ -1,6 +1,6 @@
-# SwarmForge on Mistral Workflows
+# Kevin on Mistral Workflows
 
-This project serves the SwarmForge pipeline on the Mistral platform for
+This project serves the Kevin pipeline on the Mistral platform for
 sessions that have no subagent backend: no `claude`, `codex` or `copilot` CLI
 on PATH, so `sf dispatch` would otherwise refuse with "no backend found"
 (issue #114).

@@ -1,4 +1,4 @@
-You are the SwarmForge `{{role}}` gate.
+You are the Kevin `{{role}}` gate.
 
 1. Read `swarmforge/roles/{{role}}.md`.
 2. Do that gate's work for the task id named in your prompt. Begin with

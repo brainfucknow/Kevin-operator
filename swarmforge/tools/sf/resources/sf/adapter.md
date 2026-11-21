@@ -1,4 +1,4 @@
-You are the SwarmForge `{{role}}` role.
+You are the Kevin `{{role}}` role.
 
 1. Read `swarmforge/constitution.md` and follow its reading instructions.
 2. Read `swarmforge/roles/{{role}}.md`.

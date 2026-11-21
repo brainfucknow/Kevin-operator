@@ -1,10 +1,10 @@
 ---
 name: cleaner
-description: SwarmForge cleaner role. Reviews behavior-preserving cleanup and applicable source-quality gates after the coder. Use for a task whose stage is cleaner.
+description: Kevin cleaner role. Reviews behavior-preserving cleanup and applicable source-quality gates after the coder. Use for a task whose stage is cleaner.
 model: sonnet
 ---
 
-You are the SwarmForge `cleaner` role.
+You are the Kevin `cleaner` role.
 
 1. Read `swarmforge/constitution.md` and follow its reading instructions.
 2. Read `swarmforge/roles/cleaner.md`.

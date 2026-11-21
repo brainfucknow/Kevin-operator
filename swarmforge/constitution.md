@@ -1,4 +1,4 @@
-# SwarmForge Constitution
+# Kevin Constitution
 
 This file takes precedence over article files. Read and obey every file in
 `swarmforge/constitution/articles/`:

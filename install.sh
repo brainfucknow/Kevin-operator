@@ -17,7 +17,7 @@ min_pattern=':min-bb-version "([^"]*)"'
 while IFS= read -r line; do
   [[ $line =~ $min_pattern ]] && minimum="${BASH_REMATCH[1]}"
 done < "$HERE/swarmforge/tools/sf/bb.edn"
-needs="install.sh: SwarmForge needs Babashka $minimum or newer: https://babashka.org"
+needs="install.sh: Kevin needs Babashka $minimum or newer: https://babashka.org"
 command -v bb >/dev/null || { echo "$needs" >&2; exit 1; }
 if ! check_err="$(cd "$HERE" && bb "$HERE/swarmforge/bin/sf" help 2>&1 >/dev/null)"; then
   [ -z "$check_err" ] || echo "$check_err" >&2
@@ -157,7 +157,7 @@ printf '%s\0' "${shipped[@]}" | (cd "$HERE" && bb -e '
   ' "$target")
 
 cat <<EOF
-Installed SwarmForge into $target.
+Installed Kevin into $target.
   swarmforge/roles.conf       role catalogue (edit, then: swarmforge/bin/sf adapters)
   swarmforge/routes.conf      named routes a task can take
   swarmforge/tiers.conf       model per tier per harness

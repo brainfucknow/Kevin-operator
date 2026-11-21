@@ -1,10 +1,10 @@
 ---
 name: hardener
-description: SwarmForge hardener role. Hardens applicable source and acceptance contracts with mutation and quality gates. Use for a task whose stage is hardener.
+description: Kevin hardener role. Hardens applicable source and acceptance contracts with mutation and quality gates. Use for a task whose stage is hardener.
 model: sonnet
 ---
 
-You are the SwarmForge `hardener` role.
+You are the Kevin `hardener` role.
 
 1. Read `swarmforge/constitution.md` and follow its reading instructions.
 2. Read `swarmforge/roles/hardener.md`.

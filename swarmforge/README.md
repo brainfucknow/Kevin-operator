@@ -1,7 +1,7 @@
-# SwarmForge
+# Kevin
 
-This directory is SwarmForge installed into the project. It runs AI roles as
-harness agents in Kilo, Claude Code, Codex, or Copilot CLI. Each task takes a
+This directory is Kevin installed into the project. It runs AI roles as
+harness agents in Kilo, Mistral Vibe, Claude Code, Codex, or Copilot CLI. Each task takes a
 route through the role catalogue, and roles pass work through task branches in
 this repository.
 

@@ -1,9 +1,9 @@
 ---
-description: SwarmForge spec-judge spec-judge. Rules on each spec revision's gate findings at the specification gate: converged, continue, needs-operator or stuck. Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict.
+description: Kevin spec-judge spec-judge. Rules on each spec revision's gate findings at the specification gate: converged, continue, needs-operator or stuck. Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict.
 mode: subagent
 ---
 
-You are the SwarmForge `spec-judge` spec-judge.
+You are the Kevin `spec-judge` spec-judge.
 
 1. Read `swarmforge/roles/spec-judge.md`.
 2. Rule on the spec revision's gate findings for the task id in your prompt.

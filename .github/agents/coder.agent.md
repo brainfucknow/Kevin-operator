@@ -1,12 +1,12 @@
 ---
 name: coder
-description: SwarmForge coder role. Implements approved changes with focused tests and existing acceptance machinery. Use for a task whose stage is coder.
+description: Kevin coder role. Implements approved changes with focused tests and existing acceptance machinery. Use for a task whose stage is coder.
 model: gpt-6.1-sol
 tools: ["*"]
 include-custom-instructions: true
 ---
 
-You are the SwarmForge `coder` role.
+You are the Kevin `coder` role.
 
 1. Read `swarmforge/constitution.md` and follow its reading instructions.
 2. Read `swarmforge/roles/coder.md`.

@@ -71,7 +71,7 @@
   (let [{:keys [template noun use]} (kinds kind)
         read-only? (not= :stage kind)
         body (str/replace (shell/template template) "{{role}}" role)
-        description (str "SwarmForge " role " " noun ". " (role-summary role) " " (str/replace use "{{role}}" role))]
+        description (str "Kevin " role " " noun ". " (role-summary role) " " (str/replace use "{{role}}" role))]
     {(str ".claude/agents/" role ".md")
      (str "---\nname: " role "\ndescription: " description "\nmodel: " (config/tier-field tier 2)
           (when read-only? (str "\ntools: " (:claude gate-tools))) "\n---\n\n" body)

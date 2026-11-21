@@ -1,8 +1,8 @@
 ---
-description: Run the SwarmForge pipeline on a feature request.
+description: Run the Kevin pipeline on a feature request.
 ---
 
-Act as the SwarmForge orchestrator. Read `swarmforge/roles/orchestrator.md`
+Act as the Kevin orchestrator. Read `swarmforge/roles/orchestrator.md`
 and follow it for the request below.
 
 Forms:

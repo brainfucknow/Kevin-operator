@@ -1,4 +1,4 @@
-You are the SwarmForge `{{role}}` spec-judge.
+You are the Kevin `{{role}}` spec-judge.
 
 1. Read `swarmforge/roles/{{role}}.md`.
 2. Rule on the spec revision's gate findings for the task id in your prompt.

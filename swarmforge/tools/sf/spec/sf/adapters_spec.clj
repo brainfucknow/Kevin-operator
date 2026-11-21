@@ -117,7 +117,7 @@
       (should-contain "enabled_tools = [\"read_file\", \"grep\", \"glob\", \"bash\"]" (read ".vibe/agents/spec-judge.toml"))
       (should-contain "model: opus" (read ".claude/agents/spec-judge.md"))
       (should-contain "active_model = \"vibe/strong-model\"" (read ".vibe/agents/spec-judge.toml"))
-      (should-contain "\ndescription: SwarmForge spec-judge spec-judge. " (read ".claude/agents/spec-judge.md"))))
+      (should-contain "\ndescription: Kevin spec-judge spec-judge. " (read ".claude/agents/spec-judge.md"))))
 
   (it "puts the Mistral trailer instruction in every Vibe adapter of every kind, and in no other harness's"
     (write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\nspec-judge strong subagent spec-judge\ncoder strong subagent\ncleaner fast subagent\n")

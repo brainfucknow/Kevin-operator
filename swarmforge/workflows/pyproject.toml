@@ -1,7 +1,7 @@
 [project]
 name = "swarmforge-pipeline"
 version = "0.1.0"
-description = "Mistral Workflow that serves the SwarmForge pipeline on the Mistral platform: one execution per task, one agent per role, sf bookkeeping on task branches."
+description = "Mistral Workflow that serves the Kevin pipeline on the Mistral platform: one execution per task, one agent per role, sf bookkeeping on task branches."
 requires-python = ">=3.12"
 dependencies = [
     "mistralai-workflows",

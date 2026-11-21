@@ -1,12 +1,12 @@
 # Project Rules
 
 ## Project Shape
-- This project runs SwarmForge roles as harness agents. `swarmforge/roles.conf` is the role catalogue in canonical order; `swarmforge/routes.conf` names the routes a task can take through it; `swarmforge/tiers.conf` maps each role's tier to a model per harness.
+- This project runs Kevin roles as harness agents. `swarmforge/roles.conf` is the role catalogue in canonical order; `swarmforge/routes.conf` names the routes a task can take through it; `swarmforge/tiers.conf` maps each role's tier to a model per harness.
 - Project language: Babashka (Clojure) for `sf` and the tools; Python for `swarmforge/workflows/` (the Mistral Workflows project).
 - Existing code: refactor freely. The opt-in value is `ask before refactoring`, which requires the [existing-code refactoring policy](../existing-code.md); a project opts in by changing this line. A missing line means `refactor freely`.
 
 ## Local Configuration
-- Keep SwarmForge configuration under `swarmforge/`, task worktrees under `.worktrees/`, and task state in the `swarm/*` branches and the `sf finish` merges. The orphan branch `swarmforge/metrics` caches mutation manifests. Nothing else is swarm state.
+- Keep Kevin configuration under `swarmforge/`, task worktrees under `.worktrees/`, and task state in the `swarm/*` branches and the `sf finish` merges. The orphan branch `swarmforge/metrics` caches mutation manifests. Nothing else is swarm state.
 - `.worktrees/` and `./tmp/` are ignored by git and never committed.
 
 ## Verification
