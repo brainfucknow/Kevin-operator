@@ -37,6 +37,28 @@
         out (with-out-str (binding [*err* err] (reset! status (shell/main-with "kevin: " config/check))))]
     [@status out (str/split-lines (str err))]))
 
+(describe "conf-dir"
+  (it "is kevin/ of the main checkout"
+    (let [dir (str (fs/create-temp-dir {:prefix "conf-dir-"}))]
+      (try (fs/create-dirs (fs/path dir "kevin"))
+           (fs/create-dirs (fs/path dir "swarmforge"))
+           (with-redefs [shell/repo-root (constantly dir)]
+             (should= (str (fs/path dir "kevin")) (config/conf-dir)))
+           (finally (fs/delete-tree dir)))))
+
+  (it "is the legacy swarmforge/ of a main checkout that has not moved it yet"
+    (let [dir (str (fs/create-temp-dir {:prefix "conf-dir-"}))]
+      (try (fs/create-dirs (fs/path dir "swarmforge"))
+           (with-redefs [shell/repo-root (constantly dir)]
+             (should= (str (fs/path dir "swarmforge")) (config/conf-dir)))
+           (finally (fs/delete-tree dir)))))
+
+  (it "is kevin/ when neither exists"
+    (let [dir (str (fs/create-temp-dir {:prefix "conf-dir-"}))]
+      (try (with-redefs [shell/repo-root (constantly dir)]
+             (should= (str (fs/path dir "kevin")) (config/conf-dir)))
+           (finally (fs/delete-tree dir))))))
+
 (describe "catalogue"
   (around [it] (with-catalogue it))
 

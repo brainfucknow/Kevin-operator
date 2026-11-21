@@ -10,8 +10,15 @@
   "The checkout whose kevin/ is read; nil reads the main checkout's."
   nil)
 
-(defn conf-dir []
-  (str (fs/path (or *root* (shell/repo-root)) "kevin")))
+(defn conf-dir
+  "kevin/ of the checkout, or its legacy swarmforge/ while a checkout that
+  has not been migrated yet has only that, so a kevin run from a task
+  worktree can still hand off and finish there."
+  []
+  (let [root (or *root* (shell/repo-root))
+        dir (fs/path root "kevin")
+        legacy (fs/path root "swarmforge")]
+    (str (if (and (not (fs/exists? dir)) (fs/directory? legacy)) legacy dir))))
 
 (defn in-checkout
   "The command f, reading the config of the checkout it runs in."
