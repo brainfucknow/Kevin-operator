@@ -38,10 +38,11 @@ and only missing files receive defaults. `verify.conf` is never installed or
 changed. This also applies to older installs without ownership metadata.
 
 An install under the old name SwarmForge keeps the harness in `swarmforge/`.
-The installer moves it to `kevin/`, rewrites the old names (`swarmforge/`
-paths, `sf-*` command names, `SwarmForge-*` trailers, `SWARMFORGE_*`
-variables) in the project's own files there, prints each file it rewrote, and replaces
-the old `AGENTS.md` line. It refuses a project that has both directories.
+The installer moves it to `kevin/` and removes the tool sources the old
+install shipped under their old names. It rewrites the old names
+(`swarmforge/` paths, `sf-*` command names, `SwarmForge-*` trailers,
+`SWARMFORGE_*` variables) in the project's own files there, prints each file
+it rewrote, and replaces the old `AGENTS.md` line. It refuses a project that has both directories.
 Review the diff and commit it. Tasks begun before the move keep working.
 
 A runtime update can require configuration changes. Compare those files with
