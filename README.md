@@ -1,24 +1,24 @@
-# swarm-forge-harness
+# Kevin operator
 
 A harness-integrated [SwarmForge](https://github.com/brainfucknow/swarm-forge).
-Run its roles in Kilo, Claude Code, Codex, Copilot CLI, or Mistral Vibe. Roles pass work
+Run its roles in Kilo, Mistral Vibe, Claude Code, Codex CLI, or Copilot CLI. Roles pass work
 through Git task branches; the operator handles questions and approvals in chat.
 
 ## Prerequisites
 
 - `git`, and `bash` for `install.sh`, the commit-msg hook, and the tool wrappers
 - [Babashka](https://babashka.org) (`bb`) for `sf`, which needs 1.12.216 or newer
-  and refuses an older `bb`, and for the C#, F#, VB.NET and JavaScript tool
-  wrappers and the Clojure constitution tools. `install.sh` checks `bb` before
+  and refuses an older `bb`, and for the C#, F#, VB.NET, JavaScript, Ruby and
+  Java tool wrappers and the Clojure constitution tools. `install.sh` checks `bb` before
   it changes the project.
-- One of Kilo, Claude Code, Codex CLI, Copilot CLI, or Mistral Vibe
+- One of Kilo, Mistral Vibe, Claude Code, Codex CLI, or Copilot CLI
 
 ## Install into a project
 
 ```sh
-git clone https://github.com/brainfucknow/swarm-forge-harness
+git clone https://github.com/brainfucknow/Kevin-operator
 cd your-project
-../swarm-forge-harness/install.sh
+../Kevin-operator/install.sh
 ```
 
 The installer copies the SwarmForge runtime, guidance, and `swarm` skill into
@@ -72,7 +72,7 @@ and sharing rules.
 |---|---|---|---|
 | Kilo | `/swarm` from `.kilo/command/` | `.kilo/agent/<role>.md` | `model:` `provider/model`, or the session model when `inherit` |
 | Mistral Vibe | `/swarm` from `.vibe/skills/swarm/` | `.vibe/agents/<role>.toml` | `active_model` alias, or the session model when `inherit` |
-| Claude Code | `/swarm` from `.claude/skills/swarm/` | `.claude/agents/<role>.md` | `model: opus` or `sonnet` |
+| Claude Code | `/swarm` from `.claude/skills/swarm/` | `.claude/agents/<role>.md` | `model:` `inherit`, `opus`, or `sonnet` |
 | Codex CLI | `$swarm` from `.agents/skills/swarm/` | `.codex/agents/<role>.toml` | `model_reasoning_effort` high / medium / low |
 | Copilot CLI | `/swarm` from `.agents/skills/swarm/` | `.github/agents/<role>.agent.md` | `model: gpt-6.1-sol` or `gpt-6.1-terra` |
 
@@ -90,7 +90,9 @@ documentation, or fall back to `sf run <id>` below.
 If a harness cannot delegate, `sf dispatch <role> <id>` runs the role in a
 headless `claude -p`, `codex exec`, or `copilot -p` session started in the
 task worktree `.worktrees/<id>` (created when missing, refused when it is on
-another branch), and `sf run <id>` loops through the stages until the task
+another branch). With none of these CLIs on `PATH` and `MISTRAL_API_KEY` set,
+it runs the role on [Mistral Workflows](swarmforge/workflows/README.md).
+`SWARMFORGE_BACKEND` picks the backend explicitly. and `sf run <id>` loops through the stages until the task
 is done or waiting on you. Headless runs need tool permissions you grant
 yourself; pass them in `SWARMFORGE_CLAUDE_ARGS`, `SWARMFORGE_CODEX_ARGS`, or
 `SWARMFORGE_COPILOT_ARGS`. For ordinary stages, Claude uses
@@ -132,6 +134,7 @@ the optional reviewers. Model mappings live in
   [VB.NET](swarmforge/languages/vbnet.md),
   [JavaScript/TypeScript](swarmforge/languages/javascript.md),
   [Ruby](swarmforge/languages/ruby.md), [Java](swarmforge/languages/java.md).
+- [Semgrep](swarmforge/languages/semgrep.md): shared setup for the language guides.
 
 ## Tests
 
@@ -159,6 +162,7 @@ integration check, including unaffected language suites.
 ```sh
 bash test/sf_test.sh
 bash test/sf_tool_test.sh
+bash test/no_manifests_test.sh
 bb --config swarmforge/tools/core/bb.edn architecture
 bb --config swarmforge/tools/core/bb.edn test
 bb --config swarmforge/tools/sf/bb.edn spec
@@ -172,10 +176,13 @@ bb --config swarmforge/tools/javascript/bb.edn test
 bb --config swarmforge/tools/javascript/bb.edn property
 bb --config swarmforge/tools/javascript/bb.edn acceptance
 bb --config swarmforge/tools/ruby/bb.edn test
+bb --config swarmforge/tools/ruby/bb.edn property
+bash test/sf_rb_e2e_test.sh  # needs Ruby and Bundler
 bb --config swarmforge/tools/java/bb.edn spec
 bb --config swarmforge/tools/java/bb.edn hardening
 bb --config swarmforge/tools/java/bb.edn acceptance
 bb --config swarmforge/tools/java/bb.edn property
+(cd swarmforge/workflows && uv run --frozen pytest)
 ```
 
 These suites exercise the CLI with scratch Git repositories and test the
