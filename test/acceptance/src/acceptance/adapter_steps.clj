@@ -155,6 +155,11 @@
       (fs/delete-if-exists (fs/path (:repo world) ".swarmforge/adapters.edn"))
       world)]
 
+   [#"the scratch project has no installer at its root"
+    (fn [world]
+      (check (not (fs/exists? (fs/path (:repo world) "install.sh"))) "the scratch project has an install.sh")
+      world)]
+
    [#"the scratch project is marked as the source checkout"
     (fn [world] (write-file! world "install.sh" "#!/usr/bin/env bash\n"))]
 

@@ -370,16 +370,17 @@
             vibe (str (fs/path *dir* ".vibe/agents" (str role ".toml")))]
         (should (fs/exists? plugin))
         (should= (str "schema_version = 1\n" (slurp vibe)) (slurp plugin))))
-    (let [read-plugin (fn [] (into {} (for [file (fs/glob (fs/path *dir* "vibe-plugin") "**/*")]
+    (let [read-plugin (fn [] (into {} (for [file (fs/glob (fs/path *dir* "vibe-plugin") "**/*")
+                                            :when (fs/regular-file? file)]
                                         [(str file) (slurp (str file))])))
           before (read-plugin)]
       (should= 0 (:status (captured #(adapters/adapters []))))
       (should= before (read-plugin))))
 
-  (it "removes the plugin tree when the checkout stops being the source checkout"
+  (it "removes the plugin subagents when the checkout stops being the source checkout"
     (write-agent "install.sh" "#!/usr/bin/env bash\n")
     (adapters/adapters [])
-    (should (fs/exists? (fs/path *dir* "vibe-plugin")))
+    (should (fs/exists? (fs/path *dir* "vibe-plugin/ai.mistral.vibe/agents/coder.toml")))
     (fs/delete (fs/path *dir* "install.sh"))
     (should= 0 (:status (captured #(adapters/adapters []))))
-    (should-not (fs/exists? (fs/path *dir* "vibe-plugin")))))
+    (should= [] (vec (fs/glob (fs/path *dir* "vibe-plugin") "**/*.toml")))))
