@@ -19,7 +19,7 @@ branches, each task on its own route through the role catalogue. Read
 - Follow the ban on tests of Kevin prompt text in the Verification
   section of
   [the engineering article](kevin/constitution/articles/engineering.md#verification).
-  Test `kevin` behavior (`test/sf_test.sh`).
+  Test `kevin` behavior (`test/kevin_test.sh`).
 - Write tracked documentation and Kevin prompt text in simplified
   technical English: short sentences, active voice, common words, no
   filler. Use the imperative for instructions. Change a generated

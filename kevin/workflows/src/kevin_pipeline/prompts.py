@@ -1,5 +1,5 @@
 """The prompts the workflow sends to its role agents. They mirror the prompts
-kevin dispatch builds for the local backends (kevin/tools/sf/src/sf/dispatch.clj)."""
+kevin dispatch builds for the local backends (kevin/tools/kevin/src/kevin/dispatch.clj)."""
 
 from __future__ import annotations
 

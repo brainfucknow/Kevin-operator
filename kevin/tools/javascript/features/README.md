@@ -9,8 +9,8 @@ mutation reports. Real-tool compatibility still needs the checks in the
 language guide.
 
 Fixture operations and assertions are defined by the
-[step handlers](../acceptance/src/sfjs/acceptance/steps.clj),
-[world](../acceptance/src/sfjs/acceptance/world.clj), and
+[step handlers](../acceptance/src/kevinjs/acceptance/steps.clj),
+[world](../acceptance/src/kevinjs/acceptance/world.clj), and
 [fake tools](../acceptance/fake-tool.sh). Tool calls are observed through
 the wrapper's `$ ` output lines; numbered output assertions exclude those
 lines. Default fakes succeed and return empty findings; oxlint reports one

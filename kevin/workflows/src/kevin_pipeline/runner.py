@@ -100,7 +100,7 @@ async def run_shell(command: str, wt: Annotated[Worktree, agents.Depends()]) -> 
     return _run(command, wt)
 
 
-_READONLY_SF = {"show", "ls", "stage", "next", "spec-revisions", "route", "harvest", "roles", "gates", "routes", "pipeline", "check", "--help"}
+_READONLY_KEVIN = {"show", "ls", "stage", "next", "spec-revisions", "route", "harvest", "roles", "gates", "routes", "pipeline", "check", "--help"}
 _READONLY_GIT = {"log", "diff", "status", "show", "rev-parse", "branch", "ls-files", "ls-remote", "blame", "describe"}
 _READONLY_UNIX = {"cat", "ls", "grep", "egrep", "fgrep", "head", "tail", "wc", "file", "tree", "pwd", "which"}
 _READONLY_FORBIDDEN = ("&&", "||", ";", "|", ">", "<", "`", "$(", "\n", "\r")
@@ -140,7 +140,7 @@ def _readonly_argv(command: str) -> list[str]:
         raise agents.ToolError("empty command")
     prog = parts[0]
     if prog == "kevin" or prog == "kevin/bin/kevin" or prog.endswith("/kevin/bin/kevin"):
-        if len(parts) > 1 and parts[1] in _READONLY_SF:
+        if len(parts) > 1 and parts[1] in _READONLY_KEVIN:
             return ["kevin/bin/kevin" if prog == "kevin" else prog, *parts[1:]]
     elif prog == "git" and len(parts) > 1 and parts[1] in _READONLY_GIT:
         if parts[1] == "branch" and not _readonly_branch_args(parts[2:]):
@@ -151,7 +151,7 @@ def _readonly_argv(command: str) -> list[str]:
     elif prog in _READONLY_UNIX:
         return parts
     raise agents.ToolError(
-        f"read-only shell refuses '{command}': allowed are kevin {sorted(_READONLY_SF)}, "
+        f"read-only shell refuses '{command}': allowed are kevin {sorted(_READONLY_KEVIN)}, "
         f"git {sorted(_READONLY_GIT)}, and {sorted(_READONLY_UNIX)}"
     )
 

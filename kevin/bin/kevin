@@ -1,11 +1,11 @@
 #!/usr/bin/env bb
-;; kevin: Kevin task helper. Source: kevin/tools/sf/.
+;; kevin: Kevin task helper. Source: kevin/tools/kevin/.
 (require '[babashka.classpath :as classpath] '[babashka.fs :as fs])
-(let [home (fs/path (fs/parent (fs/canonicalize *file*)) ".." "tools" "sf")]
+(let [home (fs/path (fs/parent (fs/canonicalize *file*)) ".." "tools" "kevin")]
   (run! #(classpath/add-classpath (str (fs/path home %))) ["src" "resources"]))
-(require 'sf.runtime)
-(when-let [refusal ((resolve 'sf.runtime/refusal) (System/getProperty "babashka.version"))]
+(require 'kevin.runtime)
+(when-let [refusal ((resolve 'kevin.runtime/refusal) (System/getProperty "babashka.version"))]
   (binding [*out* *err*] (println refusal))
   (System/exit 1))
-(require 'sf.cli)
-((resolve 'sf.cli/-main) *command-line-args*)
+(require 'kevin.cli)
+((resolve 'kevin.cli/-main) *command-line-args*)

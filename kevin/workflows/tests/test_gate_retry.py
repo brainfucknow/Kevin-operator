@@ -17,7 +17,7 @@ from mistralai.workflows.core.config.config import config
 from mistralai.workflows.core.temporal.payload_converter import MistralWorkflowsPayloadConverter
 from mistralai.workflows.testing import create_test_worker
 
-from kevin_pipeline import activities, pipeline, runner, sfkit
+from kevin_pipeline import activities, pipeline, runner, kevinkit
 from kevin_pipeline.catalogue import Role
 from kevin_pipeline.models import (
     CheckoutInfo,
@@ -82,7 +82,7 @@ async def test_gate_that_changes_the_task_fails_the_execution_without_retry(monk
 
     monkeypatch.setattr(runner, "run_role_agent", fake_agent_turn)
     snapshots = iter([("state-1", "head-1", ""), ("state-2", "head-2", " M work")])
-    monkeypatch.setattr(sfkit, "snapshot", lambda main, task_id: next(snapshots))
+    monkeypatch.setattr(kevinkit, "snapshot", lambda main, task_id: next(snapshots))
 
     old_deployment = config.worker.deployment_name
     old_backoff = config.worker.local_retry_backoff_coefficient

@@ -16,7 +16,7 @@
   - `Security code scanner absent: <reason>`
   - `Dependency audit absent: <reason>`
 - The architect, hardener, and QA own property-test verification for affected behavior; keep it separate from normal unit, coverage, and mutation runs.
-- `kevin finish` runs the kevin property suite (`bb --config kevin/tools/sf/bb.edn property`) on every task's merge candidate through `kevin/verify.conf`.
+- `kevin finish` runs the kevin property suite (`bb --config kevin/tools/kevin/bb.edn property`) on every task's merge candidate through `kevin/verify.conf`.
 - Security code scanner absent for `kevin/workflows/`: no Python scanner is installed in this project; the kevin tools cover the Clojure code.
 - Dependency audit absent for `kevin/workflows/`: its Python dependencies are pinned in `kevin/workflows/uv.lock`; no audit tool is configured.
 - Dependency audit absent without `NVD_API_TOKEN` or network access to the NVD API and clojars.org: the security reviewer records `Not-tested: dependency audit: absent, <reason>` and continues; see the Clojure guide to provide the token.

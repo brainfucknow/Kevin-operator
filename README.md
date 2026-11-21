@@ -157,9 +157,9 @@ to the affected targets, and property checks remain separate and role-owned.
 | Shared wrapper dependency or IO boundary | `bb --config kevin/tools/core/bb.edn architecture` (also retained in the JavaScript unit suite). |
 | Shared wrapper behavior | `bb --config kevin/tools/core/bb.edn test`, then affected language-wrapper unit suites. |
 | .NET wrapper | `bb --config kevin/tools/csharp/bb.edn test`, plus the shared architecture check; use combined coverage below when coverage evidence needs refreshing. |
-| Task state or CLI behavior | Affected kevin specs and public-CLI checks in `test/sf_test.sh` or named `test/features/task_store/` features. |
+| Task state or CLI behavior | Affected kevin specs and public-CLI checks in `test/kevin_test.sh` or named `test/features/task_store/` features. |
 | Installer | Installer specs, named `test/features/install/` features and `test/features/adapters/` preservation/collision checks. |
-| Tool installation or argument rewriting | Relevant kevin specs, `test/sf_tool_test.sh`, and affected tool compatibility checks. |
+| Tool installation or argument rewriting | Relevant kevin specs, `test/kevin_tool_test.sh`, and affected tool compatibility checks. |
 | Acceptance fixtures | `bash test/acceptance.sh <feature>...`; for identity changes include `test/features/task_store/init.feature`. |
 | Documentation only | Manual review and existing configuration/link checks relevant to the edit. |
 
@@ -167,14 +167,14 @@ The commands below list the available suites. CI remains the broader
 integration check, including unaffected language suites.
 
 ```sh
-bash test/sf_test.sh
-bash test/sf_tool_test.sh
+bash test/kevin_test.sh
+bash test/kevin_tool_test.sh
 bash test/no_manifests_test.sh
 bb --config kevin/tools/core/bb.edn architecture
 bb --config kevin/tools/core/bb.edn test
-bb --config kevin/tools/sf/bb.edn spec
-bb --config kevin/tools/sf/bb.edn hardening
-bb --config kevin/tools/sf/bb.edn property
+bb --config kevin/tools/kevin/bb.edn spec
+bb --config kevin/tools/kevin/bb.edn hardening
+bb --config kevin/tools/kevin/bb.edn property
 kevin/bin/kevin tool ensure gherkin-parser
 bash test/acceptance.sh
 bb --config kevin/tools/csharp/bb.edn test
@@ -184,7 +184,7 @@ bb --config kevin/tools/javascript/bb.edn property
 bb --config kevin/tools/javascript/bb.edn acceptance
 bb --config kevin/tools/ruby/bb.edn test
 bb --config kevin/tools/ruby/bb.edn property
-bash test/sf_rb_e2e_test.sh  # needs Ruby and Bundler
+bash test/kevin_rb_e2e_test.sh  # needs Ruby and Bundler
 bb --config kevin/tools/java/bb.edn spec
 bb --config kevin/tools/java/bb.edn hardening
 bb --config kevin/tools/java/bb.edn acceptance

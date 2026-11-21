@@ -11,7 +11,7 @@ from datetime import timedelta
 import mistralai.workflows as workflows
 from pydantic import BaseModel
 
-from . import catalogue, prompts, runner, sfkit
+from . import catalogue, prompts, runner, kevinkit
 from .models import (
     CheckoutInfo,
     GateReport,
@@ -81,15 +81,15 @@ async def sync_checkout(params: SyncInput) -> CheckoutInfo:
     """Clone or update the repository, fetch the task branch, and let kevin start
     create the task worktree."""
     ref = params.ref
-    main = sfkit.clone_or_update(ref.repository, checkout_dir(ref.repository, ref.task_id), ref.remote, ref.base_branch)
-    sfkit.fetch_task(main, ref.remote, ref.task_id)
-    worktree = sfkit.ensure_worktree(main, ref.task_id)
-    return CheckoutInfo(main=main, worktree=worktree, branch=sfkit.task_branch(ref.task_id))
+    main = kevinkit.clone_or_update(ref.repository, checkout_dir(ref.repository, ref.task_id), ref.remote, ref.base_branch)
+    kevinkit.fetch_task(main, ref.remote, ref.task_id)
+    worktree = kevinkit.ensure_worktree(main, ref.task_id)
+    return CheckoutInfo(main=main, worktree=worktree, branch=kevinkit.task_branch(ref.task_id))
 
 
 @workflows.activity()
 async def read_task_state(params: RefInput) -> TaskState:
-    return sfkit.read_state(params.main, params.task_id)
+    return kevinkit.read_state(params.main, params.task_id)
 
 
 @workflows.activity()
@@ -105,7 +105,7 @@ async def task_gates(params: RefInput) -> list[str]:
     approval."""
     roles, _ = _load_catalogue(params.main)
     gate_roles = set(catalogue.gates(roles))
-    return [g for g in sfkit.read_state(params.main, params.task_id).gates if g in gate_roles]
+    return [g for g in kevinkit.read_state(params.main, params.task_id).gates if g in gate_roles]
 
 
 @workflows.activity()
@@ -122,7 +122,7 @@ async def run_stage_role(params: StageRunInput) -> RoleOutcome:
     role = catalogue.role_by_name(roles, params.role)
     if role is None or role.is_gate or role.is_spec_judge:
         raise ValueError(f"'{params.role}' is not a stage role")
-    before = sfkit.read_state(params.co.main, params.task_id)
+    before = kevinkit.read_state(params.co.main, params.task_id)
     if before.needs in ("operator", "approval"):
         return RoleOutcome(status="blocked", stage=before.stage, needs=before.needs)
     if before.stage != params.role:
@@ -134,7 +134,7 @@ async def run_stage_role(params: StageRunInput) -> RoleOutcome:
         writable=True,
     )
     report = await runner.run_role_agent(agent, role.name, prompts.role_prompt(role.name, params.task_id), params.co.worktree)
-    after = sfkit.read_state(params.co.main, params.task_id)
+    after = kevinkit.read_state(params.co.main, params.task_id)
     if after.needs in ("operator", "approval"):
         return RoleOutcome(status="blocked", stage=after.stage, needs=after.needs, report=report)
     if after.stage != before.stage:
@@ -150,7 +150,7 @@ async def run_gate(params: GateRunInput) -> GateReport:
     gate = catalogue.role_by_name(roles, params.gate)
     if gate is None or not gate.is_gate:
         raise ValueError(f"'{params.gate}' is not a gate role")
-    before = sfkit.snapshot(params.co.main, params.task_id)
+    before = kevinkit.snapshot(params.co.main, params.task_id)
     agent = runner.build_agent(
         gate,
         catalogue.mistral_model(tiers, gate.tier),
@@ -158,7 +158,7 @@ async def run_gate(params: GateRunInput) -> GateReport:
         writable=False,
     )
     report = await runner.run_role_agent(agent, gate.name, prompts.gate_prompt(gate.name, params.task_id), params.co.worktree)
-    after = sfkit.snapshot(params.co.main, params.task_id)
+    after = kevinkit.snapshot(params.co.main, params.task_id)
     if before != after:
         raise workflows.WorkflowError(
             f"gate {gate.name} changed task {params.task_id}; a gate only reports",
@@ -181,7 +181,7 @@ async def run_spec_judge(params: JudgeRunInput) -> JudgeVerdict:
     judge = catalogue.role_by_name(roles, catalogue.spec_judge(roles) or "")
     if judge is None:
         raise ValueError("roles.conf has no spec-judge")
-    before = sfkit.snapshot(params.co.main, params.task_id)
+    before = kevinkit.snapshot(params.co.main, params.task_id)
     agent = runner.build_agent(
         judge,
         catalogue.mistral_model(tiers, judge.tier),
@@ -191,7 +191,7 @@ async def run_spec_judge(params: JudgeRunInput) -> JudgeVerdict:
     report = await runner.run_role_agent(
         agent, judge.name, prompts.judge_prompt(params.task_id, params.reports), params.co.worktree
     )
-    after = sfkit.snapshot(params.co.main, params.task_id)
+    after = kevinkit.snapshot(params.co.main, params.task_id)
     if before != after:
         raise workflows.WorkflowError(
             f"spec-judge changed task {params.task_id}; it only reports",
@@ -211,5 +211,5 @@ async def run_spec_judge(params: JudgeRunInput) -> JudgeVerdict:
 @workflows.activity(start_to_close_timeout=timedelta(minutes=10))
 async def publish(params: PublishInput) -> str:
     """Push the task branch so the operator's session can fetch the records."""
-    sfkit.push_task(params.co.main, params.remote, params.task_id)
-    return sfkit.task_branch(params.task_id)
+    kevinkit.push_task(params.co.main, params.remote, params.task_id)
+    return kevinkit.task_branch(params.task_id)

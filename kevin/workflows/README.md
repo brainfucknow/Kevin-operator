@@ -63,7 +63,7 @@ not a static API key. Locally, the same config falls back to
 `MISTRAL_CLIENT_API_KEY`/`MISTRAL_API_KEY`. Pushing the task branch back needs GitHub write
 access: bind a workspace secret holding a token with `repo` scope as the
 `GITHUB_TOKEN` env var of the deployment (for example secret `github_token`).
-`sfkit` passes it to git through a `GIT_CONFIG_*` env pair, never through argv,
+`kevinkit` passes it to git through a `GIT_CONFIG_*` env pair, never through argv,
 so it stays out of logs and error messages. Cloning and fetching public
 repositories works without it.
 

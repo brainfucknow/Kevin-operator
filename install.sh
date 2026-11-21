@@ -16,7 +16,7 @@ minimum=""
 min_pattern=':min-bb-version "([^"]*)"'
 while IFS= read -r line; do
   [[ $line =~ $min_pattern ]] && minimum="${BASH_REMATCH[1]}"
-done < "$HERE/kevin/tools/sf/bb.edn"
+done < "$HERE/kevin/tools/kevin/bb.edn"
 needs="install.sh: Kevin needs Babashka $minimum or newer: https://babashka.org"
 command -v bb >/dev/null || { echo "$needs" >&2; exit 1; }
 if ! check_err="$(cd "$HERE" && bb "$HERE/kevin/bin/kevin" help 2>&1 >/dev/null)"; then
@@ -63,6 +63,12 @@ done
 
 if [ -n "$migrating" ]; then
   mv "$target/swarmforge" "$target/kevin"
+  # The tool sources an old install shipped under their old names.
+  rm -rf "$target/kevin/tools/sf" "$target/kevin/tools/core/src/sfcore" \
+    "$target/kevin/tools/csharp/src/sfcs" "$target/kevin/tools/csharp/src/sffs" \
+    "$target/kevin/tools/csharp/src/sfvb" "$target/kevin/tools/java/src/sfjava" \
+    "$target/kevin/tools/javascript/src/sfjs" "$target/kevin/tools/ruby/src/sfrb" \
+    "$target/kevin/tools/ruby/resources/sfrb"
 fi
 
 shipped=()
@@ -196,7 +202,8 @@ printf '%s\0' "${shipped[@]}" | (cd "$HERE" && bb -e '
           unshipped (sort (distinct @found))
           _ (when migrating? (walk (fs/path root "kevin")))
           kept (filter #(or (not (expected %)) (config? %)) (sort (distinct @found)))
-          renames [[#"swarmforge/bin/sf-" "kevin/bin/kevin-"]
+          renames [[#"swarmforge/tools/sf/" "kevin/tools/kevin/"]
+                   [#"swarmforge/bin/sf-" "kevin/bin/kevin-"]
                    [#"swarmforge/bin/sf\b" "kevin/bin/kevin"]
                    [#"\bsf-(cs|fs|vb|js|rb|java|mistral|tool)\b" "kevin-$1"]
                    [#"SwarmForge-" "Kevin-"]

@@ -161,7 +161,7 @@
         (check (empty? found) (str "found " (pr-str (vec found))))
         world))]])
 
-;; kevin tool (test/features/sf_tool)
+;; kevin tool (test/features/kevin_tool)
 
 (defn- fill-paths
   "text with MAIN, SRC, CFG and CLONE replaced by the scratch project's paths,

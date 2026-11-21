@@ -3,7 +3,7 @@
 import pytest
 from mistralai.workflows.core.config.config import config
 
-from kevin_pipeline import activities, catalogue, prompts, runner, sfkit
+from kevin_pipeline import activities, catalogue, prompts, runner, kevinkit
 from kevin_pipeline.models import CheckoutInfo, TaskState
 
 
@@ -15,7 +15,7 @@ def stage_attempt(monkeypatch):
     monkeypatch.setattr(activities, "_load_catalogue", lambda main: ([role], {}))
     monkeypatch.setattr(catalogue, "mistral_model", lambda tiers, tier: "test-model")
     monkeypatch.setattr(prompts, "agent_instructions", lambda *args, **kwargs: "instructions")
-    monkeypatch.setattr(sfkit, "read_state", lambda main, task_id: state.model_copy())
+    monkeypatch.setattr(kevinkit, "read_state", lambda main, task_id: state.model_copy())
     monkeypatch.setattr(runner, "build_agent", lambda *args, **kwargs: builds.append(object()) or builds[-1])
     monkeypatch.setattr(config.worker, "retry_policy_max_attempts", 2)
     monkeypatch.setattr(config.worker, "local_retry_backoff_coefficient", 0)

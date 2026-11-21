@@ -2,7 +2,7 @@
 """Controllable external Java tools for public CLI contracts."""
 import json, os, pathlib, sys
 name = pathlib.Path(sys.argv[0]).name
-state_file = pathlib.Path(os.environ['SFJAVA_FAKE_STATE'])
+state_file = pathlib.Path(os.environ['KEVINJAVA_FAKE_STATE'])
 s = json.loads(state_file.read_text())
 args = sys.argv[1:]
 with open(s['log'], 'a') as log:
@@ -52,7 +52,7 @@ if name == 'java':
     if 'crap4java-' in jar:
         if s.get('tool_failure'): print('analysis failure'); finish(1)
         import subprocess
-        r=subprocess.run(['/bin/sh','-c',os.environ['SFJAVA_COVERAGE_COMMAND']])
+        r=subprocess.run(['/bin/sh','-c',os.environ['KEVINJAVA_COVERAGE_COMMAND']])
         if r.returncode: finish(1)
         if not pathlib.Path('target/site/jacoco/jacoco.xml').exists(): finish(1)
         score=s.get('crap',1.0)
@@ -75,7 +75,7 @@ if name == 'java':
         r=subprocess.run(['/bin/sh','-c',command])
         if r.returncode: finish(2)
         survivors=s.get('survivors',0)
-        if not survivors and os.environ.get('SFJAVA_MANIFEST'): write(os.environ['SFJAVA_MANIFEST'],'tool-maintained-manifest')
+        if not survivors and os.environ.get('KEVINJAVA_MANIFEST'): write(os.environ['KEVINJAVA_MANIFEST'],'tool-maintained-manifest')
         print('Summary: '+str(1-survivors)+' killed, '+str(survivors)+' survived, 1 total.')
         finish(3 if survivors else 0)
     print('fixture jar '+jar); finish()

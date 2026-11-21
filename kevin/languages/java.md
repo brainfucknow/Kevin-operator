@@ -25,7 +25,7 @@ kevin/bin/kevin-java mutate --base main
 `tools` installs and checks the pinned quality JARs through `kevin tool`, plus
 JUnit Platform Console 1.10.2 and JaCoCo agent/CLI 0.8.12 from Maven. Runtime
 dependencies and the Maven cache stay in ignored `.kevin/java/`;
-`SFJAVA_CACHE` can select a shared project-local cache for mutation workers.
+`KEVINJAVA_CACHE` can select a shared project-local cache for mutation workers.
 Test commands obtain missing runner JARs automatically; quality tools require
 `tools` first.
 
@@ -64,7 +64,7 @@ and 2 for usage, prerequisites or analysis failures. Diagnostics use the
 `kevin/tools.conf` pins `crap4java`, `dry4java` and `mutate4java` to full
 upstream commit SHAs. The `maven` catalogue kind clones that revision, validates
 and applies the tracked patches in
-`kevin/tools/sf/resources/sf/java-patches/`, builds with Maven test execution
+`kevin/tools/kevin/resources/kevin/java-patches/`, builds with Maven test execution
 disabled, and publishes an executable JAR wrapper in `.kevin/bin/`.
 `INSTALLED: ... @<SHA>` identifies the upstream revision with the tracked patch
 applied. Patch/build failures do not publish a new wrapper. Reinstallation
@@ -72,16 +72,16 @@ resets the owned clone to its pin before patching.
 
 - `crap4java`: requires the dedicated coverage command, rejects missing XML,
   and changes the gate from 8 to 10. `kevin-java` supplies the command through
-  `SFJAVA_COVERAGE_COMMAND`.
+  `KEVINJAVA_COVERAGE_COMMAND`.
 - `dry4java`: builds Java 17 bytecode rather than requiring Java 21.
 - `mutate4java`: removes an unavailable workspace parent POM, preserves PATH
   for custom test commands, reads dedicated-runner JaCoCo coverage, stores
-  manifests through `SFJAVA_MANIFEST`, and excludes Git/tool/cache directories
+  manifests through `KEVINJAVA_MANIFEST`, and excludes Git/tool/cache directories
   from worker copies. Its mutation analysis and differential selection remain
   upstream behavior.
 
 Prefer `kevin-java crap`; direct `crap4java` runs require
-`SFJAVA_COVERAGE_COMMAND`. `KEVIN_TOOL_SRC` is an unpinned development
+`KEVINJAVA_COVERAGE_COMMAND`. `KEVIN_TOOL_SRC` is an unpinned development
 override, built as supplied without patches. Overrides must provide these
 integration APIs and cannot establish pinned verification evidence.
 

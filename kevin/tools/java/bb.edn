@@ -9,6 +9,6 @@
   property {:doc "Run Java wrapper properties separately"
             :task (System/exit (apply (requiring-resolve 'speclj.cli/run) ["-c" (str (babashka.fs/path here "property"))]))}
   acceptance-worker {:doc "Persistent Speclj adapter for differential Gherkin mutation"
-                     :task ((requiring-resolve 'sfjava.acceptance/run-worker))}
+                     :task ((requiring-resolve 'kevinjava.acceptance/run-worker))}
   acceptance {:doc "Run Java contracts through the existing APS pipeline"
-              :task (apply (requiring-resolve 'sfjava.acceptance/run) *command-line-args*)}}}
+              :task (apply (requiring-resolve 'kevinjava.acceptance/run) *command-line-args*)}}}

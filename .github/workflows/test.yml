@@ -31,7 +31,7 @@ jobs:
       - name: Download dependencies with retries
         run: |
           for attempt in 1 2 3 4 5; do
-            if bb --config kevin/tools/sf/bb.edn -e nil; then
+            if bb --config kevin/tools/kevin/bb.edn -e nil; then
               exit 0
             fi
             echo "dependency download failed on attempt $attempt (Maven Central may answer HTTP 429); retrying" >&2
@@ -40,7 +40,7 @@ jobs:
           echo "dependency download kept failing" >&2
           exit 1
       - name: Test kevin
-        run: bash test/sf_test.sh
+        run: bash test/kevin_test.sh
       - name: Run the CRAP gate on the minimum Babashka
         run: |
           kevin/bin/kevin tool ensure crap4clj
@@ -95,7 +95,7 @@ jobs:
       - name: Download dependencies with retries
         run: |
           for attempt in 1 2 3 4 5; do
-            if bb --config kevin/tools/sf/bb.edn -e nil; then
+            if bb --config kevin/tools/kevin/bb.edn -e nil; then
               exit 0
             fi
             echo "dependency download failed on attempt $attempt (Maven Central may answer HTTP 429); retrying" >&2
@@ -104,15 +104,15 @@ jobs:
           echo "dependency download kept failing" >&2
           exit 1
       - name: Test kevin
-        run: bash test/sf_test.sh
+        run: bash test/kevin_test.sh
       - name: Test kevin tool
-        run: bash test/sf_tool_test.sh
+        run: bash test/kevin_tool_test.sh
       - name: Unit specs for kevin
-        run: bb --config kevin/tools/sf/bb.edn spec
+        run: bb --config kevin/tools/kevin/bb.edn spec
       - name: Hardening checks for kevin
-        run: bb --config kevin/tools/sf/bb.edn hardening
+        run: bb --config kevin/tools/kevin/bb.edn hardening
       - name: Property tests for kevin
-        run: bb --config kevin/tools/sf/bb.edn property
+        run: bb --config kevin/tools/kevin/bb.edn property
       - name: Acceptance tests for kevin
         run: |
           kevin/bin/kevin tool ensure gherkin-parser
@@ -149,7 +149,7 @@ jobs:
           ruby-version: "3.3"
           bundler: "4.0.18"
       - name: End-to-end kevin-rb with the real gems
-        run: bash test/sf_rb_e2e_test.sh
+        run: bash test/kevin_rb_e2e_test.sh
   workflows-python:
     runs-on: ubuntu-latest
     steps:

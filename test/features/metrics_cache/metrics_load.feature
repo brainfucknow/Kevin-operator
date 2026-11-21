@@ -62,9 +62,9 @@ Feature: kevin metrics cache load
   # kevin metrics cache load 5
   Scenario: kevin metrics cache load 5: a later task gets the manifests a finished task saved
     Given task "A" titled "Add login" was started on route "coder"
-    And the file ".metrics/mutate/sf/task.edn" in the worktree of task "A" is written with "v1"
+    And the file ".metrics/mutate/kevin/task.edn" in the worktree of task "A" is written with "v1"
     And task "A" was finished
     And task "B" titled "Add logout" was created on route "coder"
     When I run "kevin start $B"
     Then the exit status is 0
-    And the file ".metrics/mutate/sf/task.edn" in the worktree of task "B" holds "v1"
+    And the file ".metrics/mutate/kevin/task.edn" in the worktree of task "B" holds "v1"

@@ -42,7 +42,7 @@ async def test_readonly_shell_runs_argv_without_a_shell(tmp_path, monkeypatch):
     assert (tmp_path / "keep").exists()
 
 
-def test_readonly_argv_allows_sf_path_forms():
+def test_readonly_argv_allows_kevin_path_forms():
     assert runner._readonly_argv("kevin show t-1") == ["kevin/bin/kevin", "show", "t-1"]
     assert runner._readonly_argv("kevin/bin/kevin show t-1") == ["kevin/bin/kevin", "show", "t-1"]
     assert runner._readonly_argv("/w/.worktrees/t/kevin/bin/kevin spec-revisions t-1 --full") == [

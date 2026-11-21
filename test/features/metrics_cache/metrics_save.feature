@@ -25,16 +25,16 @@ Feature: kevin metrics cache save
   Scenario: kevin metrics cache save 1: the first save makes the metrics branch with no parent
     Given task "A" titled "Add login" was started on route "coder,qa"
     And role "coder" committed "Work" in the worktree of task "A" as C1
-    And the file ".metrics/mutate/sf/task.edn" in the worktree of task "A" is written with "v1"
+    And the file ".metrics/mutate/kevin/task.edn" in the worktree of task "A" is written with "v1"
     When I run "kevin handoff $A" in the worktree of task "A"
     Then the exit status is 0
     And the output is "HANDOFF: $A coder -> qa at C1"
-    And the file "mutate/sf/task.edn" on the metrics branch is "v1"
+    And the file "mutate/kevin/task.edn" on the metrics branch is "v1"
     And the metrics branch is one commit with no parent
     And the tip commit of the metrics branch has the message "kevin metrics: $A\n\nKevin-Task: $A"
     And the tip commit of task "A" changes no file
     And the worktree of task "A" has no uncommitted change
-    And the main checkout has no file ".metrics/mutate/sf/task.edn" and no uncommitted change
+    And the main checkout has no file ".metrics/mutate/kevin/task.edn" and no uncommitted change
     And the main checkout is on the branch "main"
     And the only worktrees are the main checkout and the worktree of task "A"
 

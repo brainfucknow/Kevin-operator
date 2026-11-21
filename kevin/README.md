@@ -13,7 +13,7 @@ this repository.
 | `constitution.md`, `constitution/articles/` | Rules every role obeys. |
 | `constitution/existing-code.md` | Refactoring policy read only when the project opts into `Existing code: ask before refactoring`. |
 | `roles/*.md` | What each role owns, verifies, and hands off. `orchestrator.md` is the session's own role. |
-| `bin/kevin`, `tools/sf/` | The only writer of task state. `kevin --help` lists the commands. |
+| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. |
 | `bin/kevin-mistral`, `workflows/` | The mistral backend: runs tasks and roles on Mistral Workflows when no backend CLI is on PATH. See [workflows/README.md](workflows/README.md). |
 | `bin/kevin-cs`, `languages/csharp.md` | C# tool wrapper: tests, coverage, CRAP, DRY, mutation, each scoped to the task's changes. |
 | `bin/kevin-fs`, `languages/fsharp.md` | F# .NET tests, coverage, compiled-method CRAP and DRY; mutation unsupported. |
