@@ -69,12 +69,10 @@ request>` in Claude Code, `$swarm` in Codex, or `/swarm` in Copilot.
 | `kevin/roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | no | Override the runtime's copy of the same file |
 | `kevin/verify.conf` | no | The commands `kevin finish` runs; without it, none run |
 
-`kevin version` prints the runtime version. Every command but `help`,
-`version` and `home` refuses a runtime older than the project's
-`Minimum Kevin version:`. `kevin home` prints the runtime's `kevin/`
-directory. The runtime's other commands run as subcommands: `kevin cs`,
-`kevin fs`, `kevin vb`, `kevin js`, `kevin rb`, `kevin java` and
-`kevin mistral`.
+`kevin version` prints the runtime version, and a runtime older than the
+project's `Minimum Kevin version:` is refused. The [runtime
+guide](kevin/README.md) lists the commands, including `kevin cs`, `kevin fs`,
+`kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral`.
 
 ### A project with a committed install
 
