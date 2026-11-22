@@ -19,6 +19,7 @@
     "manifest_guard/" 'acceptance.guard-steps
     "metrics_cache/" 'acceptance.metrics-steps
     "install/" 'acceptance.install-steps
+    "rebrand/" 'acceptance.rebrand-steps
     'acceptance.steps))
 
 (defn entry-point [ir-path feature-name feature-path]

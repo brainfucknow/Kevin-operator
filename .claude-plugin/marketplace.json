@@ -1,12 +1,12 @@
 {
-  "name": "swarm-forge-harness",
+  "name": "kevin-operator",
   "owner": { "name": "brainfucknow" },
-  "description": "SwarmForge for Claude Code.",
+  "description": "Kevin for Claude Code.",
   "plugins": [
     {
-      "name": "swarmforge",
+      "name": "kevin",
       "source": "./",
-      "description": "Run a feature request through SwarmForge roles on Git task branches."
+      "description": "Run a feature request through Kevin roles on Git task branches."
     }
   ]
 }

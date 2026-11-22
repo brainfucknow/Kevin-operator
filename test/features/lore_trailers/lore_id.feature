@@ -1,4 +1,4 @@
-Feature: sf commit Lore-id
+Feature: kevin commit Lore-id
 
   A Lore trailer is a trailer in the trailer block whose key is one of
   Constraint, Rejected, Confidence, Scope-risk, Reversibility, Directive,
@@ -11,11 +11,11 @@ Feature: sf commit Lore-id
   stage other than done.
 
   Background:
-    Given a project with swarmforge initialized
-    And a task at stage "qa" started with sf start
+    Given a project with kevin initialized
+    And a task at stage "qa" started with kevin start
 
-  # sf commit Lore-id 1
-  Scenario Outline: sf commit Lore-id 1: a Lore trailer gets a Lore-id as the first trailer
+  # kevin commit Lore-id 1
+  Scenario Outline: kevin commit Lore-id 1: a Lore trailer gets a Lore-id as the first trailer
     When I commit "Fix\n\n<key>: x" in the task worktree
     Then the exit status is 0
     And the commit message is "Fix\n\nBy qa.\n\nLore-id: LID\n<key>: x"
@@ -35,8 +35,8 @@ Feature: sf commit Lore-id
       | Depends-on    |
       | Related       |
 
-  # sf commit Lore-id 2
-  Scenario Outline: sf commit Lore-id 2: a message without a Lore trailer in the last paragraph gets no Lore-id
+  # kevin commit Lore-id 2
+  Scenario Outline: kevin commit Lore-id 2: a message without a Lore trailer in the last paragraph gets no Lore-id
     When I commit "<message>" in the task worktree
     Then the exit status is 0
     And the commit message is "<result>"
@@ -46,8 +46,8 @@ Feature: sf commit Lore-id
       | Fix\n\nTested: x\n\nClosing text              | Fix\n\nTested: x\n\nClosing text\n\nBy qa.            |
       | Fix\n\nTested-by: A <a@b>                     | Fix\n\nBy qa.\n\nTested-by: A <a@b>                   |
 
-  # sf commit Lore-id 3
-  Scenario Outline: sf commit Lore-id 3: an existing Lore-id stays as it is
+  # kevin commit Lore-id 3
+  Scenario Outline: kevin commit Lore-id 3: an existing Lore-id stays as it is
     When I commit "<message>" in the task worktree
     Then the exit status is 0
     And the commit message is "<result>"
@@ -58,8 +58,8 @@ Feature: sf commit Lore-id
       | Fix\n\nTested: x\nLore-id: 0badc0de       | Fix\n\nBy qa.\n\nTested: x\nLore-id: 0badc0de     |
       | Fix\n\nLore-id: 0badc0de                  | Fix\n\nBy qa.\n\nLore-id: 0badc0de                |
 
-  # sf commit Lore-id 4
-  Scenario Outline: sf commit Lore-id 4: the hook leaves a message alone where it adds no byline
+  # kevin commit Lore-id 4
+  Scenario Outline: kevin commit Lore-id 4: the hook leaves a message alone where it adds no byline
     When I commit "Fix\n\nTested: x" in the <place>
     Then the exit status is 0
     And the commit message is "Fix\n\nTested: x"
@@ -67,9 +67,9 @@ Feature: sf commit Lore-id
     Examples:
       | place                                      |
       | main checkout                              |
-      | task worktree with SWARMFORGE_ROLE "done"  |
+      | task worktree with KEVIN_ROLE "done"  |
 
-  # sf commit Lore-id 5
-  Scenario: sf commit Lore-id 5: each commit gets its own Lore-id
+  # kevin commit Lore-id 5
+  Scenario: kevin commit Lore-id 5: each commit gets its own Lore-id
     When I commit "Fix\n\nTested: x" in the task worktree twice
     Then the two commits have different Lore-ids

@@ -1,10 +1,10 @@
 {
-  "name": "swarmforge",
-  "description": "Run a feature request through SwarmForge roles on Git task branches. Adds the swarm skill, which installs SwarmForge into the project on first use.",
+  "name": "kevin",
+  "description": "Run a feature request through Kevin roles on Git task branches. Adds the swarm skill, which installs Kevin into the project on first use.",
   "author": { "name": "brainfucknow" },
-  "homepage": "https://github.com/brainfucknow/swarm-forge-harness",
-  "repository": "https://github.com/brainfucknow/swarm-forge-harness",
+  "homepage": "https://github.com/brainfucknow/Kevin-operator",
+  "repository": "https://github.com/brainfucknow/Kevin-operator",
   "license": "MIT",
-  "keywords": ["swarmforge", "agents", "workflow", "specification", "review"],
+  "keywords": ["kevin", "agents", "workflow", "specification", "review"],
   "skills": "skills/"
 }

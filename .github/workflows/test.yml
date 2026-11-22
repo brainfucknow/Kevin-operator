@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
 jobs:
-  sf-min-bb:
+  kevin-min-bb:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -13,9 +13,9 @@ jobs:
           path: |
             ~/.m2/repository
             ~/.gitlibs
-          key: deps-${{ runner.os }}-${{ hashFiles('swarmforge/tools.conf', 'swarmforge/tools/*/bb.edn', 'test/acceptance/bb.edn') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('kevin/tools.conf', 'kevin/tools/*/bb.edn', 'test/acceptance/bb.edn') }}
           restore-keys: deps-${{ runner.os }}-
-      - name: Install the oldest Babashka sf supports
+      - name: Install the oldest Babashka kevin supports
         env:
           BB_VERSION: 1.12.216
           BB_SHA256: 920b2d6e6b6580795a8cf1698aa124733bb26065bb10956842272caf8e5299ae
@@ -31,7 +31,7 @@ jobs:
       - name: Download dependencies with retries
         run: |
           for attempt in 1 2 3 4 5; do
-            if bb --config swarmforge/tools/sf/bb.edn -e nil; then
+            if bb --config kevin/tools/kevin/bb.edn -e nil; then
               exit 0
             fi
             echo "dependency download failed on attempt $attempt (Maven Central may answer HTTP 429); retrying" >&2
@@ -39,13 +39,13 @@ jobs:
           done
           echo "dependency download kept failing" >&2
           exit 1
-      - name: Test sf
-        run: bash test/sf_test.sh
+      - name: Test kevin
+        run: bash test/kevin_test.sh
       - name: Run the CRAP gate on the minimum Babashka
         run: |
-          swarmforge/bin/sf tool ensure crap4clj
+          kevin/bin/kevin tool ensure crap4clj
           mkdir -p tmp
-          if ! .swarmforge/bin/crap4clj --source-root swarmforge/tools/core/src > tmp/crap4clj.log 2>&1; then
+          if ! .kevin/bin/crap4clj --source-root kevin/tools/core/src > tmp/crap4clj.log 2>&1; then
             cat tmp/crap4clj.log
             echo "crap4clj failed on bb $(bb --version)" >&2
             exit 1
@@ -56,14 +56,14 @@ jobs:
             echo "a stack trace appears in the crap4clj output" >&2
             exit 1
           fi
-          if ! bb -e '(let [entries (:entries (read-string (slurp "swarmforge/tools/core/.metrics/crap.edn")))]
+          if ! bb -e '(let [entries (:entries (read-string (slurp "kevin/tools/core/.metrics/crap.edn")))]
                          (when (or (empty? entries) (every? #(zero? (:coverage %)) entries))
                            (println "every function reads 0.0% coverage; the coverage gate did not instrument")
                            (System/exit 1)))'; then
             echo "the CRAP report shows 0.0% coverage for every function on bb $(bb --version)" >&2
             exit 1
           fi
-  sf:
+  kevin:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
           path: |
             ~/.m2/repository
             ~/.gitlibs
-          key: deps-${{ runner.os }}-${{ hashFiles('swarmforge/tools.conf', 'swarmforge/tools/*/bb.edn', 'test/acceptance/bb.edn') }}
+          key: deps-${{ runner.os }}-${{ hashFiles('kevin/tools.conf', 'kevin/tools/*/bb.edn', 'test/acceptance/bb.edn') }}
           restore-keys: deps-${{ runner.os }}-
       - name: No mutation manifests in the tree
         run: bash test/no_manifests.sh
@@ -95,7 +95,7 @@ jobs:
       - name: Download dependencies with retries
         run: |
           for attempt in 1 2 3 4 5; do
-            if bb --config swarmforge/tools/sf/bb.edn -e nil; then
+            if bb --config kevin/tools/kevin/bb.edn -e nil; then
               exit 0
             fi
             echo "dependency download failed on attempt $attempt (Maven Central may answer HTTP 429); retrying" >&2
@@ -103,53 +103,53 @@ jobs:
           done
           echo "dependency download kept failing" >&2
           exit 1
-      - name: Test sf
-        run: bash test/sf_test.sh
-      - name: Test sf tool
-        run: bash test/sf_tool_test.sh
-      - name: Unit specs for sf
-        run: bb --config swarmforge/tools/sf/bb.edn spec
-      - name: Hardening checks for sf
-        run: bb --config swarmforge/tools/sf/bb.edn hardening
-      - name: Property tests for sf
-        run: bb --config swarmforge/tools/sf/bb.edn property
-      - name: Acceptance tests for sf
+      - name: Test kevin
+        run: bash test/kevin_test.sh
+      - name: Test kevin tool
+        run: bash test/kevin_tool_test.sh
+      - name: Unit specs for kevin
+        run: bb --config kevin/tools/kevin/bb.edn spec
+      - name: Hardening checks for kevin
+        run: bb --config kevin/tools/kevin/bb.edn hardening
+      - name: Property tests for kevin
+        run: bb --config kevin/tools/kevin/bb.edn property
+      - name: Acceptance tests for kevin
         run: |
-          swarmforge/bin/sf tool ensure gherkin-parser
+          kevin/bin/kevin tool ensure gherkin-parser
           bash test/acceptance.sh
-      - name: Test sf-cs
-        run: bb --config swarmforge/tools/csharp/bb.edn test
-      - name: Property-test sf-cs
-        run: bb --config swarmforge/tools/csharp/bb.edn property
-      - name: Test sf-js
-        run: bb --config swarmforge/tools/javascript/bb.edn test
-      - name: Property-test sf-js
-        run: bb --config swarmforge/tools/javascript/bb.edn property
-      - name: Accept sf-js
+      - name: Test kevin-cs
+        run: bb --config kevin/tools/csharp/bb.edn test
+      - name: Property-test kevin-cs
+        run: bb --config kevin/tools/csharp/bb.edn property
+      - name: Test kevin-js
+        run: bb --config kevin/tools/javascript/bb.edn test
+      - name: Property-test kevin-js
+        run: bb --config kevin/tools/javascript/bb.edn property
+      - name: Accept kevin-js
         run: |
-          swarmforge/bin/sf tool ensure gherkin-parser
-          bb --config swarmforge/tools/javascript/bb.edn acceptance
-      - name: Unit specs for sf-java
-        run: bb --config swarmforge/tools/java/bb.edn spec
-      - name: Hardening checks for sf-java
-        run: bb --config swarmforge/tools/java/bb.edn hardening
-      - name: Property tests for sf-java
-        run: bb --config swarmforge/tools/java/bb.edn property
-      - name: Accept sf-java
+          kevin/bin/kevin tool ensure gherkin-parser
+          bb --config kevin/tools/javascript/bb.edn acceptance
+      - name: Unit specs for kevin-java
+        run: bb --config kevin/tools/java/bb.edn spec
+      - name: Hardening checks for kevin-java
+        run: bb --config kevin/tools/java/bb.edn hardening
+      - name: Property tests for kevin-java
+        run: bb --config kevin/tools/java/bb.edn property
+      - name: Accept kevin-java
         run: |
-          swarmforge/bin/sf tool ensure gherkin-parser
-          bb --config swarmforge/tools/java/bb.edn acceptance
-      - name: Test sf-rb
-        run: bb --config swarmforge/tools/ruby/bb.edn test
-      - name: Property-test sf-rb
-        run: bb --config swarmforge/tools/ruby/bb.edn property
+          kevin/bin/kevin tool ensure gherkin-parser
+          bb --config kevin/tools/java/bb.edn acceptance
+      - name: Test kevin-rb
+        run: bb --config kevin/tools/ruby/bb.edn test
+      - name: Property-test kevin-rb
+        run: bb --config kevin/tools/ruby/bb.edn property
       - name: Set up Ruby
         uses: ruby/setup-ruby@de492cf36cbab201753d720ce4f4e336cd688c94 # v1.336.0
         with:
           ruby-version: "3.3"
           bundler: "4.0.18"
-      - name: End-to-end sf-rb with the real gems
-        run: bash test/sf_rb_e2e_test.sh
+      - name: End-to-end kevin-rb with the real gems
+        run: bash test/kevin_rb_e2e_test.sh
   workflows-python:
     runs-on: ubuntu-latest
     steps:
@@ -158,7 +158,7 @@ jobs:
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
-      - name: Test swarmforge/workflows
+      - name: Test kevin/workflows
         run: |
-          cd swarmforge/workflows
+          cd kevin/workflows
           uv run --frozen pytest

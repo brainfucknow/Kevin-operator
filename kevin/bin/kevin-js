@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# kevin-js: JavaScript and TypeScript tool wrapper for Kevin roles. See kevin/languages/javascript.md.
+set -euo pipefail
+command -v bb >/dev/null || { echo "kevin-js: Babashka (bb) is required: https://babashka.org" >&2; exit 2; }
+exec bb --config "$(cd "$(dirname "$0")/../tools/javascript" && pwd)/bb.edn" -m kevinjs.cli "$@"
