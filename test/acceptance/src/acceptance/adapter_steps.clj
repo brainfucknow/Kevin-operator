@@ -10,10 +10,10 @@
 (defn- run-command [world command]
   (if (= "install.sh" command)
     (support/run (:repo world) ["bash" (str (fs/path support/checkout "install.sh")) (:repo world)])
-    (support/run (:repo world) [(support/sf-path (:repo world)) "adapters"])))
+    (support/run (:repo world) [(support/kevin-path (:repo world)) "adapters"])))
 
 (defn- generate! [world]
-  (require-ok (run-command world "sf adapters") "sf adapters")
+  (require-ok (run-command world "kevin adapters") "kevin adapters")
   world)
 
 (defn- snapshot [world]
@@ -28,7 +28,7 @@
   world)
 
 (defn- change-role! [world role field value]
-  (let [file (fs/path (:repo world) "swarmforge/roles.conf")
+  (let [file (fs/path (:repo world) "kevin/roles.conf")
         rows (for [line (str/split-lines (slurp (str file)))]
                (if (re-find (re-pattern (str "^" role "\\s")) line)
                  (str/join " " (assoc (vec (str/split line #"\s+")) field value))
@@ -46,7 +46,7 @@
 (defn- subagent-roles
   "The roles of the scratch project's roles.conf that run as subagents."
   [world]
-  (for [line (str/split-lines (slurp (str (fs/path (:repo world) "swarmforge/roles.conf"))))
+  (for [line (str/split-lines (slurp (str (fs/path (:repo world) "kevin/roles.conf"))))
         :let [trimmed (str/trim line)]
         :when (and (not (str/blank? trimmed)) (not (str/starts-with? trimmed "#")))
         :let [fields (str/split trimmed #"\s+")]
@@ -101,7 +101,7 @@
     (fn [world role]
       (let [[_ claude codex copilot kilo vibe]
             (some #(let [fields (str/split % #"\s+")] (when (= "fast" (first fields)) fields))
-                  (str/split-lines (slurp (str (fs/path (:repo world) "swarmforge/tiers.conf")))))
+                  (str/split-lines (slurp (str (fs/path (:repo world) "kevin/tiers.conf")))))
             kilo-metadata (if (or (nil? kilo) (= "inherit" kilo)) "mode: subagent" (str "model: " kilo))
             vibe-metadata (if (or (nil? vibe) (= "inherit" vibe)) "agent_type = \"subagent\"" (str "active_model = \"" vibe "\""))]
         (doseq [[dir suffix metadata] (map vector dirs suffixes
@@ -111,7 +111,7 @@
                  (str "wrong configured model in " dir))))
       world)]
 
-   [#"a second \"sf adapters\" run succeeds without changing agent files"
+   [#"a second \"kevin adapters\" run succeeds without changing agent files"
     (fn [world]
       (let [before (snapshot world)]
         (generate! world)
@@ -128,8 +128,8 @@
     (fn [world path text]
       (if (str/includes? path "/specialist.")
         (do
-          (spit (str (fs/path (:repo world) "swarmforge/roles.conf")) "specialist fast subagent\n" :append true)
-          (write-file! world "swarmforge/roles/specialist.md" "# specialist\n\nProject specialist.\n"))
+          (spit (str (fs/path (:repo world) "kevin/roles.conf")) "specialist fast subagent\n" :append true)
+          (write-file! world "kevin/roles/specialist.md" "# specialist\n\nProject specialist.\n"))
         (change-role! world "specifier" 2 "subagent"))
       (assoc (write-file! world path text) :conflict path))]
 
@@ -152,7 +152,7 @@
 
    [#"no local adapter ownership state is present"
     (fn [world]
-      (fs/delete-if-exists (fs/path (:repo world) ".swarmforge/adapters.edn"))
+      (fs/delete-if-exists (fs/path (:repo world) ".kevin/adapters.edn"))
       world)]
 
    [#"the scratch project has no installer at its root"
@@ -182,7 +182,7 @@
                (str "missing schema_version in " file)))
       world)]
 
-   [#"a second \"sf adapters\" run succeeds without changing plugin files"
+   [#"a second \"kevin adapters\" run succeeds without changing plugin files"
     (fn [world]
       (let [before (plugin-snapshot world)]
         (generate! world)

@@ -1,4 +1,4 @@
-Feature: sf specification approval
+Feature: kevin specification approval
 
   A task at the specifier stage leaves that stage only through operator
   approval of its reviewed commit. A role override, explicit destination,
@@ -6,19 +6,19 @@ Feature: sf specification approval
   omit the specifier keep their normal handoffs. This is a workflow invariant,
   not authentication against someone who can edit Git directly.
 
-  The review record names the commit it reviewed in a SwarmForge-Reviewed
+  The review record names the commit it reviewed in a Kevin-Reviewed
   trailer. A rebase that moves the record onto another commit keeps that
-  name, so sf approve refuses it with "sf: specification changed since
-  review; run sf review again" and records nothing.
+  name, so kevin approve refuses it with "kevin: specification changed since
+  review; run kevin review again" and records nothing.
 
   Background:
-    Given a project with swarmforge initialized
+    Given a project with kevin initialized
     And task "A" titled "Add login" was started on route "specifier,coder,qa"
     And role "specifier" committed "Specify login" in the worktree of task "A" as C1
 
-  # sf specification approval 1
-  Scenario Outline: sf specification approval 1: an unreviewed specification cannot be handed off
-    When I run "sf handoff $A <options>"
+  # kevin specification approval 1
+  Scenario Outline: kevin specification approval 1: an unreviewed specification cannot be handed off
+    When I run "kevin handoff $A <options>"
     Then the exit status is 1
     And the branch of task "A" did not move
 
@@ -28,27 +28,27 @@ Feature: sf specification approval
       | --to coder |
       | --to done  |
 
-  # sf specification approval 2
-  Scenario: sf specification approval 2: rejection requires another review and approval
-    Given I ran "sf review $A"
-    And I ran "sf reject $A revise"
-    When I run "sf handoff $A"
+  # kevin specification approval 2
+  Scenario: kevin specification approval 2: rejection requires another review and approval
+    Given I ran "kevin review $A"
+    And I ran "kevin reject $A revise"
+    When I run "kevin handoff $A"
     Then the exit status is 1
     And the branch of task "A" did not move
 
-  # sf specification approval 3
-  Scenario: sf specification approval 3: a role override cannot bypass the specification gate
-    Given the command environment sets "SWARMFORGE_ROLE" to "coder"
-    When I run "sf handoff $A --to coder"
+  # kevin specification approval 3
+  Scenario: kevin specification approval 3: a role override cannot bypass the specification gate
+    Given the command environment sets "KEVIN_ROLE" to "coder"
+    When I run "kevin handoff $A --to coder"
     Then the exit status is 1
     And the branch of task "A" did not move
 
-  # sf specification approval 4
-  Scenario Outline: sf specification approval 4: approval hands the reviewed commit to the next stage
+  # kevin specification approval 4
+  Scenario Outline: kevin specification approval 4: approval hands the reviewed commit to the next stage
     Given task "B" titled "Review change" was started on route "<route>"
     And role "specifier" committed "Specify change" in the worktree of task "B" as C2
-    And I ran "sf review $B"
-    When I run "sf approve $B"
+    And I ran "kevin review $B"
+    When I run "kevin approve $B"
     Then the exit status is 0
     And the output has the line "HANDOFF: $B specifier -> <next> at C2"
 
@@ -58,11 +58,11 @@ Feature: sf specification approval
       | specifier,qa       | qa    |
       | specifier          | done  |
 
-  # sf specification approval 5
-  Scenario Outline: sf specification approval 5: routes without a specifier retain normal handoff
+  # kevin specification approval 5
+  Scenario Outline: kevin specification approval 5: routes without a specifier retain normal handoff
     Given task "B" titled "Maintain change" was started on route "<route>"
     And role "<role>" committed "Maintain change" in the worktree of task "B" as C2
-    When I run "sf handoff $B"
+    When I run "kevin handoff $B"
     Then the exit status is 0
     And the output has the line "HANDOFF: $B <role> -> <next> at C2"
 
@@ -71,31 +71,31 @@ Feature: sf specification approval
       | coder,qa | coder | qa   |
       | qa       | qa    | done |
 
-  # sf specification approval 6
-  Scenario: sf specification approval 6: a newer specification needs a fresh review
-    Given I ran "sf review $A"
+  # kevin specification approval 6
+  Scenario: kevin specification approval 6: a newer specification needs a fresh review
+    Given I ran "kevin review $A"
     And role "specifier" committed "Revise login" in the worktree of task "A" as C2
-    When I run "sf approve $A"
+    When I run "kevin approve $A"
     Then the exit status is 1
     And the branch of task "A" did not move
 
-  # sf specification approval 7
-  Scenario: sf specification approval 7: answering a clarification does not grant approval
-    Given I ran "sf review $A"
-    And I ran "sf ask $A clarify"
-    And I ran "sf answer $A clarified"
-    When I run "sf handoff $A"
+  # kevin specification approval 7
+  Scenario: kevin specification approval 7: answering a clarification does not grant approval
+    Given I ran "kevin review $A"
+    And I ran "kevin ask $A clarify"
+    And I ran "kevin answer $A clarified"
+    When I run "kevin handoff $A"
     Then the exit status is 1
     And the branch of task "A" did not move
 
-  # sf specification approval 8
-  Scenario: sf specification approval 8: a review that a rebase moved onto another commit is not approved
-    Given I ran "sf review $A"
+  # kevin specification approval 8
+  Scenario: kevin specification approval 8: a review that a rebase moved onto another commit is not approved
+    Given I ran "kevin review $A"
     And I ran "git checkout -q -b other C1" in the worktree of task "A"
     And I ran "git commit -q --no-verify --allow-empty -m Other" in the worktree of task "A"
     And I ran "git checkout -q swarm/$A" in the worktree of task "A"
     And I ran "git rebase -q other" in the worktree of task "A"
-    When I run "sf approve $A"
+    When I run "kevin approve $A"
     Then the exit status is 1
-    And the error output has the line "sf: specification changed since review; run sf review again"
+    And the error output has the line "kevin: specification changed since review; run kevin review again"
     And the branch of task "A" did not move

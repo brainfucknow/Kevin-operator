@@ -1,4 +1,4 @@
-Feature: sf adapters preserve project agents
+Feature: kevin adapters preserve project agents
 
   Adapter generation owns its generated files, not the shared harness
   directories. Installation uses the same preservation and collision rules.
@@ -7,8 +7,8 @@ Feature: sf adapters preserve project agents
   Background:
     Given a scratch git project prepared for adapter generation
 
-  # sf adapters preserve project agents 1
-  Scenario Outline: sf adapters preserve project agents 1: unrelated agents survive generation and installation
+  # kevin adapters preserve project agents 1
+  Scenario Outline: kevin adapters preserve project agents 1: unrelated agents survive generation and installation
     Given an unrelated project agent at "<path>" containing "<contents>"
     When I run "<command>" in the scratch project
     Then the exit status is 0
@@ -17,32 +17,32 @@ Feature: sf adapters preserve project agents
 
     Examples:
       | command     | path                                      | contents          |
-      | sf adapters | .claude/agents/project-specialist.md       | project specialist |
-      | sf adapters | .github/agents/project-specialist.agent.md | repository reviewer |
-      | sf adapters | .codex/agents/project-specialist.toml      | custom specialist |
-      | sf adapters | .kilo/agent/project-specialist.md          | project specialist |
-      | sf adapters | .vibe/agents/project-specialist.toml       | custom specialist |
+      | kevin adapters | .claude/agents/project-specialist.md       | project specialist |
+      | kevin adapters | .github/agents/project-specialist.agent.md | repository reviewer |
+      | kevin adapters | .codex/agents/project-specialist.toml      | custom specialist |
+      | kevin adapters | .kilo/agent/project-specialist.md          | project specialist |
+      | kevin adapters | .vibe/agents/project-specialist.toml       | custom specialist |
       | install.sh  | .claude/agents/project-specialist.md       | project specialist |
       | install.sh  | .github/agents/project-specialist.agent.md | repository reviewer |
       | install.sh  | .codex/agents/project-specialist.toml      | custom specialist |
       | install.sh  | .kilo/agent/project-specialist.md          | project specialist |
       | install.sh  | .vibe/agents/project-specialist.toml       | custom specialist |
 
-  # sf adapters preserve project agents 2
-  Scenario: sf adapters preserve project agents 2: managed adapters follow configuration changes
+  # kevin adapters preserve project agents 2
+  Scenario: kevin adapters preserve project agents 2: managed adapters follow configuration changes
     Given adapters were generated for the configured roles
     And an unrelated project agent at ".codex/agents/project-specialist.toml" containing "keep me"
     And the role "qa" is changed from subagent to session
     And the role "coder" uses the tier "fast"
-    When I run "sf adapters" in the scratch project
+    When I run "kevin adapters" in the scratch project
     Then the exit status is 0
     And no generated adapter remains for "qa" in any harness
     And the generated adapters for "coder" use the configured tier settings
     And ".codex/agents/project-specialist.toml" still contains exactly "keep me"
-    And a second "sf adapters" run succeeds without changing agent files
+    And a second "kevin adapters" run succeeds without changing agent files
 
-  # sf adapters preserve project agents 3
-  Scenario Outline: sf adapters preserve project agents 3: an unowned target collision is reported without changing agent files
+  # kevin adapters preserve project agents 3
+  Scenario Outline: kevin adapters preserve project agents 3: an unowned target collision is reported without changing agent files
     Given the scratch project has previously generated coder adapters only
     And an unrelated project agent occupies the new role target "<path>" containing "<contents>"
     When I run "<command>" in the scratch project
@@ -52,38 +52,38 @@ Feature: sf adapters preserve project agents
 
     Examples:
       | command     | path                                | contents        |
-      | sf adapters | .claude/agents/specialist.md         | project owner   |
-      | sf adapters | .github/agents/specialist.agent.md   | private reviewer |
-      | sf adapters | .codex/agents/specialist.toml        | local specialist |
-      | sf adapters | .kilo/agent/specialist.md            | project owner   |
-      | sf adapters | .vibe/agents/specialist.toml         | local specialist |
+      | kevin adapters | .claude/agents/specialist.md         | project owner   |
+      | kevin adapters | .github/agents/specialist.agent.md   | private reviewer |
+      | kevin adapters | .codex/agents/specialist.toml        | local specialist |
+      | kevin adapters | .kilo/agent/specialist.md            | project owner   |
+      | kevin adapters | .vibe/agents/specialist.toml         | local specialist |
       | install.sh  | .claude/agents/specifier.md          | project owner   |
       | install.sh  | .github/agents/specifier.agent.md    | private reviewer |
       | install.sh  | .codex/agents/specifier.toml         | local specialist |
       | install.sh  | .kilo/agent/specifier.md             | project owner   |
       | install.sh  | .vibe/agents/specifier.toml          | project owner   |
 
-  # sf adapters preserve project agents 4
-  Scenario: sf adapters preserve project agents 4: existing generated adapters remain updatable without local ownership state
+  # kevin adapters preserve project agents 4
+  Scenario: kevin adapters preserve project agents 4: existing generated adapters remain updatable without local ownership state
     Given the project holds the previously shipped generated adapters
     And no local adapter ownership state is present
-    When I run "sf adapters" in the scratch project
+    When I run "kevin adapters" in the scratch project
     Then the exit status is 0
     And adapters exist for the configured subagent roles in all five harnesses
-    And a second "sf adapters" run succeeds without changing agent files
+    And a second "kevin adapters" run succeeds without changing agent files
 
-  # sf adapters build the vibe plugin 1
-  Scenario: sf adapters build the vibe plugin 1: an installed project gets no plugin tree
+  # kevin adapters build the vibe plugin 1
+  Scenario: kevin adapters build the vibe plugin 1: an installed project gets no plugin tree
     Given the scratch project has no installer at its root
-    When I run "sf adapters" in the scratch project
+    When I run "kevin adapters" in the scratch project
     Then the exit status is 0
     And no vibe plugin tree exists in the scratch project
 
-  # sf adapters build the vibe plugin 2
-  Scenario: sf adapters build the vibe plugin 2: the source checkout gets the plugin subagents
+  # kevin adapters build the vibe plugin 2
+  Scenario: kevin adapters build the vibe plugin 2: the source checkout gets the plugin subagents
     Given the scratch project is marked as the source checkout
-    When I run "sf adapters" in the scratch project
+    When I run "kevin adapters" in the scratch project
     Then the exit status is 0
     And the vibe plugin has a subagent file per configured subagent role
     And every plugin subagent file starts with "schema_version = 1"
-    And a second "sf adapters" run succeeds without changing plugin files
+    And a second "kevin adapters" run succeeds without changing plugin files
