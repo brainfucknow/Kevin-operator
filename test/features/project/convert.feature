@@ -30,8 +30,10 @@ Feature: kevin init --convert turns a committed install into configuration
   - keeps every other file, kevin/*.conf and kevin/verify.conf included, and
     in kept kevin/*.conf files other than tools.conf, and in
     kevin/project.md, replaces "kevin/bin/kevin-<name>" with "kevin <name>"
-    and "kevin/bin/kevin" with "kevin", printing "kevin: rewrote <path>" for
-    each file it changed;
+    and "kevin/bin/kevin" with "kevin". The replaced text includes a "./"
+    before the path, and the word "bash", "sh" or "bb" when only spaces
+    stand between that word and the path. It prints "kevin: rewrote <path>"
+    for each file it changed;
   - then does what kevin init does: the minimum version line, the shared
     exclude lines and the hook.
 
@@ -85,12 +87,22 @@ Feature: kevin init --convert turns a committed install into configuration
       | Project notes.\nSWARM                   | has the file "AGENTS.md" holding "Project notes." | has the file "CLAUDE.md" holding "@AGENTS.md" |
 
   # kevin init --convert turns a committed install into configuration 4
-  Scenario: kevin init --convert turns a committed install into configuration 4: config that names kevin/bin is rewritten
-    Given the committed file "kevin/verify.conf" holds "bash kevin/bin/kevin-cs test\nkevin/bin/kevin check"
+  Scenario Outline: kevin init --convert turns a committed install into configuration 4: config that names kevin/bin is rewritten
+    Given the committed file "kevin/verify.conf" holds "<before>"
     When I run "kevin init --convert"
     Then the exit status is 0
-    And the file "kevin/verify.conf" in the repository holds "bash kevin cs test\nkevin check"
+    And the file "kevin/verify.conf" in the repository holds "<after>"
     And the output has the line "kevin: rewrote kevin/verify.conf"
+
+    Examples:
+      | before                                         | after                             |
+      | kevin/bin/kevin check\n./kevin/bin/kevin-js crap | kevin check\nkevin js crap         |
+      | bash kevin/bin/kevin-cs test                   | kevin cs test                     |
+      | sh  ./kevin/bin/kevin-rb crap                  | kevin rb crap                     |
+      | bb kevin/bin/kevin help                        | kevin help                        |
+      | make && bash kevin/bin/kevin-cs test           | make && kevin cs test             |
+      | bash test/all.sh && kevin/bin/kevin check      | bash test/all.sh && kevin check   |
+      | rebash kevin/bin/kevin-cs test                 | rebash kevin cs test              |
 
   # kevin init --convert turns a committed install into configuration 5
   Scenario: kevin init --convert turns a committed install into configuration 5: uncommitted changes are refused

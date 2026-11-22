@@ -141,12 +141,21 @@
     (should= "Claude notes.\n" (read "CLAUDE.md")))
 
   (it "rewrites the runtime paths in kept configuration other than tools.conf"
-    (write! "kevin/verify.conf" "bash kevin/bin/kevin-cs test\nkevin/bin/kevin check\n")
+    (write! "kevin/verify.conf" (str "bash kevin/bin/kevin-cs test\nkevin/bin/kevin check\n"
+                                     "sh  ./kevin/bin/kevin-rb crap\nbb kevin/bin/kevin help\n"
+                                     "make && bash kevin/bin/kevin-cs test\n"
+                                     "bash test/all.sh && kevin/bin/kevin check\n"
+                                     "rebash kevin/bin/kevin-cs test\n"))
     (write! "kevin/tools.conf" (str (read "kevin/tools.conf") "# kevin/bin/kevin-cs\n"))
     (git *dir* "add" "-A")
     (git *dir* "commit" "-q" "-m" "Verify")
     (let [{:keys [out]} (convert)]
-      (should= "bash kevin cs test\nkevin check\n" (read "kevin/verify.conf"))
+      (should= (str "kevin cs test\nkevin check\n"
+                    "kevin rb crap\nkevin help\n"
+                    "make && kevin cs test\n"
+                    "bash test/all.sh && kevin check\n"
+                    "rebash kevin cs test\n")
+               (read "kevin/verify.conf"))
       (should-contain "kevin: rewrote kevin/verify.conf" out)
       (should-contain "# kevin/bin/kevin-cs" (read "kevin/tools.conf"))
       (should-not-contain "tools.conf" out)
