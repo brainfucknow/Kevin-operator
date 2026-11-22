@@ -195,7 +195,7 @@
       (seen role) (conj (str "roles.conf: role '" role "' listed twice"))
       (not (tier-field tier 2)) (conj (str "roles.conf: '" role "' uses unknown tier '" tier "' (see tiers.conf)"))
       (not (#{"subagent" "session"} runs)) (conj (str "roles.conf: '" role "' runs-as must be subagent or session, not '" runs "'"))
-      (prompt-problem role known) (conj (prompt-problem role known)))))
+      true (into (some-> (prompt-problem role known) vector)))))
 
 (defn- second-spec-judges []
   (for [role (rest (map first (filter spec-judge-row? (rows "roles.conf"))))]
