@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [speclj.core :refer [describe context it should= should should-not around]]
             [kevin.clone :as clone]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.tool :as tool]))
 
@@ -36,7 +36,7 @@ moved          bb     github.com/x/aps      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       (spit (str (fs/path dir "kevin" "tools.conf")) catalogue)
       (with-redefs [shell/repo-root (constantly dir)
                     shell/checkout-root (constantly dir)
-                    runtime/home (constantly (str (fs/path dir "kevin")))
+                    installed/home (constantly (str (fs/path dir "kevin")))
                     shell/env (fn [name default] (get *env* name default))
                     clone/ensure-at (fn [& args] (*clone* args))]
         (binding [*dir* dir
@@ -148,7 +148,7 @@ moved          bb     github.com/x/aps      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       (should (str/includes? (slurp (wrapper "probe")) (str "'" *dir* "/bin/probe'"))))
 
     (it "runs a local script that the project lacks from the runtime that kevin home names when the wrapper runs"
-      (with-redefs [runtime/launcher (constantly "/home/me/.local/bin/kevin")]
+      (with-redefs [installed/launcher (constantly "/home/me/.local/bin/kevin")]
         (should= 0 (first (kevin-tool "ensure" "probe"))))
       (let [text (slurp (wrapper "probe"))]
         (should (str/includes? text "exec \"$('/home/me/.local/bin/kevin' home)/../\"'bin/probe' \"$@\""))
@@ -158,7 +158,7 @@ moved          bb     github.com/x/aps      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       (let [runtime-dir (str (fs/create-temp-dir {:prefix "tool-runtime-"}))]
         (try (spit (str (fs/path runtime-dir "tools.conf")) "only local bin/only - - - -\n")
              (fs/delete (fs/path *dir* "kevin" "tools.conf"))
-             (with-redefs [runtime/home (constantly runtime-dir)]
+             (with-redefs [installed/home (constantly runtime-dir)]
                (should= "only                   local  bin/only -\n" (second (kevin-tool "list"))))
              (finally (fs/delete-tree runtime-dir)))))
 

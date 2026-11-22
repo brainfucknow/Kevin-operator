@@ -62,13 +62,6 @@
 (defn- holds? [file text]
   (and (fs/exists? file) (= (str text "\n") (slurp (str file)))))
 
-(defn snapshot
-  "Each file under dir, .git included, by its path, with its bytes."
-  [dir]
-  (into {} (for [file (file-seq (fs/file dir))
-                 :when (.isFile file)]
-             [(str (fs/relativize dir file)) (vec (fs/read-all-bytes file))])))
-
 (def ^:private metrics-handlers
   [;; Given
    [#"a project with kevin initialized and .metrics/ ignored"

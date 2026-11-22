@@ -113,7 +113,7 @@
   "Writes the agents that the removed install.sh generated with the base-commit
   templates, for the roles of the project's committed roles.conf. Run by bb
   with the runtime's kevin source on the classpath."
-  "(require '[kevin.adapters :as a] '[kevin.config :as c] '[kevin.runtime :as r] '[babashka.fs :as fs])
+  "(require '[kevin.adapters :as a] '[kevin.config :as c] '[kevin.installed :as r] '[babashka.fs :as fs])
    (let [root (first *command-line-args*)]
      (with-redefs [r/home (constantly (str root \"/kevin\"))]
        (binding [c/*root* root]

@@ -9,7 +9,7 @@
             [kevin.config :as config]
             [kevin.entry-point :as entry-point]
             [kevin.maven-tool :as maven-tool]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.wrapper :as wrapper]))
 
@@ -96,7 +96,7 @@ out, and printed without @.")
   (str (fs/path (shell/repo-root) ".kevin" "tools" (str tool "-coverage") "bb.edn")))
 
 (defn- kevin-src []
-  (str (fs/path (runtime/home) "tools" "kevin" "src")))
+  (str (fs/path (installed/home) "tools" "kevin" "src")))
 
 (defn- rewrite-for [rewrite tool]
   (case rewrite
@@ -116,6 +116,14 @@ out, and printed without @.")
   [tool {:keys [source ref]}]
   (into [[source ref]] (map (comp (juxt :source :ref) spec-of)) (catalogue/pin-sources tool)))
 
+(defn- local-command
+  "The wrapper command of a local tool: the checkout's copy of source when it
+  has one, else the runtime's."
+  [source]
+  (if (fs/exists? (fs/path (shell/repo-root) source))
+    (wrapper/local-command (shell/repo-root) source)
+    (wrapper/runtime-command (installed/launcher) source)))
+
 (defn- command-for
   "The wrapper command for the tool and the ref it is pinned at, if any."
   [tool {:keys [kind source ref task rewrite] :as spec}]
@@ -126,15 +134,12 @@ out, and printed without @.")
     "bbmain" (let [[dir pin] (checked-source tool spec)]
                [(wrapper/bbmain-command dir task) pin])
     "maven" (let [[dir pin] (checked-source tool spec)
-                  patches (str (fs/path (runtime/home) "tools/kevin/resources/kevin/java-patches"))
+                  patches (str (fs/path (installed/home) "tools/kevin/resources/kevin/java-patches"))
                   cache (str (fs/path (shell/repo-root) ".kevin/m2"))
                   jar (maven-tool/build dir tool patches cache (some? pin))]
               [(str "exec java -jar " (wrapper/sq jar) " \"$@\"") pin])
     "clj" [(wrapper/clj-command tool (clj-deps tool spec) task) ref]
-    "local" [(if (fs/exists? (fs/path (shell/repo-root) source))
-               (wrapper/local-command (shell/repo-root) source)
-               (wrapper/runtime-command (runtime/launcher) source))
-             nil]))
+    "local" [(local-command source) nil]))
 
 (defn- install-one [tool]
   (let [spec (spec-of tool)

@@ -4,7 +4,7 @@
             [speclj.core :refer [around describe it should-contain should-not-contain should=]]
             [kevin.dispatch :as dispatch]
             [kevin.repo-support :as support :refer [*dir* git with-repo]]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.task :as task]))
 
@@ -170,7 +170,7 @@
                 "--disallowedTools=Edit" "--disallowedTools=Write" "--disallowedTools=NotebookEdit"
                 "--model" "opus"]
                (take 9 cmd))
-      (should-contain (str (runtime/home) "/roles/falsifier.md") (last cmd))
+      (should-contain (str (installed/home) "/roles/falsifier.md") (last cmd))
       (should-contain (str "Start with: kevin show " id) (last cmd))
       (should-not-contain "kevin/bin/kevin" (last cmd))
       (should-not-contain "kevin start" (last cmd))))
@@ -328,12 +328,12 @@
   (it "builds the kevin-mistral dispatch command for role and id"
     (let [cmd (vec (mistral-command "coder" "add-login-3f9a2c1"))]
       (should= ["dispatch" "coder" "add-login-3f9a2c1"] (drop 2 cmd))
-      (should= (str (runtime/home) "/bin/kevin-mistral") (nth cmd 1))))
+      (should= (str (installed/home) "/bin/kevin-mistral") (nth cmd 1))))
 
   (it "reads the role prompt and the constitution from the runtime and runs kevin from PATH"
     (let [prompt (role-prompt "coder" "add-login-3f9a2c1")]
-      (should-contain (str (runtime/home) "/constitution.md") prompt)
-      (should-contain (str (runtime/home) "/roles/coder.md") prompt)
+      (should-contain (str (installed/home) "/constitution.md") prompt)
+      (should-contain (str (installed/home) "/roles/coder.md") prompt)
       (should-contain "Start with: kevin start add-login-3f9a2c1" prompt)
       (should-not-contain "kevin/bin/kevin" prompt)))
 

@@ -7,7 +7,7 @@
             [kevin.config :as config]
             [kevin.convert :as convert]
             [kevin.repo-support :refer [*dir* captured git with-repo]]
-            [kevin.runtime :as runtime]))
+            [kevin.installed :as installed]))
 
 (def ^:dynamic *runtime* nil)
 
@@ -66,8 +66,8 @@
         (try
           (fs/copy-tree (fs/path *dir* "kevin") runtime {:replace-existing true})
           (committed-install!)
-          (with-redefs [runtime/home (constantly runtime)
-                        runtime/version (constantly "0.2.0")]
+          (with-redefs [installed/home (constantly runtime)
+                        installed/version (constantly "0.2.0")]
             (binding [*runtime* runtime] (it)))
           (finally (fs/delete-tree runtime)))))))
 

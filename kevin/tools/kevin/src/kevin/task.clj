@@ -15,6 +15,7 @@
             [kevin.options :as options]
             [kevin.record :as record]
             [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.spec-revisions :as spec-revisions]
             [kevin.shell :as shell]
             [kevin.store :as store]
@@ -130,7 +131,7 @@
   [root]
   (let [file (fs/path root "kevin" "project.md")
         text (if (fs/exists? file) (slurp (str file)) (shell/template "project-starter.md"))
-        version (runtime/version)]
+        version (installed/version)]
     (when (and version (nil? (runtime/minimum-value text)))
       (fs/create-dirs (fs/parent file))
       (spit (str file) (append-line text (str runtime/minimum-label " " version))))))

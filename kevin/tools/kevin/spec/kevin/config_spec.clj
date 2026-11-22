@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [speclj.core :refer [describe context it should= should should-not should-throw around]]
             [kevin.config :as config]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (def ^:dynamic *dir* nil)
@@ -18,7 +18,7 @@
       (fs/create-dirs (fs/path dir "kevin" "roles"))
       (doseq [role ["specifier" "coder" "qa"]] (spit (str (fs/path dir "kevin" "roles" (str role ".md"))) role))
       (with-redefs [shell/repo-root (constantly dir)
-                    runtime/home (constantly (str (fs/path dir "kevin")))
+                    installed/home (constantly (str (fs/path dir "kevin")))
                     shell/env (fn [name default] (get *env* name default))]
         (binding [*dir* dir]
           (conf "tiers.conf" "strong opus high gpt\nfast sonnet low mini\n")
@@ -47,7 +47,7 @@
         runtime (str (fs/create-temp-dir {:prefix "conf-runtime-"}))]
     (try (fs/create-dirs (fs/path project "kevin"))
          (with-redefs [shell/repo-root (constantly project)
-                       runtime/home (constantly runtime)]
+                       installed/home (constantly runtime)]
            (f project runtime))
          (finally (fs/delete-tree project) (fs/delete-tree runtime)))))
 

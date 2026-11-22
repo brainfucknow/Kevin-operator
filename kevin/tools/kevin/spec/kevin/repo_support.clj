@@ -3,7 +3,7 @@
   run kevin commands against real git."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (def ^:dynamic *dir* nil)
@@ -53,7 +53,7 @@
        (with-redefs [shell/repo-root (constantly dir)
                      shell/checkout-root (constantly dir)
                      shell/main-root (constantly dir)
-                     runtime/home (constantly (str (fs/path dir "kevin")))
+                     installed/home (constantly (str (fs/path dir "kevin")))
                      shell/env (without-harness shell/env)]
          (binding [*dir* dir] (run-spec)))
        (finally (fs/delete-tree dir))))))
