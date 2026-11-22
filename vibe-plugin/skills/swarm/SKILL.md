@@ -14,6 +14,14 @@ Forms:
 
 Request: $ARGUMENTS
 
+## Setup check
+
+Before the first task of a session, run `git status --porcelain -- kevin/`.
+When it prints anything, the installed runtime is not committed: stop and tell
+the operator to commit it. A task branch is created from `HEAD`, so an
+uncommitted `kevin/` never reaches the task worktree and the first role cannot
+run `kevin/bin/kevin`.
+
 ## Plugin subagents
 
 Vibe names this plugin's subagents `kevin:<role>`, for example `kevin:coder`.

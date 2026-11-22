@@ -380,7 +380,7 @@
     (should-not (fs/exists? (fs/path *dir* "vibe-plugin"))))
 
   (it "generates the vibe plugin's subagents in the source checkout as the vibe adapters plus the schema version"
-    (write-agent "install.sh" "#!/usr/bin/env bash\n")
+    (write-agent "vibe-plugin/plugin.json" "{}\n")
     (should= 0 (:status (captured #(adapters/adapters []))))
     (doseq [role ["specifier" "coder" "cleaner"]]
       (let [plugin (str (fs/path *dir* "vibe-plugin/ai.mistral.vibe/agents" (str role ".toml")))
@@ -394,10 +394,16 @@
       (should= 0 (:status (captured #(adapters/adapters []))))
       (should= before (read-plugin))))
 
+  (it "ignores a conflicting plugin path outside the source checkout"
+    (write-agent "vibe-plugin/ai.mistral.vibe" "project-owned file")
+    (should= 0 (:status (captured #(adapters/adapters []))))
+    (should= "project-owned file" (slurp (str (fs/path *dir* "vibe-plugin/ai.mistral.vibe"))))
+    (should (fs/exists? (fs/path *dir* ".vibe/agents/coder.toml"))))
+
   (it "removes the plugin subagents when the checkout stops being the source checkout"
-    (write-agent "install.sh" "#!/usr/bin/env bash\n")
+    (write-agent "vibe-plugin/plugin.json" "{}\n")
     (adapters/adapters [])
     (should (fs/exists? (fs/path *dir* "vibe-plugin/ai.mistral.vibe/agents/coder.toml")))
-    (fs/delete (fs/path *dir* "install.sh"))
+    (fs/delete (fs/path *dir* "vibe-plugin/plugin.json"))
     (should= 0 (:status (captured #(adapters/adapters []))))
     (should= [] (vec (fs/glob (fs/path *dir* "vibe-plugin") "**/*.toml")))))

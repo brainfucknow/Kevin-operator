@@ -6,17 +6,19 @@
             [kevin.config :as config]
             [kevin.shell :as shell]))
 
-(def ^:private targets
-  [".claude/agents" ".github/agents" ".codex/agents" ".kilo/agent" ".vibe/agents"
-   "vibe-plugin/ai.mistral.vibe/agents"])
+(def ^:private harness-targets
+  [".claude/agents" ".github/agents" ".codex/agents" ".kilo/agent" ".vibe/agents"])
 
 (def ^:private plugin-agent-dir "vibe-plugin/ai.mistral.vibe/agents")
 
+(def ^:private plugin-targets [plugin-agent-dir])
+
 (defn- source-checkout?
-  "The harness source checkout, recognized by its installer at the root. An
-  installed project has no install.sh and gets no plugin tree."
+  "The harness source checkout, recognized by the shipped plugin manifest at
+  the root. An installed project has no vibe-plugin/ tree and gets no plugin
+  files."
   [root]
-  (fs/exists? (fs/path root "install.sh")))
+  (fs/exists? (fs/path root "vibe-plugin" "plugin.json")))
 
 (defn- role-summary
   "The first non-blank line after the title of the role prompt."
@@ -182,8 +184,8 @@
                      expected
                      hash)])))
 
-(defn- preflight [root paths owned]
-  (doseq [dir targets
+(defn- preflight [root paths owned plugin?]
+  (doseq [dir (concat harness-targets (when plugin? plugin-targets))
           part [dir (fs/parent dir)]
           :let [path (fs/path root part)]
           :when (or (fs/sym-link? path) (and (fs/exists? path) (not (fs/directory? path))))]
@@ -208,7 +210,7 @@
                    local
                    (read-ownership (or (first (filter fs/exists? [main-state legacy main-legacy])) main-state)))
         owned (merge (legacy-ownership root recorded plugin?) (refreshed-ownership root desired recorded))]
-    (preflight root (distinct (concat (keys desired) (keys owned))) owned)
+    (preflight root (distinct (concat (keys desired) (keys owned))) owned plugin?)
     (doseq [path (remove (set (keys desired)) (keys owned))]
       (fs/delete-if-exists (fs/path root path)))
     (doseq [[path text] desired]

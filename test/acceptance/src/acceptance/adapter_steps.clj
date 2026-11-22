@@ -155,13 +155,14 @@
       (fs/delete-if-exists (fs/path (:repo world) ".kevin/adapters.edn"))
       world)]
 
-   [#"the scratch project has no installer at its root"
+   [#"the scratch project has no plugin manifest at its root"
     (fn [world]
-      (check (not (fs/exists? (fs/path (:repo world) "install.sh"))) "the scratch project has an install.sh")
+      (check (not (fs/exists? (fs/path (:repo world) "vibe-plugin/plugin.json")))
+             "the scratch project has a vibe-plugin/plugin.json")
       world)]
 
    [#"the scratch project is marked as the source checkout"
-    (fn [world] (write-file! world "install.sh" "#!/usr/bin/env bash\n"))]
+    (fn [world] (write-file! world "vibe-plugin/plugin.json" "{}\n"))]
 
    [#"no vibe plugin tree exists in the scratch project"
     (fn [world]

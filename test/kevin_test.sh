@@ -480,7 +480,6 @@ assert_eq "no vibe-plugin tree in an installed project" "$(test ! -e vibe-plugin
 # committed adapters are current
 work="$(mktemp -d "$scratch/adapters.XXXX")"
 cp -R "$HERE/.claude" "$HERE/.github" "$HERE/.codex" "$HERE/.vibe" "$HERE/vibe-plugin" "$work/" \
-  && cp "$HERE/install.sh" "$work/" \
   && mkdir -p "$work/.kilo" && cp -R "$HERE/.kilo/agent" "$HERE/.kilo/command" "$work/.kilo/" \
   && copy_kevin "$work"
 (cd "$work" && git init -q . && git add -A && git commit -q -m seed && ./kevin/bin/kevin adapters >/dev/null && git diff --quiet) \

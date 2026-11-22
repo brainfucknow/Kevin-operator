@@ -74,7 +74,7 @@ Feature: kevin adapters preserve project agents
 
   # kevin adapters build the vibe plugin 1
   Scenario: kevin adapters build the vibe plugin 1: an installed project gets no plugin tree
-    Given the scratch project has no installer at its root
+    Given the scratch project has no plugin manifest at its root
     When I run "kevin adapters" in the scratch project
     Then the exit status is 0
     And no vibe plugin tree exists in the scratch project
