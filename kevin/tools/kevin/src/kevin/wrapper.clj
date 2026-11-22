@@ -21,29 +21,27 @@
   (str "exec bb -cp " (sq (str source-dir "/src")) " -m " (sq namespace) " \"$@\""))
 
 (defn- caller-checkout
-  "The test that runs source in the caller's checkout when it has one, joined
-  to guard, a bash test or empty."
-  [guard source]
+  "The line that runs source in the caller's checkout when it has one and
+  shares the git directory of main-root, the main checkout."
+  [main-root source]
   (str "top=\"$(git rev-parse --show-toplevel 2>/dev/null)\""
-       guard
+       " && [ \"$(git rev-parse --path-format=absolute --git-common-dir)\" = " (sq (str main-root "/.git")) " ]"
        " && [ -x \"$top/\"" (sq source) " ] && exec \"$top/\"" (sq source) " \"$@\"\n"))
 
 (defn local-command
   "Runs the script at source in the caller's checkout when it has one and shares
   the main checkout's git directory, else the main checkout's."
   [main-root source]
-  (str (caller-checkout (str " && [ \"$(git rev-parse --path-format=absolute --git-common-dir)\" = "
-                             (sq (str main-root "/.git")) " ]")
-                        source)
+  (str (caller-checkout main-root source)
        "exec " (sq (str main-root "/" source)) " \"$@\""))
 
 (defn runtime-command
-  "Runs the script at source in the caller's checkout when it has one, else the
-  script at source in the runtime that the launcher's kevin home names when the
-  wrapper runs.
+  "Runs the script at source in the caller's checkout when it has one and shares
+  the main checkout's git directory, else the script at source in the runtime
+  that the launcher's kevin home names when the wrapper runs.
   A plugin update moves the runtime; the launcher link follows it."
-  [launcher source]
-  (str (caller-checkout "" source)
+  [main-root launcher source]
+  (str (caller-checkout main-root source)
        "exec \"$(" (sq launcher) " home)/../\"" (sq source) " \"$@\""))
 
 (defn keeping-feature-block
