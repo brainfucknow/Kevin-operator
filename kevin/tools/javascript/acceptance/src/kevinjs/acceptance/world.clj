@@ -9,6 +9,9 @@
 (def javascript-dir
   (str (nth (iterate fs/parent (fs/canonicalize *file*)) 5)))
 (def kevin-dir (str (fs/canonicalize (fs/path javascript-dir ".." ".."))))
+(def plugin-dir
+  "The runtime's version manifest lives here, next to kevin/."
+  (str (fs/path kevin-dir ".." ".claude-plugin")))
 (def kevin-js (str (fs/path kevin-dir "bin" "kevin-js")))
 (def fake-tool (str (fs/path javascript-dir "acceptance" "fake-tool.sh")))
 
@@ -121,7 +124,7 @@
 
 (defn run-kevin-tool
   "Installs and requires kevin-js through `kevin tool` in a scratch project with
-  kevin/ copied in; the outcome is the require's."
+  kevin/ and .claude-plugin/ copied in; the outcome is the require's."
   [{:keys [dir] :as world}]
   (let [project (str (fs/path dir "project"))
         kevin (str (fs/path project "kevin" "bin" "kevin"))
@@ -129,6 +132,7 @@
     (fs/create-dirs project)
     (p/shell {:dir project :out :string :err :string} "git" "init" "--quiet")
     (fs/copy-tree kevin-dir (fs/path project "kevin"))
+    (fs/copy-tree plugin-dir (fs/path project ".claude-plugin"))
     (let [ensure (run "ensure" "kevin-js")]
       (if (zero? (:exit ensure))
         (assoc world :result (outcome (run "require" "kevin-js")))
