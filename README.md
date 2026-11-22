@@ -13,7 +13,48 @@ through Git task branches; the operator handles questions and approvals in chat.
   it changes the project.
 - One of Kilo, Mistral Vibe, Claude Code, Codex CLI, or Copilot CLI
 
+## Install as a plugin
+
+The plugin adds the `swarm` skill to Claude Code, Codex CLI, or Copilot CLI.
+On first use in a project, the skill asks to run `install.sh` there.
+
+Claude Code:
+
+```text
+/plugin marketplace add brainfucknow/Kevin-operator
+/plugin install kevin@kevin-operator
+```
+
+Codex CLI:
+
+```sh
+codex plugin marketplace add brainfucknow/Kevin-operator
+codex plugin add kevin@kevin-operator
+```
+
+Copilot CLI:
+
+```sh
+copilot plugin install brainfucknow/Kevin-operator
+```
+
+Start with `/kevin:swarm <feature request>` in Claude Code, `$swarm` in
+Codex, or `/swarm` in Copilot. The project install also adds a project
+`swarm` skill, so the project works without the plugin. Update the plugin
+through the harness. To update the project, rerun `install.sh` from a source
+checkout.
+
+| Harness | Plugin manifest | Marketplace |
+|---|---|---|
+| Claude Code | `.claude-plugin/plugin.json` | `.claude-plugin/marketplace.json` |
+| Codex CLI | `.codex-plugin/plugin.json` | `.agents/plugins/marketplace.json` |
+| Copilot CLI | `.github/plugin/plugin.json` | `.github/plugin/marketplace.json` |
+
+All three load `skills/swarm/SKILL.md`.
+
 ## Install into a project
+
+To install without a plugin:
 
 ```sh
 git clone https://github.com/brainfucknow/Kevin-operator

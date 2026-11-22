@@ -1159,6 +1159,16 @@ for pair in ".claude/skills/swarm/SKILL.md .agents/skills/swarm/SKILL.md"; do
   cmp -s "$HERE/$1" "$HERE/$2" && pass "$1 matches $2" || fail "$1 differs from $2"
 done
 
+for manifest in .claude-plugin/plugin.json .codex-plugin/plugin.json .github/plugin/plugin.json; do
+  assert_eq "$manifest names the kevin plugin" \
+    "$(bb -e '(:name (cheshire.core/parse-string (slurp (first *command-line-args*)) true))' "$HERE/$manifest")" '"kevin"'
+done
+for marketplace in .claude-plugin/marketplace.json .agents/plugins/marketplace.json .github/plugin/marketplace.json; do
+  assert_eq "$marketplace lists the kevin plugin" \
+    "$(bb -e '(mapv :name (:plugins (cheshire.core/parse-string (slurp (first *command-line-args*)) true)))' "$HERE/$marketplace")" '["kevin"]'
+done
+[ -f "$HERE/skills/swarm/SKILL.md" ] && pass "the plugin ships the swarm skill" || fail "the plugin has no skills/swarm/SKILL.md"
+
 # option-like free arguments of new/ask/answer/reject (issue #122)
 opt="$(kevin new "Option probe" -m x)"
 branches_before="$(git for-each-ref --format='%(refname)' refs/heads/swarm/ | sort)"

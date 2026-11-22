@@ -1,0 +1,10 @@
+{
+  "name": "kevin",
+  "displayName": "Kevin",
+  "description": "Run a feature request through Kevin roles on Git task branches. Adds the swarm skill, which installs Kevin into the project on first use.",
+  "author": { "name": "brainfucknow" },
+  "homepage": "https://github.com/brainfucknow/Kevin-operator",
+  "repository": "https://github.com/brainfucknow/Kevin-operator",
+  "license": "MIT",
+  "keywords": ["kevin", "agents", "workflow", "specification", "review"]
+}

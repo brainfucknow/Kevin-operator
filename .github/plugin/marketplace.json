@@ -1,0 +1,12 @@
+{
+  "name": "kevin-operator",
+  "owner": { "name": "brainfucknow" },
+  "metadata": { "description": "Kevin for Copilot CLI." },
+  "plugins": [
+    {
+      "name": "kevin",
+      "source": "./",
+      "description": "Run a feature request through Kevin roles on Git task branches."
+    }
+  ]
+}
