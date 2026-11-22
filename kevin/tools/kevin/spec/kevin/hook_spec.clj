@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [speclj.core :refer [describe it should should-not should= should-throw after]]
             [kevin.hook :as hook]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (def ^:private message-file (atom nil))
@@ -32,7 +32,7 @@
 
   (it "runs the kevin that installed it, by its absolute path, never the project's kevin/bin"
     (let [repo (fresh-repo)]
-      (with-redefs [runtime/launcher (constantly "/home/o'neil/.local/bin/kevin")]
+      (with-redefs [installed/launcher (constantly "/home/o'neil/.local/bin/kevin")]
         (hook/install repo))
       (let [text (slurp (str (hook-file repo)))]
         (should (str/includes? text "'/home/o'\\''neil/.local/bin/kevin' stage"))

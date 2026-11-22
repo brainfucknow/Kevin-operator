@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [kevin.catalogue :as catalogue]
             [kevin.flow :as flow]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (def ^:dynamic *root*
@@ -32,7 +32,7 @@
   (let [file (fs/path (project-dir) name)]
     (str (if (or (fs/exists? file) (not (runtime-defaults name)))
            file
-           (fs/path (runtime/home) name)))))
+           (fs/path (installed/home) name)))))
 
 (defn rows [name]
   (shell/conf-rows (conf-file name)))
@@ -176,7 +176,7 @@
 (defn- runtime-roles
   "The roles of the runtime's roles.conf."
   []
-  (set (map first (shell/conf-rows (fs/path (runtime/home) "roles.conf")))))
+  (set (map first (shell/conf-rows (fs/path (installed/home) "roles.conf")))))
 
 (defn- prompt-problem
   "Why the role's prompt is missing from the runtime, or nil. A role that the
@@ -184,7 +184,7 @@
   [role known]
   (cond
     (not (known role)) (str "roles.conf: '" role "' is not a role of the Kevin runtime")
-    (not (fs/exists? (fs/path (runtime/home) "roles" (str role ".md")))) (str "roles/" role ".md: missing role prompt for '" role "'")))
+    (not (fs/exists? (fs/path (installed/home) "roles" (str role ".md")))) (str "roles/" role ".md: missing role prompt for '" role "'")))
 
 (defn- check-role [known [role tier runs & flags :as row] seen]
   (if-not (<= 3 (count row) 6)

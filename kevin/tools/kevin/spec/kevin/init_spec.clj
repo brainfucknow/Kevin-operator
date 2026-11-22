@@ -4,7 +4,7 @@
             [clojure.string :as str]
             [speclj.core :refer [around describe it should should-not should= should-contain]]
             [kevin.repo-support :refer [*dir* captured git with-repo]]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.task :as task]))
 
 (defn- init [] (captured #(task/init [])))
@@ -17,7 +17,7 @@
 (defn- lines [text] (str/split-lines text))
 
 (describe "kevin init"
-  (around [it] (with-repo #(with-redefs [runtime/version (constantly "0.2.0")] (it))))
+  (around [it] (with-repo #(with-redefs [installed/version (constantly "0.2.0")] (it))))
 
   (it "writes a starter kevin/project.md with the runtime version"
     (let [{:keys [status out]} (init)

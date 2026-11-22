@@ -9,7 +9,7 @@
             [clojure.string :as str]
             [kevin.adapters :as adapters]
             [kevin.config :as config]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.task :as task]))
 
@@ -70,7 +70,7 @@
   role prompt and from the runtime's."
   [root role]
   (distinct (for [file [(fs/path root "kevin" "roles" (str role ".md"))
-                        (fs/path (runtime/home) "roles" (str role ".md"))]
+                        (fs/path (installed/home) "roles" (str role ".md"))]
                   :when (fs/exists? file)]
               (adapters/summary (slurp (str file))))))
 

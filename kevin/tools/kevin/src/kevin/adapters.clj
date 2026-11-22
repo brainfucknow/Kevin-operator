@@ -8,7 +8,7 @@
             [cheshire.core :as json]
             [clojure.string :as str]
             [kevin.config :as config]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (defn summary
@@ -19,7 +19,7 @@
 (defn- role-summary
   "The summary of the runtime's prompt of the role."
   [role]
-  (let [file (fs/path (runtime/home) "roles" (str role ".md"))]
+  (let [file (fs/path (installed/home) "roles" (str role ".md"))]
     (when-not (fs/exists? file) (shell/die "missing role prompt " file))
     (summary (slurp (str file)))))
 

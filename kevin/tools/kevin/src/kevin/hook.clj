@@ -5,7 +5,7 @@
             [clojure.string :as str]
             [kevin.lore :as lore]
             [kevin.record :as record]
-            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.wrapper :as wrapper]))
 
@@ -25,7 +25,7 @@
   (-> (shell/template "commit-msg")
       (str/replace "{{marker}}" marker)
       (str/replace "{{worktree-dir}}" (worktree-dir))
-      (str/replace "{{kevin}}" (wrapper/sq (runtime/launcher)))))
+      (str/replace "{{kevin}}" (wrapper/sq (installed/launcher)))))
 
 (defn install
   "Writes the hook unless core.hooksPath is set or another hook is in place."

@@ -10,9 +10,6 @@
 
 (def new-world store/new-world)
 
-(def ^:private swarm-line
-  "Follow kevin/README.md and kevin/roles/orchestrator.md when asked to swarm a feature; delegate subagent roles by name and keep all task bookkeeping in kevin/bin/kevin.")
-
 (def ^:private old-hook
   "The commit-msg hook as an old sf wrote it."
   (str "#!/usr/bin/env bash\n"
@@ -57,12 +54,6 @@
 
 (defn- hook-text [world]
   (slurp (str (hook-file world))))
-
-(defn- repo-file [world path]
-  (fs/path (:repo world) path))
-
-(defn- file-lines [world path]
-  (str/split-lines (slurp (str (repo-file world path)))))
 
 ;; Legacy records
 
@@ -169,13 +160,10 @@
    [#"task \"(\w)\" titled \"([^\"]*)\" on route \"([^\"]*)\" has legacy records up to stage \"([^\"]*)\""
     (fn [world name title route stage] (legacy-task world name title route stage))]
 
-   [#"task \"(\w)\" titled \"([^\"]*)\" was started on route \"([^\"]*)\" before the migration"
-    (fn [world name title route] (legacy-task world name title route (first (str/split route #","))))]
-
    [#"task \"(\w)\" titled \"([^\"]*)\" on route \"([^\"]*)\" was finished with legacy records"
     (fn [world name title route] (legacy-finished world name title route))]
 
-   [#"task \"(\w)\" has a new commit in its worktree(?: that does not touch swarmforge/)?"
+   [#"task \"(\w)\" has a new commit in its worktree"
     (fn [world name] (new-commit world name))]
 
    [#"a fake claude on PATH that prints its environment"
@@ -189,16 +177,6 @@
           world)
         (metrics/hold-on world (str "refs/heads/" branch) path text)))]
 
-   [#"the file \"([^\"]+)\" in the repository holds \"(.*)\""
-    (fn [world path text]
-      (if (after-when? world)
-        (let [file (repo-file world path)
-              actual (when (fs/exists? file) (slurp (str file)))]
-          (check (= (str (unescape text) "\n") actual) (str path " holds " (pr-str actual)))
-          world)
-        (do (write-file (:repo world) path (str (unescape text) "\n"))
-            world)))]
-
    ;; When
    [#"I (run|ran) \"([^\"]*)\"(?: in the worktree of task \"(\w)\")?(?: with the text \"(.*)\")?(?: with environment \"([^\"]*)\")?"
     (fn [world tense command name text env]
@@ -208,12 +186,6 @@
         (if (= "ran" tense)
           (assoc world :ran-out (:out (run-in world dir cmd env)))
           (assoc (when-step world #(run-in % dir cmd env)) :ran-env env))))]
-
-   [#"I commit every change in the main checkout"
-    (fn [world]
-      (git world "add" "-A")
-      (git world "commit" "-q" "-m" "Migrate to Kevin")
-      world)]
 
    ;; Then
    [#"the newest record has the author \"(.*)\""
@@ -282,58 +254,15 @@
       (check (not (str/includes? (hook-text world) text)) (str "the hook mentions " text))
       world)]
 
-   [#"the repository has no path \"([^\"]+)\""
-    (fn [world path]
-      (check (not (or (fs/exists? (repo-file world path)) (fs/sym-link? (repo-file world path)))) (str path " exists"))
-      world)]
-
-   [#"the repository has the file \"([^\"]+)\""
-    (fn [world path]
-      (check (fs/regular-file? (repo-file world path)) (str path " is missing"))
-      world)]
-
-   [#"the repository has no file under \"([^\"]+)\" whose name starts with \"([^\"]+)\""
-    (fn [world dir prefix]
-      (let [found (filter #(str/starts-with? (str (fs/file-name %)) prefix) (fs/list-dir (repo-file world dir)))]
-        (check (empty? found) (str "found " (pr-str (map str found))))
-        world))]
-
-   [#"the repository did not change"
-    (fn [world]
-      (let [before (:snapshot world)
-            after (metrics/snapshot (:repo world))
-            changed (sort (filter #(not= (get before %) (get after %)) (set (concat (keys before) (keys after)))))]
-        (check (empty? changed) (str "changed: " (pr-str changed)))
-        world))]
-
-   [#"the file \"([^\"]+)\" in the repository has no line that mentions \"(.*)\""
-    (fn [world path text]
-      (let [found (filter #(str/includes? % text) (file-lines world path))]
-        (check (empty? found) (str path " has " (pr-str found)))
-        world))]
-
-   [#"the file \"([^\"]+)\" in the repository has the new swarm line once"
-    (fn [world path]
-      (let [n (count (filter #{swarm-line} (file-lines world path)))]
-        (check (= 1 n) (str path " has the new swarm line " n " times"))
-        world))]
-
    [#"the branch \"([^\"]+)\" did not move"
     (fn [world branch]
       (let [ref (str "refs/heads/" branch)]
         (check (= (get-in world [:before ref]) (get (store/tips world) ref)) (str branch " moved"))
-        world))]
-
-   [#"the base branch has the commit of task \"(\w)\""
-    (fn [world name]
-      (let [commit (get-in world [:names (str "work-" name)])]
-        (check (zero? (:exit (run-in world (:repo world) ["git" "merge-base" "--is-ancestor" commit "main"])))
-               (str "main does not have " commit))
         world))]])
 
 (def ^:private replaced-steps
   "Step texts of the inherited handlers that a rebrand handler takes over."
-  ["I run \"x\"" "the file \"x\" in the repository holds \"y\""])
+  ["I run \"x\""])
 
 (defn- replaced? [[pattern]]
   (some #(re-matches pattern %) replaced-steps))
