@@ -29,6 +29,16 @@
        " && [ -x \"$top/\"" (sq source) " ] && exec \"$top/\"" (sq source) " \"$@\"\n"
        "exec " (sq (str main-root "/" source)) " \"$@\""))
 
+(defn runtime-command
+  "Runs the script at source in the caller's checkout when it has one and
+  shares its git directory with the main checkout, else the script at source
+  in the runtime that the launcher's kevin home names when the wrapper runs.
+  A plugin update moves the runtime; the launcher link follows it."
+  [launcher source]
+  (str "top=\"$(git rev-parse --show-toplevel 2>/dev/null)\""
+       " && [ -x \"$top/\"" (sq source) " ] && exec \"$top/\"" (sq source) " \"$@\"\n"
+       "exec \"$(" (sq launcher) " home)/../\"" (sq source) " \"$@\""))
+
 (defn keeping-feature-block
   "Runs command (an exec line) so that the block of the --feature file stays
   in .metrics/gherkin/ between runs, through kevin.gherkin-cache of kevin-src. Exits

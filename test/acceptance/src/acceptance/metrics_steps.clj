@@ -1,7 +1,7 @@
 (ns acceptance.metrics-steps
   "Step handlers for test/features/metrics_cache (see its README for the step
   meanings): the steps of acceptance.store-steps, and the ones for the
-  kevin/metrics branch, the gherkin-mutator wrapper and install.sh."
+  kevin/metrics branch and the gherkin-mutator wrapper."
   (:require [acceptance.store-steps :as store :refer [expected git must-in run-in when-step worktree write-file]]
             [acceptance.support :as support :refer [check require-ok]]
             [babashka.fs :as fs]
@@ -113,15 +113,6 @@
     (fn [world args dir name]
       (let [wrapper (str (fs/path (:repo world) ".kevin" "bin" "gherkin-mutator"))]
         (when-step world #(run-in % (str (fs/path (worktree % name) (or dir ""))) (cons wrapper (str/split args #" "))))))]
-
-   [#"I run install.sh into it (\d+) times( from that working directory)?"
-    (fn [world times elsewhere]
-      (let [install (str (fs/path support/checkout "install.sh"))
-            dir (if elsewhere (:workdir world) (:repo world))
-            env (if (:path world) {"PATH" (:path world)} {})
-            before (snapshot (:repo world))
-            result (last (repeatedly (parse-long times) #(support/run dir [install (:repo world)] env)))]
-        (assoc world :exit (:exit result) :out (:out result) :err (:err result) :snapshot before)))]
 
    ;; Then
    [#"the file \"([^\"]+)\" in the worktree of task \"(\w)\" holds \"(.*)\""

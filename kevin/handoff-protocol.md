@@ -1,7 +1,7 @@
 # Handoff Protocol
 
 A task is a Git branch, `swarm/<id>`, containing the request, role work, and
-record commits. `kevin/bin/kevin` is the only writer of task state; never
+record commits. `kevin` is the only writer of task state; never
 write `Kevin-*` trailers by hand. There are no task files.
 
 ## Task

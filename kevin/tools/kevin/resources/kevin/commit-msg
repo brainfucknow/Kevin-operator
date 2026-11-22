@@ -14,9 +14,9 @@ case "$top" in
 esac
 role="${KEVIN_ROLE:-${SWARMFORGE_ROLE:-}}"
 if [ -z "$role" ]; then
-  role="$("$root/kevin/bin/kevin" stage "$(basename "$top")" 2>&1)" || {
+  role="$({{kevin}} stage "$(basename "$top")" 2>&1)" || {
     echo "commit-msg: cannot find the role for this task worktree ($role); set KEVIN_ROLE" >&2
     exit 1
   }
 fi
-exec "$root/kevin/bin/kevin" commit-msg "$role" "$msg"
+exec {{kevin}} commit-msg "$role" "$msg"

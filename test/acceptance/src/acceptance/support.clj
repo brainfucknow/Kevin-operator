@@ -1,7 +1,8 @@
 (ns acceptance.support
   "Scratch repositories for the step handlers. Each execution works in a fresh
   copy of a scratch git repository that holds this checkout's kevin/,
-  without its verify.conf, and a .gitignore. The real kevin and git run there,
+  without its verify.conf, its .claude-plugin/ (the runtime version), and a
+  .gitignore. Its kevin/bin/kevin is the runtime and the project at once. The real kevin and git run there,
   with git-bug off PATH. Scratch files go under ./tmp/acceptance/ and are
   removed when the process exits."
   (:require [babashka.fs :as fs]
@@ -63,6 +64,13 @@
 
 (defn kevin-path [repo] (str (fs/path repo "kevin" "bin" "kevin")))
 
+(declare plugin-copy)
+
+(defn- runtime-version
+  "The version of this checkout's plugin manifest."
+  []
+  (second (re-find #"\"version\": \"([^\"]*)\"" (slurp (str (fs/path checkout ".claude-plugin" "plugin.json"))))))
+
 (def gitconfig "[init]\n\tdefaultBranch = main\n")
 
 (def ^:private seed
@@ -72,7 +80,8 @@
            (spit (str (fs/path (home) ".gitconfig"))
                  (str "[user]\n\tname = tester\n\temail = tester@example.com\n" gitconfig))
            (must repo "git" "init" "-q" ".")
-           (fs/copy-tree (fs/path checkout "kevin") (fs/path repo "kevin"))
+           (plugin-copy repo (runtime-version))
+           (fs/delete-if-exists (fs/path repo "install.sh"))
            (fs/delete-if-exists (fs/path repo "kevin" "verify.conf"))
            (spit (str (fs/path repo ".gitignore")) ".worktrees/\n.kevin/\ntmp/\n")
            (must repo "git" "add" "-A")
@@ -103,3 +112,18 @@
 (defn require-ok [{:keys [exit err]} what]
   (when-not (zero? exit)
     (throw (ex-info (str what " exited " exit ": " (str/trim err)) {}))))
+
+(defn plugin-copy
+  "A scratch copy of this checkout's Kevin plugin at dir: install.sh, kevin/
+  and .claude-plugin/, the files git tracks or does not ignore, with version
+  in its plugin manifest. Returns dir."
+  [dir version]
+  (doseq [path (str/split-lines (must checkout "git" "ls-files" "--cached" "--others" "--exclude-standard"
+                                      "--" "install.sh" "kevin" ".claude-plugin"))
+          :let [from (fs/path checkout path)]
+          :when (fs/exists? from)]
+    (fs/create-dirs (fs/parent (fs/path dir path)))
+    (fs/copy from (fs/path dir path) {:replace-existing true :copy-attributes true}))
+  (let [manifest (str (fs/path dir ".claude-plugin" "plugin.json"))]
+    (spit manifest (str/replace (slurp manifest) #"\"version\": \"[^\"]*\"" (str "\"version\": \"" version "\""))))
+  (str dir))

@@ -63,9 +63,10 @@ class PublishInput(BaseModel):
 
 
 def _load_catalogue(main: str):
-    kevin = os.path.join(main, "kevin")
-    roles = catalogue.load_roles(open(os.path.join(kevin, "roles.conf"), encoding="utf-8").read())
-    tiers = catalogue.load_tiers(open(os.path.join(kevin, "tiers.conf"), encoding="utf-8").read())
+    """The roles and tiers of the project's kevin/ files, else the runtime's."""
+    home = kevinkit.kevin_home()
+    roles = catalogue.load_roles(open(kevinkit.conf_file(main, home, "roles.conf"), encoding="utf-8").read())
+    tiers = catalogue.load_tiers(open(kevinkit.conf_file(main, home, "tiers.conf"), encoding="utf-8").read())
     return roles, tiers
 
 
@@ -130,10 +131,10 @@ async def run_stage_role(params: StageRunInput) -> RoleOutcome:
     agent = runner.build_agent(
         role,
         catalogue.mistral_model(tiers, role.tier),
-        prompts.agent_instructions(role, params.co.main, tiers, writable=True),
+        prompts.agent_instructions(role, kevinkit.kevin_home(), tiers, writable=True),
         writable=True,
     )
-    report = await runner.run_role_agent(agent, role.name, prompts.role_prompt(role.name, params.task_id), params.co.worktree)
+    report = await runner.run_role_agent(agent, role.name, prompts.role_prompt(role.name, params.task_id, kevinkit.kevin_home()), params.co.worktree)
     after = kevinkit.read_state(params.co.main, params.task_id)
     if after.needs in ("operator", "approval"):
         return RoleOutcome(status="blocked", stage=after.stage, needs=after.needs, report=report)
@@ -154,10 +155,10 @@ async def run_gate(params: GateRunInput) -> GateReport:
     agent = runner.build_agent(
         gate,
         catalogue.mistral_model(tiers, gate.tier),
-        prompts.agent_instructions(gate, params.co.main, tiers, writable=False),
+        prompts.agent_instructions(gate, kevinkit.kevin_home(), tiers, writable=False),
         writable=False,
     )
-    report = await runner.run_role_agent(agent, gate.name, prompts.gate_prompt(gate.name, params.task_id), params.co.worktree)
+    report = await runner.run_role_agent(agent, gate.name, prompts.gate_prompt(gate.name, params.task_id, kevinkit.kevin_home()), params.co.worktree)
     after = kevinkit.snapshot(params.co.main, params.task_id)
     if before != after:
         raise workflows.WorkflowError(
@@ -185,7 +186,7 @@ async def run_spec_judge(params: JudgeRunInput) -> JudgeVerdict:
     agent = runner.build_agent(
         judge,
         catalogue.mistral_model(tiers, judge.tier),
-        prompts.agent_instructions(judge, params.co.main, tiers, writable=False),
+        prompts.agent_instructions(judge, kevinkit.kevin_home(), tiers, writable=False),
         writable=False,
     )
     report = await runner.run_role_agent(

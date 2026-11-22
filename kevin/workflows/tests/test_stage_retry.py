@@ -15,6 +15,7 @@ def stage_attempt(monkeypatch):
     monkeypatch.setattr(activities, "_load_catalogue", lambda main: ([role], {}))
     monkeypatch.setattr(catalogue, "mistral_model", lambda tiers, tier: "test-model")
     monkeypatch.setattr(prompts, "agent_instructions", lambda *args, **kwargs: "instructions")
+    monkeypatch.setattr(kevinkit, "kevin_home", lambda: "/opt/kevin/kevin")
     monkeypatch.setattr(kevinkit, "read_state", lambda main, task_id: state.model_copy())
     monkeypatch.setattr(runner, "build_agent", lambda *args, **kwargs: builds.append(object()) or builds[-1])
     monkeypatch.setattr(config.worker, "retry_policy_max_attempts", 2)

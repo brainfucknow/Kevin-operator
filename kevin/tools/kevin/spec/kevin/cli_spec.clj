@@ -1,8 +1,10 @@
 (ns kevin.cli-spec
-  (:require [clojure.string :as str]
+  (:require [babashka.fs :as fs]
+            [clojure.string :as str]
             [speclj.core :refer [around describe it should-contain should=]]
             [kevin.cli :as cli]
             [kevin.repo-support :as support :refer [with-repo]]
+            [kevin.runtime :as runtime]
             [kevin.shell :as shell]))
 
 (defn- kevin [& args]
@@ -43,6 +45,49 @@
   (it "hands the rest to kevin tool and fails with its status"
     (should-contain "usage: kevin tool" (:out (kevin "tool" "--help")))
     (should= 1 (:status (kevin "tool" "nope")))))
+
+(describe "runtime commands"
+  (around [it] (with-repo #(with-redefs [runtime/version (constantly "0.2.0")] (it))))
+
+  (it "prints the runtime version and home"
+    (should= "0.2.0" (:out (kevin "version")))
+    (should= (runtime/home) (:out (kevin "home"))))
+
+  (it "lists the runtime commands in the usage"
+    (doseq [entry ["  version " "  home " "  init [--convert] " "  cs|fs|vb|js|rb|java|mistral "]]
+      (should-contain entry (:out (kevin "help")))))
+
+  (it "refuses a command when the project needs a newer runtime"
+    (spit (str support/*dir* "/kevin/project.md") "# Mine\nMinimum Kevin version: 0.3.0\n")
+    (should= {:out "" :err "this project needs Kevin 0.3.0 or newer; this runtime is 0.2.0" :status 1}
+             (dissoc (kevin "ls") :result))
+    (should= 1 (:status (kevin "commit-msg" "coder" "/no/such/file"))))
+
+  (it "refuses a malformed minimum"
+    (spit (str support/*dir* "/kevin/project.md") "Minimum Kevin version: soon\n")
+    (should= "kevin/project.md: Minimum Kevin version must be <major>.<minor>.<patch>, not 'soon'"
+             (:err (kevin "ls"))))
+
+  (it "runs help, version and home whatever the project needs"
+    (spit (str support/*dir* "/kevin/project.md") "Minimum Kevin version: 9.0.0\n")
+    (doseq [command ["help" "version" "home"]]
+      (should= 0 (:status (kevin command)))))
+
+  (it "checks nothing outside a git repository"
+    (spit (str support/*dir* "/kevin/project.md") "Minimum Kevin version: 9.0.0\n")
+    (with-redefs [shell/main-root (constantly nil)]
+      (should= 0 (:status (kevin "roles")))))
+
+  (it "runs a runtime command as a subcommand, with its arguments and exit status"
+    (let [bin (fs/path (runtime/home) "bin")
+          out (str (fs/path support/*dir* "args"))]
+      (fs/create-dirs bin)
+      (doseq [name ["cs" "fs" "vb" "js" "rb" "java" "mistral"]
+              :let [script (fs/path bin (str "kevin-" name))]]
+        (spit (str script) (str "#!/usr/bin/env bash\necho \"" name " $*\" > '" out "'\nexit 3\n"))
+        (fs/set-posix-file-permissions script "rwxr-xr-x")
+        (should= 3 (:status (kevin name "a b" "c")))
+        (should= (str name " a b c\n") (slurp out))))))
 
 (def ^:private new-entry
   "The new entry of the global usage, as the specification quotes it."

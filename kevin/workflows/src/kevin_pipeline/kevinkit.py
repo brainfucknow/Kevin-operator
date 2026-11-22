@@ -1,4 +1,5 @@
-"""Run git and kevin/bin/kevin in a worker-local clone. Every task-state
+"""Run git and the kevin on PATH (the runtime in the worker image) in a
+worker-local clone. Every task-state
 write goes through kevin on the task branch; these helpers only call it."""
 
 from __future__ import annotations
@@ -64,7 +65,19 @@ def git(repo: str, *args: str, check: bool = True) -> subprocess.CompletedProces
 
 
 def kevin(repo: str, *args: str, check: bool = True) -> subprocess.CompletedProcess:
-    return run([os.path.join(repo, "kevin", "bin", "kevin"), *args], cwd=repo, check=check)
+    return run(["kevin", *args], cwd=repo, check=check)
+
+
+def kevin_home() -> str:
+    """The runtime's kevin/ directory: role prompts, the constitution and the
+    default catalogue files."""
+    return run(["kevin", "home"]).stdout.strip()
+
+
+def conf_file(main: str, home: str, name: str) -> str:
+    """The project's kevin/<name> when it has one, else the runtime's."""
+    project = os.path.join(main, "kevin", name)
+    return project if os.path.exists(project) else os.path.join(home, name)
 
 
 def task_branch(task_id: str) -> str:

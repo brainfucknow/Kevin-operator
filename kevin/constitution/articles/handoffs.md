@@ -2,7 +2,7 @@
 
 A task is its branch, `swarm/<id>`. Roles pass work by committing on the task
 branch, and `kevin` records each handoff as a commit on it. All task bookkeeping
-goes through `kevin/bin/kevin`; never write a `Kevin-*` trailer by
+goes through `kevin`; never write a `Kevin-*` trailer by
 hand. `kevin start` and `kevin show` print the records;
 `kevin/handoff-protocol.md` describes the task branch.
 

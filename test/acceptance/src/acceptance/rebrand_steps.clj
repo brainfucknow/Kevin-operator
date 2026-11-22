@@ -1,9 +1,8 @@
 (ns acceptance.rebrand-steps
   "Step handlers for test/features/rebrand (see its README): the steps of
-  acceptance.install-steps, and fixtures in the legacy SwarmForge form made
+  acceptance.metrics-steps, and fixtures in the legacy SwarmForge form made
   with git and plain files, as an old sf wrote them."
-  (:require [acceptance.install-steps :as install]
-            [acceptance.metrics-steps :as metrics]
+  (:require [acceptance.metrics-steps :as metrics]
             [acceptance.store-steps :as store :refer [expected fill git must-in run-in when-step worktree write-file]]
             [acceptance.support :as support :refer [check unescape]]
             [babashka.fs :as fs]
@@ -13,9 +12,6 @@
 
 (def ^:private swarm-line
   "Follow kevin/README.md and kevin/roles/orchestrator.md when asked to swarm a feature; delegate subagent roles by name and keep all task bookkeeping in kevin/bin/kevin.")
-
-(def ^:private old-swarm-line
-  "Follow swarmforge/README.md and swarmforge/roles/orchestrator.md when asked to swarm a feature; delegate subagent roles by name and keep all task bookkeeping in swarmforge/bin/sf.")
 
 (def ^:private old-hook
   "The commit-msg hook as an old sf wrote it."
@@ -120,31 +116,6 @@
     (git world "branch" "-D" (str "swarm/" id))
     world))
 
-;; A legacy install
-
-(defn- legacy-install
-  "A scratch repository with an install as an old install.sh left it: this
-  checkout's kevin/ as swarmforge/ with the old command names, the old
-  AGENTS.md line, .gitignore entries and commit-msg hook, all committed."
-  [world]
-  (let [world (assoc world :repo (support/project false))
-        repo (:repo world)
-        old (fs/path repo "swarmforge")]
-    (git world "mv" "kevin" "swarmforge")
-    (git world "mv" "swarmforge/bin/kevin" "swarmforge/bin/sf")
-    (doseq [file (fs/glob (fs/path old "bin") "kevin-*")
-            :let [name (str (fs/file-name file))]]
-      (git world "mv" (str "swarmforge/bin/" name) (str "swarmforge/bin/" (str/replace name #"^kevin-" "sf-"))))
-    (write-file repo "AGENTS.md" (str old-swarm-line "\n"))
-    (write-file repo "CLAUDE.md" "@AGENTS.md\n")
-    (write-file repo ".gitignore" ".worktrees/\n.swarmforge/\ntmp/\n.metrics/\n")
-    (write-file repo "swarmforge/.gitignore" "!/bin/\n!/bin/**\n")
-    (write-file repo ".git/hooks/commit-msg" old-hook)
-    (fs/set-posix-file-permissions (hook-file world) "rwxr-xr-x")
-    (git world "add" "-A")
-    (git world "commit" "-q" "-m" "Install SwarmForge")
-    world))
-
 (defn- new-commit
   "Commits a new file in the worktree of task name past the hook and names
   the commit after the task."
@@ -180,9 +151,6 @@
 
 (def ^:private rebrand-handlers
   [;; Given
-   [#"a git repository with a legacy install"
-    legacy-install]
-
    [#"a git repository with one commit and no user.name or user.email"
     (fn [world]
       (let [home (str (fs/path @support/scratch (str "home-" (random-uuid))))]
@@ -303,7 +271,10 @@
 
    [#"the commit-msg hook runs \"(.*)\""
     (fn [world path]
-      (check (str/includes? (hook-text world) (str "$root/" path "\"")) (str "the hook does not run " path))
+      ;; The hook runs the kevin that installed it by its absolute path; here
+      ;; that is the scratch repository's own copy of the runtime.
+      (check (str/includes? (hook-text world) (str "'" (fs/path (:repo world) path) "' commit-msg"))
+             (str "the hook does not run " path))
       world)]
 
    [#"the commit-msg hook does not mention \"(.*)\""
@@ -368,4 +339,4 @@
   (some #(re-matches pattern %) replaced-steps))
 
 (def handlers
-  (concat (remove replaced? install/handlers) rebrand-handlers))
+  (concat (remove replaced? metrics/handlers) rebrand-handlers))

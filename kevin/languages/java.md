@@ -1,6 +1,6 @@
 # Java tools
 
-`kevin/bin/kevin-java` supports Java 17+ (a JDK), JUnit 5, Maven, Git, Bash
+`kevin java` supports Java 17+ (a JDK), JUnit 5, Maven, Git, Bash
 and Babashka. Run it at the Git project root beside a single-module `pom.xml`,
 with production code in `src/main/java` and tests in `src/test/java`.
 Gradle, Maven reactor orchestration, custom source roots and JPMS module-path
@@ -13,13 +13,13 @@ executes tests. Application Maven plugins still run during preparation, so
 review the project's build configuration before running it.
 
 ```sh
-kevin/bin/kevin-java tools
-kevin/bin/kevin-java test
-kevin/bin/kevin-java property
-kevin/bin/kevin-java coverage
-kevin/bin/kevin-java crap --base main
-kevin/bin/kevin-java dry --base main
-kevin/bin/kevin-java mutate --base main
+kevin java tools
+kevin java test
+kevin java property
+kevin java coverage
+kevin java crap --base main
+kevin java dry --base main
+kevin java mutate --base main
 ```
 
 `tools` installs and checks the pinned quality JARs through `kevin tool`, plus
@@ -71,7 +71,7 @@ applied. Patch/build failures do not publish a new wrapper. Reinstallation
 resets the owned clone to its pin before patching.
 
 - `crap4java`: requires the dedicated coverage command, rejects missing XML,
-  and changes the gate from 8 to 10. `kevin-java` supplies the command through
+  and changes the gate from 8 to 10. `kevin java` supplies the command through
   `KEVINJAVA_COVERAGE_COMMAND`.
 - `dry4java`: builds Java 17 bytecode rather than requiring Java 21.
 - `mutate4java`: removes an unavailable workspace parent POM, preserves PATH
@@ -80,7 +80,7 @@ resets the owned clone to its pin before patching.
   from worker copies. Its mutation analysis and differential selection remain
   upstream behavior.
 
-Prefer `kevin-java crap`; direct `crap4java` runs require
+Prefer `kevin java crap`; direct `crap4java` runs require
 `KEVINJAVA_COVERAGE_COMMAND`. `KEVIN_TOOL_SRC` is an unpinned development
 override, built as supplied without patches. Overrides must provide these
 integration APIs and cannot establish pinned verification evidence.
