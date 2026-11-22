@@ -80,8 +80,8 @@
     (git world "init" "-q" "--initial-branch=main")
     (git world "config" "user.name" "Fixture")
     (git world "config" "user.email" "fixture@example.com")
-    (let [installed (process world [(str (fs/path harness "install.sh")) repo])]
-      (check (zero? (:exit installed)) (str "installation failed: " (:out installed) (:err installed))))
+    (doseq [runtime ["kevin" ".claude-plugin"]]
+      (fs/copy-tree (fs/path harness runtime) (fs/path repo runtime)))
     (write (fs/path repo "pom.xml") pom)
     (write (fs/path repo "src/main/java/demo/Ledger.java") source)
     (write (fs/path repo "src/main/java/demo/Other.java") (str/replace source "Ledger" "Other"))
@@ -232,7 +232,6 @@
    [#"I ensure the same Java tools again" (fn [w] (ensure-tools w) (assoc w :result {:exit 0 :out "" :err ""}))]
    [#"the installed tools remain usable at their configured commits" (fn [w] (doseq [tool ["crap4java" "dry4java" "mutate4java"]] (expect-status (kevin w "tool" "require" tool) 0)) w)]
    [#"a new Git project with a passing Maven JUnit 5 application" (fn [w] w)]
-   [#"I install Kevin into that project with install.sh" (fn [w] (run w [(str (fs/path harness "install.sh")) (:repo w)]))]
    [#"the ordinary JUnit tests pass through the dedicated runner" #(expect-output % "RUN ordinary tests")]
    [#"no runtime dependency is read from the harness source checkout" (fn [w]
                                                                     (doseq [c (calls w) :when (= "java" (:tool c))

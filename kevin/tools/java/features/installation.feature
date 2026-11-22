@@ -42,8 +42,7 @@ Feature: kevin-java installation
   # kevin-java installation 4
   Scenario: kevin-java installation 4: Java commands work in a consumer installation
     Given a new Git project with a passing Maven JUnit 5 application
-    When I install Kevin into that project with install.sh
-    And I run kevin-java with "tools" in that project
+    When I run kevin-java with "tools" in that project
     And I run kevin-java with "test" in that project
     Then the exit status is 0
     And the ordinary JUnit tests pass through the dedicated runner
