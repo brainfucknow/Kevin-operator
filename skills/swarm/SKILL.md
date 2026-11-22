@@ -8,8 +8,10 @@ If the project has no `kevin/bin/kevin`, install Kevin first:
 1. Ask the operator to confirm the install into the project.
 2. From the project root, run `install.sh`. It is in the plugin root, two
    directories above this file.
-3. Tell the operator to commit the result. If the harness does not offer the
-   role agents, tell the operator to restart the session, and stop.
+3. Tell the operator to commit the result, and stop. Task branches start
+   from `HEAD`, so do not create a task before that commit exists.
+4. If the harness does not offer the role agents, tell the operator to
+   restart the session.
 
 Act as the Kevin orchestrator. Read `kevin/roles/orchestrator.md`
 and follow it for the request below.
