@@ -145,7 +145,15 @@
                                      "sh  ./kevin/bin/kevin-rb crap\nbb kevin/bin/kevin help\n"
                                      "make && bash kevin/bin/kevin-cs test\n"
                                      "bash test/all.sh && kevin/bin/kevin check\n"
-                                     "rebash kevin/bin/kevin-cs test\n"))
+                                     "rebash kevin/bin/kevin-cs test\n"
+                                     "true;bash kevin/bin/kevin-cs test\n"
+                                     "(bash kevin/bin/kevin-cs test)\n"
+                                     "foo|sh kevin/bin/kevin-rb crap\n"
+                                     "make&&bb ./kevin/bin/kevin help\n"
+                                     "echo `bash kevin/bin/kevin help`\n"
+                                     "X=bash kevin/bin/kevin-cs test\n"
+                                     "run.sh kevin/bin/kevin check\n"
+                                     "/bin/bash kevin/bin/kevin-cs test\n"))
     (write! "kevin/tools.conf" (str (read "kevin/tools.conf") "# kevin/bin/kevin-cs\n"))
     (git *dir* "add" "-A")
     (git *dir* "commit" "-q" "-m" "Verify")
@@ -154,7 +162,15 @@
                     "kevin rb crap\nkevin help\n"
                     "make && kevin cs test\n"
                     "bash test/all.sh && kevin check\n"
-                    "rebash kevin cs test\n")
+                    "rebash kevin cs test\n"
+                    "true;kevin cs test\n"
+                    "(kevin cs test)\n"
+                    "foo|kevin rb crap\n"
+                    "make&&kevin help\n"
+                    "echo `kevin help`\n"
+                    "X=bash kevin cs test\n"
+                    "run.sh kevin check\n"
+                    "/bin/bash kevin cs test\n")
                (read "kevin/verify.conf"))
       (should-contain "kevin: rewrote kevin/verify.conf" out)
       (should-contain "# kevin/bin/kevin-cs" (read "kevin/tools.conf"))
