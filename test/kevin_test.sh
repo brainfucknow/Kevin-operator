@@ -33,9 +33,11 @@ git config --global user.email tester@example.com
 git config --global init.defaultBranch main
 
 # A copy of this checkout's kevin/ without verify.conf, whose commands
-# (this script among them) must not run on every kevin finish in the scratch repo.
+# (this script among them) must not run on every kevin finish in the scratch repo,
+# and of the plugin manifest that holds the runtime version.
 copy_kevin() {
-  rm -rf "$1/kevin" && cp -R "$HERE/kevin" "$1/kevin" && rm -f "$1/kevin/verify.conf"
+  rm -rf "$1/kevin" "$1/.claude-plugin" && cp -R "$HERE/kevin" "$1/kevin" && rm -f "$1/kevin/verify.conf" \
+    && cp -R "$HERE/.claude-plugin" "$1/.claude-plugin"
 }
 
 repo="$scratch/project"
@@ -455,34 +457,29 @@ assert_eq "explicit colliding named route remains available" "$(kevin route "$ex
 
 rm kevin/routes.conf
 
-# adapters
+# adapters: the plugin agents of the Kevin source checkout
 printf 'specifier frontier session\ncoder frontier subagent\ncleaner fast subagent\n' > kevin/roles.conf
 out="$(kevin adapters)"
-assert_eq "adapters only for subagent roles" "$(ls .claude/agents | paste -sd ' ' -)" "cleaner.md coder.md"
-assert_eq "adapters for copilot" "$(ls .github/agents | paste -sd ' ' -)" "cleaner.agent.md coder.agent.md"
-assert_eq "adapters for codex" "$(ls .codex/agents | paste -sd ' ' -)" "cleaner.toml coder.toml"
-assert_eq "adapters for kilo" "$(ls .kilo/agent | paste -sd ' ' -)" "cleaner.md coder.md"
-assert_eq "adapters for vibe" "$(ls .vibe/agents | paste -sd ' ' -)" "cleaner.toml coder.toml"
-assert_match "claude adapter uses the tier model" "$(cat .claude/agents/cleaner.md)" "^model: sonnet$"
-assert_match "frontier adapter inherits the session model" "$(cat .claude/agents/coder.md)" "^model: inherit$"
-assert_eq "copilot adapter uses the tier model" \
-  "$(sed -n 's/^model: //p' .github/agents/cleaner.agent.md)" "$(awk '$1 == "fast" {print $4}' kevin/tiers.conf)"
-assert_match "codex adapter uses the tier effort" "$(cat .codex/agents/cleaner.toml)" '^model_reasoning_effort = "low"$'
-assert_match "kilo adapter is a subagent" "$(cat .kilo/agent/cleaner.md)" "^mode: subagent$"
-assert_eq "kilo adapter inherits the session model" \
-  "$(sed -n 's/^model: //p' .kilo/agent/cleaner.md)" ""
-assert_match "vibe adapter is a subagent" "$(cat .vibe/agents/cleaner.toml)" '^agent_type = "subagent"$'
-assert_eq "vibe adapter uses the tier model" \
-  "$(sed -n 's/^active_model = \"//p' .vibe/agents/cleaner.toml | sed 's/\"$//')" "$(awk '$1 == "fast" {print $6}' kevin/tiers.conf)"
+assert_eq "adapters only for subagent roles" "$(ls agents | paste -sd ' ' -)" "cleaner.md coder.md"
+assert_eq "adapters for copilot" "$(ls .github/plugin/agents | paste -sd ' ' -)" "cleaner.agent.md coder.agent.md"
+assert_eq "adapters write no project agents" "$(ls -d .claude .codex .github/agents .kilo .vibe 2>/dev/null)" ""
+assert_match "claude agent uses the tier model" "$(cat agents/cleaner.md)" "^model: sonnet$"
+assert_match "frontier agent inherits the session model" "$(cat agents/coder.md)" "^model: inherit$"
+assert_eq "copilot agent uses the tier model" \
+  "$(sed -n 's/^model: //p' .github/plugin/agents/cleaner.agent.md)" "$(awk '$1 == "fast" {print $4}' kevin/tiers.conf)"
+outside="$(mktemp -d "$scratch/outside.XXXX")"
+(cd "$outside" && git init -q . && ! kevin adapters 2>"$outside.err") \
+  && assert_eq "adapters refuse outside the Kevin source checkout" "$(cat "$outside.err")" "kevin: kevin adapters runs only in the Kevin source checkout" \
+  || fail "adapters ran outside the Kevin source checkout"
+assert_eq "adapters write nothing outside the Kevin source checkout" "$(ls -A "$outside")" ".git"
 
-# committed adapters are current
+# committed plugin agents are current
 work="$(mktemp -d "$scratch/adapters.XXXX")"
-cp -R "$HERE/.claude" "$HERE/.github" "$HERE/.codex" "$HERE/.vibe" "$work/" \
-  && mkdir -p "$work/.kilo" && cp -R "$HERE/.kilo/agent" "$HERE/.kilo/command" "$work/.kilo/" \
+mkdir -p "$work/.github/plugin" && cp -R "$HERE/agents" "$work/" && cp -R "$HERE/.github/plugin/agents" "$work/.github/plugin/" \
   && copy_kevin "$work"
-(cd "$work" && git init -q . && git add -A && git commit -q -m seed && ./kevin/bin/kevin adapters >/dev/null && git diff --quiet) \
-  && pass "committed adapters match kevin adapters" \
-  || fail "committed adapters are stale; run kevin/bin/kevin adapters"
+(cd "$work" && git init -q . && git add -A && git commit -q -m seed && ./kevin/bin/kevin adapters >/dev/null && git add -A && git diff --cached --quiet) \
+  && pass "committed plugin agents match kevin adapters" \
+  || fail "committed plugin agents are stale; run kevin adapters"
 
 # configuration check
 copy_kevin .
@@ -543,14 +540,12 @@ assert_match "check in main reads main's config" "$(kevin check)" "^CHECK: ok"
 git -C "$wt" checkout -q -- kevin/roles.conf
 assert_fails "new from a worktree resolves routes from main" sh -c "cd '$wt' && kevin new Y -m x --route quick"
 assert_eq "route from a worktree is unchanged" "$(cd "$wt" && kevin route "$idc")" "coder"
-cp -R .claude .codex .github "$wt/"
 sed -i 's/^cleaner   fast /cleaner   strong /' "$wt/kevin/roles.conf"
-sed -i '3s/.*/Cleans up after the coder./' "$wt/kevin/roles/cleaner.md"
-(cd "$wt" && kevin adapters >/dev/null) && pass "adapters in a worktree take over main's adapters" || fail "adapters in a worktree"
-assert_match "adapters writes the worktree's agents" "$(cat "$wt/.claude/agents/cleaner.md")" "^model: opus$"
-assert_match "adapters leaves main's agents" "$(cat .claude/agents/cleaner.md)" "^model: sonnet$"
+(cd "$wt" && kevin adapters >/dev/null) && pass "adapters run in a worktree" || fail "adapters in a worktree"
+assert_match "adapters writes the worktree's agents" "$(cat "$wt/agents/cleaner.md")" "^model: opus$"
+assert_match "adapters leaves main's agents" "$(cat agents/cleaner.md)" "^model: sonnet$"
 kevin adapters >/dev/null && pass "adapters in main still succeeds" || fail "adapters in main after a worktree run"
-assert_match "main's agents follow main's config" "$(cat .claude/agents/cleaner.md)" "^model: sonnet$"
+assert_match "main's agents follow main's config" "$(cat agents/cleaner.md)" "^model: sonnet$"
 
 # Tasks live in their record commits. Finished state is the finished merge in
 # HEAD's history, any parent included; only local swarm/* branches are read.
@@ -1154,10 +1149,13 @@ for gates in none falsifier; do
     "$([ "$gates" = none ] && echo 0 || echo 1)"
 done
 
-for pair in ".claude/skills/swarm/SKILL.md .agents/skills/swarm/SKILL.md"; do
-  set -- $pair
-  cmp -s "$HERE/$1" "$HERE/$2" && pass "$1 matches $2" || fail "$1 differs from $2"
-done
+versions="$(for manifest in .claude-plugin/plugin.json .codex-plugin/plugin.json .github/plugin/plugin.json; do
+  bb -e '(:version (cheshire.core/parse-string (slurp (first *command-line-args*)) true))' "$HERE/$manifest"
+done | sort -u)"
+assert_eq "the three plugin manifests carry one version" "$(wc -l <<<"$versions")" "1"
+assert_eq "kevin version prints the plugin version" "\"$("$HERE/kevin/bin/kevin" version)\"" "$versions"
+assert_eq "the Copilot plugin names its agents" \
+  "$(bb -e '(:agents (cheshire.core/parse-string (slurp (first *command-line-args*)) true))' "$HERE/.github/plugin/plugin.json")" '".github/plugin/agents/"'
 
 for manifest in .claude-plugin/plugin.json .codex-plugin/plugin.json .github/plugin/plugin.json; do
   assert_eq "$manifest names the kevin plugin" \

@@ -38,6 +38,13 @@
                   "exec '/main/bin/x' \"$@\"")
              (wrapper/local-command "/main" "bin/x")))
 
+  (it "runs a local script from the caller's checkout of the same repository when it has one, else the runtime's"
+    (should= (str "top=\"$(git rev-parse --show-toplevel 2>/dev/null)\""
+                  " && [ \"$(git rev-parse --path-format=absolute --git-common-dir)\" = '/main/.git' ]"
+                  " && [ -x \"$top/\"'bin/x' ] && exec \"$top/\"'bin/x' \"$@\"\n"
+                  "exec \"$('/u/kevin' home)/../\"'bin/x' \"$@\"")
+             (wrapper/runtime-command "/main" "/u/kevin" "bin/x")))
+
   (it "quotes single quotes in paths"
     (should= "exec bb --config '/it'\\''s/bb.edn' 't' \"$@\"" (wrapper/bb-command "/it's" "t"))))
 

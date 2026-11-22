@@ -76,6 +76,14 @@
   (-> (must {} "git" "rev-parse" "--path-format=absolute" "--git-common-dir")
       chomp fs/path fs/parent str))
 
+(defn main-root
+  "The main checkout, also from inside a task worktree, or nil outside any git
+  repository."
+  []
+  (let [result (run {} "git" "rev-parse" "--path-format=absolute" "--git-common-dir")]
+    (when (ok? result)
+      (-> (:out result) chomp fs/path fs/parent str))))
+
 (defn checkout-root
   "The checkout the command runs in: the task worktree or the main checkout."
   []

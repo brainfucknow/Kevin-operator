@@ -9,19 +9,20 @@ from .catalogue import Role, mistral_model, role_by_name
 from .models import GateReport
 
 
-def role_prompt(role: str, task_id: str) -> str:
+def role_prompt(role: str, task_id: str, home: str) -> str:
+    """home is the runtime's kevin/ directory, as kevin home prints it."""
     return (
-        f"You are the Kevin '{role}' role. Read kevin/constitution.md and "
-        f"follow its reading instructions, then read kevin/roles/{role}.md, then "
-        f"do your role's work for task {task_id}. Start with: kevin/bin/kevin start {task_id}"
+        f"You are the Kevin '{role}' role. Read {home}/constitution.md and "
+        f"follow its reading instructions, then read {home}/roles/{role}.md, then "
+        f"do your role's work for task {task_id}. Start with: kevin start {task_id}"
     )
 
 
-def gate_prompt(role: str, task_id: str) -> str:
+def gate_prompt(role: str, task_id: str, home: str) -> str:
     return (
-        f"You are the Kevin '{role}' gate. Read kevin/roles/{role}.md, then "
+        f"You are the Kevin '{role}' gate. Read {home}/roles/{role}.md, then "
         f"audit the specification of task {task_id} that waits for approval. Start with: "
-        f"kevin/bin/kevin show {task_id}. Change nothing: no edits, no commits, no kevin "
+        f"kevin show {task_id}. Change nothing: no edits, no commits, no kevin "
         f"command that records. End with your report."
     )
 
@@ -29,30 +30,31 @@ def gate_prompt(role: str, task_id: str) -> str:
 def judge_prompt(task_id: str, gate_reports: list[GateReport]) -> str:
     reports = "\n\n".join(f"{r.role}:\n{r.report}" for r in gate_reports) or "(no gate reports)"
     return (
-        f"Task {task_id}. Run: kevin/bin/kevin spec-revisions {task_id} --full\n"
+        f"Task {task_id}. Run: kevin spec-revisions {task_id} --full\n"
         f"Then read these gate reports of this spec revision verbatim:\n\n{reports}\n"
         f"End your report with SPEC-VERDICT: <converged|continue|needs-operator|stuck> "
         f"and REASON: <why>. Record nothing."
     )
 
 
-def agent_instructions(role: Role, repo: str, tiers: dict[str, dict[str, str]], writable: bool) -> str:
+def agent_instructions(role: Role, home: str, tiers: dict[str, dict[str, str]], writable: bool) -> str:
     """The standing instructions of one role agent: the constitution, the role
-    prompt file, and how its tools map onto the task worktree."""
+    prompt file of the runtime at home, and how its tools map onto the task
+    worktree."""
     model = mistral_model(tiers, role.tier)
-    role_file = os.path.join(repo, "kevin", "roles", f"{role.name}.md")
+    role_file = os.path.join(home, "roles", f"{role.name}.md")
     role_text = open(role_file, encoding="utf-8").read() if os.path.isfile(role_file) else ""
     tools = (
         "run_shell runs a shell command in the task worktree; read_file and write_file "
         "work on paths relative to the worktree root."
         if writable
-        else "run_readonly_shell runs read-only inspection commands (kevin/bin/kevin "
+        else "run_readonly_shell runs read-only inspection commands (kevin "
         "show, git log, git diff, cat) in the task worktree; read_file reads files "
         "relative to the worktree root. You have no write tool and must record nothing."
     )
     return (
         f"You are a Kevin role agent on model {model}. You work in a clone of the "
         f"project repository; the task worktree is your working directory. {tools}\n\n"
-        f"Read kevin/constitution.md and obey every article it lists.\n\n"
+        f"Read {home}/constitution.md and obey every article it lists.\n\n"
         f"Your role prompt:\n\n{role_text}"
     )

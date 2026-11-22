@@ -1,20 +1,27 @@
 (ns kevin.adapters
-  "Agent files for each subagent role, one per harness."
+  "Agent files for each subagent role. kevin adapters writes the plugin agents
+  of the Kevin source checkout: Claude Code's agents/<role>.md and Copilot's
+  .github/plugin/agents/<role>.agent.md. The five shapes that an old committed
+  install wrote into a project stay here so kevin init --convert can recognize
+  them."
   (:require [babashka.fs :as fs]
-            [clojure.edn :as edn]
+            [cheshire.core :as json]
             [clojure.string :as str]
             [kevin.config :as config]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
-(def ^:private targets
-  [".claude/agents" ".github/agents" ".codex/agents" ".kilo/agent" ".vibe/agents"])
+(defn summary
+  "The first non-blank line after the title of the role prompt text."
+  [text]
+  (first (remove str/blank? (rest (str/split-lines text)))))
 
 (defn- role-summary
-  "The first non-blank line after the title of the role prompt."
+  "The summary of the runtime's prompt of the role."
   [role]
-  (let [file (fs/path (config/conf-dir) "roles" (str role ".md"))]
+  (let [file (fs/path (installed/home) "roles" (str role ".md"))]
     (when-not (fs/exists? file) (shell/die "missing role prompt " file))
-    (first (remove str/blank? (rest (str/split-lines (slurp (str file))))))))
+    (summary (slurp (str file)))))
 
 (defn- toml-escape
   "Escapes s for use inside a TOML basic string."
@@ -54,7 +61,7 @@
    :copilot "[\"read\", \"search\", \"shell\"]"
    :vibe "enabled_tools = [\"read_file\", \"grep\", \"glob\", \"bash\"]\n"})
 
-(def ^:private kinds
+(def kinds
   "The kinds of subagent, each with its adapter template and when to use it."
   {:stage {:template "adapter.md" :noun "role" :use "Use for a task whose stage is {{role}}."}
    :gate {:template "gate-adapter.md" :noun "gate"
@@ -62,16 +69,21 @@
    :spec-judge {:template "spec-judge-adapter.md" :noun "spec-judge"
                 :use "Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict."}})
 
-(defn- kind-of [role]
+(defn kind-of [role]
   (cond (config/gate? role) :gate
         (config/spec-judge? role) :spec-judge
         :else :stage))
 
-(defn- agent-files [role tier kind]
+(defn agent-files
+  "The agent of each harness for the role as kevin wrote it into a project:
+  path to text. templates is the resource directory of the templates (\"\"
+  for the current ones, \"legacy/\" for those of the removed committed
+  install), summary the first line of the role prompt."
+  [role tier kind {:keys [templates summary]}]
   (let [{:keys [template noun use]} (kinds kind)
         read-only? (not= :stage kind)
-        body (str/replace (shell/template template) "{{role}}" role)
-        description (str "Kevin " role " " noun ". " (role-summary role) " " (str/replace use "{{role}}" role))]
+        body (str/replace (shell/template (str templates template)) "{{role}}" role)
+        description (str "Kevin " role " " noun ". " summary " " (str/replace use "{{role}}" role))]
     {(str ".claude/agents/" role ".md")
      (str "---\nname: " role "\ndescription: " description "\nmodel: " (config/tier-field tier 2)
           (when read-only? (str "\ntools: " (:claude gate-tools))) "\n---\n\n" body)
@@ -96,106 +108,44 @@
           (when read-only? (:vibe gate-tools))
           "instructions = \"\"\"\n" (str body vibe-trailer-instruction) "\"\"\"\n")}))
 
-(defn- digest [text]
-  (let [bytes (.digest (java.security.MessageDigest/getInstance "SHA-256")
-                       (.getBytes text "UTF-8"))]
-    (apply str (map #(format "%02x" (bit-and % 0xff)) bytes))))
+(def plugin-dirs
+  "The plugin agent directories of the source checkout, with the harness
+  agent each takes and the file suffix."
+  {"agents" {:from ".claude/agents" :suffix ".md"}
+   ".github/plugin/agents" {:from ".github/agents" :suffix ".agent.md"}})
 
-(defn- adapter-path? [path]
-  (boolean (and (string? path)
-                (re-matches #"\.(?:claude/agents/[a-z][a-z0-9-]*\.md|github/agents/[a-z][a-z0-9-]*\.agent\.md|codex/agents/[a-z][a-z0-9-]*\.toml|kilo/agent/[a-z][a-z0-9-]*\.md|vibe/agents/[a-z][a-z0-9-]*\.toml)" path))))
+(defn plugin-files
+  "The plugin agents of the role: path to text."
+  [role tier kind]
+  (let [files (agent-files role tier kind {:templates "" :summary (role-summary role)})]
+    (into {} (for [[dir {:keys [from suffix]}] plugin-dirs]
+               [(str dir "/" role suffix) (get files (str from "/" role suffix))]))))
 
-(defn- read-ownership [file]
-  (when (or (fs/sym-link? file) (fs/sym-link? (fs/parent file)))
-    (shell/die "adapter ownership must not be a symbolic link: " file))
-  (when (and (fs/exists? (fs/parent file)) (not (fs/directory? (fs/parent file))))
-    (shell/die "invalid adapter ownership directory: " (fs/parent file)))
-  (if-not (fs/exists? file)
-    {}
-    (let [owned (edn/read-string (slurp (str file)))]
-      (when-not (and (map? owned)
-                     (every? (fn [[path hash]]
-                               (and (adapter-path? path) (string? hash)
-                                    (re-matches #"[a-f0-9]{64}" hash))) owned))
-        (shell/die "invalid adapter ownership in " file))
-      owned)))
+(defn- source-checkout?
+  "True when root is the Kevin source checkout: its Claude Code plugin
+  manifest names the plugin kevin."
+  [root]
+  (let [manifest (fs/path root ".claude-plugin" "plugin.json")]
+    (and (fs/regular-file? manifest)
+         (= "kevin" (get (try (json/parse-string (slurp (str manifest))) (catch Exception _ nil)) "name")))))
 
-(defn- legacy-shape [path text]
-  (str/replace text
-               (cond
-                 (str/starts-with? path ".vibe/")
-                 #"(?m)^(?:active_model = \"[^\"\r\n]*\"|enabled_tools = \[[^\r\n]*\])\n"
-
-                 (str/ends-with? path ".toml")
-                 #"(?m)^model_reasoning_effort = \"[^\r\n]*\"\n"
-
-                 :else
-                 #"(?m)^(?:model|tools): [^\r\n]*\n")
-               ""))
-
-(defn- legacy-ownership
-  "The adapters on disk that kevin adapters wrote for a role prompt, as a stage,
-  a gate or the spec-judge, whatever roles.conf now says about the role."
-  [root owned]
-  (into {} (for [prompt (fs/glob (fs/path (config/conf-dir) "roles") "*.md")
-                 :let [role (str/replace (fs/file-name prompt) #"\.md$" "")]
-                 kind (keys kinds)
-                 [path text] (agent-files role (ffirst (config/rows "tiers.conf")) kind)
-                 :let [file (fs/path root path)]
-                 :when (and (not (contains? owned path)) (not (fs/sym-link? file))
-                            (fs/regular-file? file))
-                 :let [actual (slurp (str file))]
-                 :when (= (legacy-shape path text) (legacy-shape path actual))]
-             [path (digest actual)])))
-
-(defn- tracked-canonical? [root path text]
-  (every? (fn [revision]
-            (let [{:keys [exit out]} (shell/run {:dir root} "git" "show" (str revision path))]
-              (and (zero? exit) (= text out))))
-          ["HEAD:" ":"]))
-
-(defn- refreshed-ownership [root desired recorded]
-  (into {} (for [[path hash] recorded
-                 :let [text (get desired path)
-                       expected (when text (digest text))
-                       file (fs/path root path)]]
-             [path (if (and text (not= hash expected) (not (fs/sym-link? file))
-                            (fs/regular-file? file) (= text (slurp (str file)))
-                            (tracked-canonical? root path text))
-                     expected
-                     hash)])))
-
-(defn- preflight [root paths owned]
-  (doseq [dir targets
-          part [dir (fs/parent dir)]
-          :let [path (fs/path root part)]
-          :when (or (fs/sym-link? path) (and (fs/exists? path) (not (fs/directory? path))))]
-    (shell/die "conflicting project agent directory: " dir))
-  (doseq [path paths
-          :let [file (fs/path root path)]
-          :when (or (fs/exists? file) (fs/sym-link? file))]
-    (when-not (and (not (fs/sym-link? file)) (fs/regular-file? file)
-                   (= (get owned path) (digest (slurp (str file)))))
-      (shell/die "conflicting project agent: " path "; preserve or move it before regenerating adapters"))))
+(defn- generated
+  "The files in the plugin agent directories under root."
+  [root]
+  (for [[dir {:keys [suffix]}] plugin-dirs
+        file (fs/glob (fs/path root dir) (str "*" suffix))]
+    (str dir "/" (fs/file-name file))))
 
 (defn adapters [_]
-  (shell/quietly config/check)
-  (let [root (shell/checkout-root)
-        roles (filter #(= "subagent" (nth % 2)) (config/rows "roles.conf"))
-        desired (into {} (mapcat (fn [[role tier]] (agent-files role tier (kind-of role))) roles))
-        [state legacy] (shell/state-paths root "adapters.edn")
-        [main-state main-legacy] (shell/state-paths (shell/repo-root) "adapters.edn")
-        local (read-ownership state)
-        recorded (if (fs/exists? state)
-                   local
-                   (read-ownership (or (first (filter fs/exists? [main-state legacy main-legacy])) main-state)))
-        owned (merge (legacy-ownership root recorded) (refreshed-ownership root desired recorded))]
-    (preflight root (distinct (concat (keys desired) (keys owned))) owned)
-    (doseq [path (remove (set (keys desired)) (keys owned))]
-      (fs/delete-if-exists (fs/path root path)))
-    (doseq [[path text] desired]
-      (fs/create-dirs (fs/parent (fs/path root path)))
-      (spit (str (fs/path root path)) text))
-    (fs/create-dirs (fs/parent state))
-    (spit (str state) (pr-str (into (sorted-map) (map (fn [[path text]] [path (digest text)]) desired))))
-    (doseq [[role tier] roles] (println (str role ": " tier)))))
+  (let [root (shell/checkout-root)]
+    (when-not (source-checkout? root)
+      (shell/die "kevin adapters runs only in the Kevin source checkout"))
+    (shell/quietly config/check)
+    (let [roles (filter #(= "subagent" (nth % 2)) (config/rows "roles.conf"))
+          desired (into {} (mapcat (fn [[role tier]] (plugin-files role tier (kind-of role))) roles))]
+      (doseq [path (generated root) :when (not (contains? desired path))]
+        (fs/delete (fs/path root path)))
+      (doseq [[path text] desired]
+        (fs/create-dirs (fs/parent (fs/path root path)))
+        (spit (str (fs/path root path)) text))
+      (doseq [[role tier] roles] (println (str role ": " tier))))))

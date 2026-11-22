@@ -10,7 +10,10 @@
 <command> --help or -h prints that command's own usage lines.
 
 Operator commands
-  init                           install the commit-msg hook; print the identity of record commits
+  init [--convert]                set up the project: kevin/project.md, the shared exclude
+                                  lines and the commit-msg hook; print the identity of record
+                                  commits. --convert first turns a committed install into
+                                  configuration and stages the change
   new <title> [-m text | -F file] [--route NAME|a,b,c] [--gates <gates>]
       [--fixes <id>|'#N' [--found-by pr-review|ci|operator]]
                                   create a task on a route; prints its id. <gates> is a
@@ -64,9 +67,15 @@ Catalogue commands
                                   task's gates when the specification it dispatched waits for approval;
                                   with mistral one kevin-pipeline workflow execution per
                                   call runs the loop on the Mistral platform (kevin/workflows/)
-  adapters                        regenerate .claude/.codex/.github/.vibe agent files
+  adapters                        regenerate the plugin agents (Kevin source checkout only)
   tool require|ensure|list|bin    install constitution tools project-locally (kevin tool --help)
   check                           validate roles.conf, tiers.conf, routes.conf, tools.conf, role prompts
+
+Runtime commands
+  version                         print the Kevin runtime version
+  home                            print the runtime's kevin/ directory: role prompts, constitution
+  cs|fs|vb|js|rb|java|mistral <args>
+                                  run the runtime's language or Mistral command with args
 
 Hook commands
   commit-msg <role> <file>        add the byline and a Lore-id to a commit message (the commit-msg hook runs this)

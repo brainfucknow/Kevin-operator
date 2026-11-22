@@ -9,40 +9,48 @@ through Git task branches; the operator handles questions and approvals in chat.
 - `git`, and `bash` for `install.sh`, the commit-msg hook, and the tool wrappers
 - [Babashka](https://babashka.org) (`bb`) for `kevin`, which needs 1.12.216 or newer
   and refuses an older `bb`, and for the C#, F#, VB.NET, JavaScript, Ruby and
-  Java tool wrappers and the Clojure constitution tools. `install.sh` checks `bb` before
-  it changes the project.
-- One of Kilo, Mistral Vibe, Claude Code, Codex CLI, or Copilot CLI
+  Java tool wrappers and the Clojure constitution tools. `install.sh` checks `bb`
+  before it writes anything.
+- One of Claude Code, Copilot CLI, Codex CLI, Kilo, or Mistral Vibe
 
-## Install as a plugin
+## Install
 
-The plugin adds the `swarm` skill to Claude Code, Codex CLI, or Copilot CLI.
-On first use in a project, the skill asks to run `install.sh` there.
+Kevin is a harness plugin. The plugin directory is the Kevin runtime: the
+`kevin` command, the role prompts, the constitution, the language guides and
+the tool sources. A project commits only its configuration.
 
-Claude Code:
+1. Install the plugin.
 
-```text
-/plugin marketplace add brainfucknow/Kevin-operator
-/plugin install kevin@kevin-operator
-```
+   Claude Code:
 
-Codex CLI:
+   ```text
+   /plugin marketplace add brainfucknow/Kevin-operator
+   /plugin install kevin@kevin-operator
+   ```
 
-```sh
-codex plugin marketplace add brainfucknow/Kevin-operator
-codex plugin add kevin@kevin-operator
-```
+   Codex CLI:
 
-Copilot CLI:
+   ```sh
+   codex plugin marketplace add brainfucknow/Kevin-operator
+   codex plugin add kevin@kevin-operator
+   ```
 
-```sh
-copilot plugin install brainfucknow/Kevin-operator
-```
+   Copilot CLI:
 
-Start with `/kevin:swarm <feature request>` in Claude Code, `$swarm` in
-Codex, or `/swarm` in Copilot. The project install also adds a project
-`swarm` skill, so the project works without the plugin. Update the plugin
-through the harness. To update the project, rerun `install.sh` from a source
-checkout.
+   ```sh
+   copilot plugin install brainfucknow/Kevin-operator
+   ```
+
+2. Put `kevin` on PATH once per user. Run `install.sh --user` in the
+   plugin directory, or in a clone of this repository. It links
+   `~/.local/bin/kevin` to the runtime's `kevin/bin/kevin` and writes nothing
+   else. Run it again after a plugin update to move the link. The `swarm`
+   skill offers this step when `kevin` is missing.
+
+3. Set up each project: run `kevin init` in it. It writes `kevin/project.md`,
+   adds `.worktrees/`, `.kevin/`, `tmp/` and `.metrics/` to
+   `.git/info/exclude`, and installs the commit-msg hook. Commit
+   `kevin/project.md`, then set the project language there.
 
 | Harness | Plugin manifest | Marketplace |
 |---|---|---|
@@ -50,48 +58,33 @@ checkout.
 | Codex CLI | `.codex-plugin/plugin.json` | `.agents/plugins/marketplace.json` |
 | Copilot CLI | `.github/plugin/plugin.json` | `.github/plugin/marketplace.json` |
 
-All three load `skills/swarm/SKILL.md`.
+All three load `skills/swarm/SKILL.md`. Start with `/kevin:swarm <feature
+request>` in Claude Code, `$swarm` in Codex, or `/swarm` in Copilot.
 
-## Install into a project
+### Project files
 
-To install without a plugin:
+| File | Required | Purpose |
+|---|---|---|
+| `kevin/project.md` | yes | The project article: language, verification, ownership, and `Minimum Kevin version:` |
+| `kevin/roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | no | Override the runtime's copy of the same file |
+| `kevin/verify.conf` | no | The commands `kevin finish` runs; without it, none run |
 
-```sh
-git clone https://github.com/brainfucknow/Kevin-operator
-cd your-project
-../Kevin-operator/install.sh
-```
+`kevin version` prints the runtime version, and a runtime older than the
+project's `Minimum Kevin version:` is refused. The [runtime
+guide](kevin/README.md) lists the commands, including `kevin cs`, `kevin fs`,
+`kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral`.
 
-The installer copies the Kevin runtime, guidance, and `swarm` skill into
-the project, adds instructions to `AGENTS.md`, `CLAUDE.md`, and
-`.github/copilot-instructions.md`, generates the agents, and installs the
-commit-msg hook. It also writes `kevin/.gitignore` so that a project
-rule ignoring every `bin/` directory, such as Visual Studio's `[Bb]in/`, does
-not drop `kevin/bin`. Commit the result.
-Development assets stay in this source checkout.
+### A project with a committed install
 
-Then set the project language in `kevin/constitution/articles/project.md`.
-
-To update, rerun this source checkout's `install.sh`. Runtime, guidance and
-skills are refreshed. The project owns `kevin/constitution/articles/project.md`
-and the shipped top-level `kevin/*.conf` files: existing files are kept,
-and only missing files receive defaults. `verify.conf` is never installed or
-changed. This also applies to older installs without ownership metadata.
-
-An install under the old name SwarmForge keeps the harness in `swarmforge/`.
-The installer moves it to `kevin/` and removes the tool sources the old
-install shipped under their old names. It rewrites the old names
-(`swarmforge/` paths, `sf-*` command names, `SwarmForge-*` trailers,
-`SWARMFORGE_*` variables) in the project's own files there, prints each file
-it rewrote, and replaces the old `AGENTS.md` line. It refuses a project that has both directories.
-Review the diff and commit it. Tasks begun before the move keep working.
-
-A runtime update can require configuration changes. Compare those files with
-the defaults in the source checkout, merge the changes your project needs,
-then run `kevin/bin/kevin adapters` to regenerate agents. Invalid preserved
-settings fail validation instead of being reset. The installer lists unshipped
-payload files for manual review; they may be user files, so it never deletes
-them or assumes they were retired upstream.
+An older Kevin copied the runtime into the project with `install.sh
+<project>`. That install is gone. Run `kevin init --convert` in such a
+project with a clean working tree. It moves
+`kevin/constitution/articles/project.md` to `kevin/project.md`, removes the
+committed runtime, Kevin's generated agents, the swarm skills and the Kevin
+instruction lines, rewrites `kevin/bin/kevin-<name>` in the kept
+configuration to `kevin <name>`, then does what `kevin init` does. It stages
+the change and does not commit. Review the diff and commit it. Tasks begun
+before the conversion still finish.
 
 ## Run
 
@@ -111,30 +104,23 @@ For the default `feature` route, the session orchestrates:
    and removes the task branch and worktree.
 
 `kevin ls` shows open tasks and what they need from you; `kevin show <id>` shows
-history. See the [installed guide](kevin/README.md) for commands and the
+history. See the [runtime guide](kevin/README.md) for commands and the
 [handoff protocol](kevin/handoff-protocol.md) for approval, recovery,
 and sharing rules.
 
 ## Harness integration
 
-| Harness | Session entry | Subagent roles | Model tier |
-|---|---|---|---|
-| Kilo | `/swarm` from `.kilo/command/` | `.kilo/agent/<role>.md` | `model:` `provider/model`, or the session model when `inherit` |
-| Mistral Vibe | `/swarm` from `.vibe/skills/swarm/` | `.vibe/agents/<role>.toml` | `active_model` alias, or the session model when `inherit` |
-| Claude Code | `/swarm` from `.claude/skills/swarm/` | `.claude/agents/<role>.md` | `model:` `inherit`, `opus`, or `sonnet` |
-| Codex CLI | `$swarm` from `.agents/skills/swarm/` | `.codex/agents/<role>.toml` | `model_reasoning_effort` high / medium / low |
-| Copilot CLI | `/swarm` from `.agents/skills/swarm/` | `.github/agents/<role>.agent.md` | `model: gpt-6.1-sol` or `gpt-6.1-terra` |
+| Harness | Session entry | Subagent roles |
+|---|---|---|
+| Claude Code | `/kevin:swarm` | plugin agents `kevin:<role>` from `agents/<role>.md` |
+| Copilot CLI | `/swarm` | plugin agents from `.github/plugin/agents/<role>.agent.md` |
+| Codex CLI | `$swarm` | none; roles run through `kevin dispatch` |
+| Kilo, Mistral Vibe | ask the session to follow the orchestrator in `kevin home` | none; roles run through `kevin dispatch` |
 
-`kevin adapters` generates agent files from `kevin/roles.conf` and
-`kevin/tiers.conf`. Each agent reads the shared constitution and its role
-prompt under `kevin/roles/`. Vibe loads `./.vibe/agents/` subagents and
-the `./.vibe/skills/` skill only when the project folder is trusted, and it
-spawns the role subagents itself; its subagents cannot use MCP tools, which the
-roles do not need.
-
-Codex: custom agent roles need the multi-agent feature. If `codex` does not
-offer the roles, enable it in `~/.codex/config.toml` per the Codex subagents
-documentation, or fall back to `kevin run <id>` below.
+`kevin adapters`, run in this source checkout, generates the plugin agents
+from `kevin/roles.conf` and `kevin/tiers.conf`. Each agent reads the
+constitution and its role prompt in the directory `kevin home` prints.
+A project's `roles.conf` and `tiers.conf` do not change the plugin agents.
 
 If a harness cannot delegate, `kevin dispatch <role> <id>` runs the role in a
 headless `claude -p`, `codex exec`, or `copilot -p` session started in the
@@ -171,12 +157,12 @@ The [role catalogue](kevin/roles.conf) assigns tiers and supports
 `subagent`, `session`, `audit`, `optional`, and `send-back` settings. See
 [configuration](kevin/README.md#configuration) for these settings and
 the optional reviewers. Model mappings live in
-[`kevin/tiers.conf`](kevin/tiers.conf); regenerate agents with
-`kevin adapters` after changing roles, routes, or tiers.
+[`kevin/tiers.conf`](kevin/tiers.conf). In this source checkout, regenerate
+the plugin agents with `kevin adapters` after changing roles or tiers.
 
 ## Reference
 
-- [Installed guide](kevin/README.md): commands and configuration.
+- [Runtime guide](kevin/README.md): commands and configuration.
 - [Handoff protocol](kevin/handoff-protocol.md): task branches and records.
 - Language tools: [Clojure](kevin/languages/clojure.md),
   [C#](kevin/languages/csharp.md), [F#](kevin/languages/fsharp.md),
@@ -187,7 +173,7 @@ the optional reviewers. Model mappings live in
 
 ## Tests
 
-Run these from the source checkout; fresh consumer installs omit harness tests and fixtures.
+Run these from the source checkout.
 
 Choose checks for the affected behavior and dependencies. Reuse passing
 evidence for the same relevant revision and targets; the full CI matrix is
@@ -200,7 +186,7 @@ to the affected targets, and property checks remain separate and role-owned.
 | Shared wrapper behavior | `bb --config kevin/tools/core/bb.edn test`, then affected language-wrapper unit suites. |
 | .NET wrapper | `bb --config kevin/tools/csharp/bb.edn test`, plus the shared architecture check; use combined coverage below when coverage evidence needs refreshing. |
 | Task state or CLI behavior | Affected kevin specs and public-CLI checks in `test/kevin_test.sh` or named `test/features/task_store/` features. |
-| Installer | Installer specs, named `test/features/install/` features and `test/features/adapters/` preservation/collision checks. |
+| Installer and project setup | `test/features/install/` and `test/features/project/` features, and the init and convert specs. |
 | Tool installation or argument rewriting | Relevant kevin specs, `test/kevin_tool_test.sh`, and affected tool compatibility checks. |
 | Acceptance fixtures | `bash test/acceptance.sh <feature>...`; for identity changes include `test/features/task_store/init.feature`. |
 | Documentation only | Manual review and existing configuration/link checks relevant to the edit. |

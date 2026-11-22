@@ -7,6 +7,7 @@
             [kevin.config :as config]
             [kevin.flow :as flow]
             [kevin.record :as record]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.store :as store]
             [kevin.task :as task]))
@@ -22,7 +23,7 @@
   (vec (remove #{"mistral"} record/backends)))
 
 (defn- kevin-mistral-path []
-  (str (fs/path (shell/repo-root) "kevin" "bin" "kevin-mistral")))
+  (str (fs/path (installed/home) "bin" "kevin-mistral")))
 
 (defn- bb-bin []
   (or (fs/which "bb") "bb"))
@@ -35,9 +36,10 @@
   [(bb-bin) (kevin-mistral-path) "dispatch" role id])
 
 (defn- role-prompt [role short]
-  (if (config/gate? role)
-    (str "You are the Kevin '" role "' gate. Read kevin/roles/" role ".md, then audit the specification of task " short " that waits for approval. Start with: kevin/bin/kevin show " short ". Change nothing: no edits, no commits, no kevin command that records. End with your report.")
-    (str "You are the Kevin '" role "' role. Read kevin/constitution.md and follow its reading instructions, then read kevin/roles/" role ".md, then do your role's work for task " short ". Start with: kevin/bin/kevin start " short)))
+  (let [home (installed/home)]
+    (if (config/gate? role)
+      (str "You are the Kevin '" role "' gate. Read " home "/roles/" role ".md, then audit the specification of task " short " that waits for approval. Start with: kevin show " short ". Change nothing: no edits, no commits, no kevin command that records. End with your report.")
+      (str "You are the Kevin '" role "' role. Read " home "/constitution.md and follow its reading instructions, then read " home "/roles/" role ".md, then do your role's work for task " short ". Start with: kevin start " short))))
 
 (defn- detect-backend []
   (or (shell/kevin-env "BACKEND" nil)

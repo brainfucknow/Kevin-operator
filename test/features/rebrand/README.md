@@ -2,9 +2,8 @@
 
 These features cover what still works under the old SwarmForge names after
 the rename to Kevin: task records with `SwarmForge-*` trailers, the commit-msg
-hook, `SWARMFORGE_*` variables, the `swarmforge/metrics` branch, gate audit
-state in `.swarmforge/audit/`, and the `install.sh` migration of an old
-install.
+hook, `SWARMFORGE_*` variables, the `swarmforge/metrics` branch,
+and gate audit state in `.swarmforge/audit/`.
 
 Run `bash test/acceptance.sh` from the repository root. A "legacy" fixture is
 made with git and plain files, as an old `sf` wrote them, not by running an

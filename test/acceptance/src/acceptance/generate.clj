@@ -14,11 +14,11 @@
   "Keeps feature families separate so shared step wording cannot select competing handlers."
   [feature-path]
   (condp #(str/includes? %2 %1) (str feature-path)
-    "adapters/" 'acceptance.adapter-steps
     "task_store/" 'acceptance.store-steps
     "manifest_guard/" 'acceptance.guard-steps
     "metrics_cache/" 'acceptance.metrics-steps
     "install/" 'acceptance.install-steps
+    "project/" 'acceptance.project-steps
     "rebrand/" 'acceptance.rebrand-steps
     'acceptance.steps))
 

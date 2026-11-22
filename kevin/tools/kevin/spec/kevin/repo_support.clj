@@ -3,6 +3,7 @@
   run kevin commands against real git."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (def ^:dynamic *dir* nil)
@@ -39,7 +40,7 @@
 
 (defn with-repo
   "Runs run-spec in a new repository whose catalogue is default-conf merged
-  with conf, with kevin's repo-root pointing at it and the harness variables
+  with conf, with kevin's repo-root and runtime home pointing at it and the harness variables
   hidden."
   ([run-spec] (with-repo {} run-spec))
   ([conf run-spec]
@@ -51,6 +52,8 @@
        (git dir "commit" "-q" "-m" "Base")
        (with-redefs [shell/repo-root (constantly dir)
                      shell/checkout-root (constantly dir)
+                     shell/main-root (constantly dir)
+                     installed/home (constantly (str (fs/path dir "kevin")))
                      shell/env (without-harness shell/env)]
          (binding [*dir* dir] (run-spec)))
        (finally (fs/delete-tree dir))))))

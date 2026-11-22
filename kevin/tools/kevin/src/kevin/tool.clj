@@ -6,8 +6,10 @@
             [clojure.string :as str]
             [kevin.catalogue :as catalogue]
             [kevin.clone :as clone]
+            [kevin.config :as config]
             [kevin.entry-point :as entry-point]
             [kevin.maven-tool :as maven-tool]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.wrapper :as wrapper]))
 
@@ -18,7 +20,8 @@
   list             print the catalogue
   bin              print the wrapper directory; put it on PATH
 
-The catalogue is kevin/tools.conf of the checkout you run in. ensure puts
+The catalogue is kevin/tools.conf of the checkout you run in, else the
+runtime's tools.conf. ensure puts
 a GitHub source's clone at its pinned commit, discarding local changes, and
 prints @<ref> after the wrapper path (a clj tool's Maven version too).
 Wrappers live in .kevin/bin/ and clones in .kevin/tools/, both under
@@ -27,9 +30,10 @@ source at one local checkout, used as it is: unpinned, never fetched or checked
 out, and printed without @.")
 
 (defn- tools
-  "The tools of kevin/tools.conf of the checkout kevin tool runs in."
+  "The tools of kevin/tools.conf of the checkout kevin tool runs in, else of
+  the runtime's tools.conf."
   []
-  (map catalogue/tool (shell/conf-rows (fs/path (shell/checkout-root) "kevin" "tools.conf"))))
+  (map catalogue/tool (binding [config/*root* (shell/checkout-root)] (config/rows "tools.conf"))))
 
 (defn- spec-of [tool]
   (or (some #(when (= tool (:name %)) %) (tools))
@@ -92,7 +96,7 @@ out, and printed without @.")
   (str (fs/path (shell/repo-root) ".kevin" "tools" (str tool "-coverage") "bb.edn")))
 
 (defn- kevin-src []
-  (str (fs/path (shell/repo-root) "kevin" "tools" "kevin" "src")))
+  (str (fs/path (installed/home) "tools" "kevin" "src")))
 
 (defn- rewrite-for [rewrite tool]
   (case rewrite
@@ -112,6 +116,14 @@ out, and printed without @.")
   [tool {:keys [source ref]}]
   (into [[source ref]] (map (comp (juxt :source :ref) spec-of)) (catalogue/pin-sources tool)))
 
+(defn- local-command
+  "The wrapper command of a local tool: the checkout's copy of source when it
+  has one, else the runtime's."
+  [source]
+  (if (fs/exists? (fs/path (shell/repo-root) source))
+    (wrapper/local-command (shell/repo-root) source)
+    (wrapper/runtime-command (shell/repo-root) (installed/launcher) source)))
+
 (defn- command-for
   "The wrapper command for the tool and the ref it is pinned at, if any."
   [tool {:keys [kind source ref task rewrite] :as spec}]
@@ -122,12 +134,12 @@ out, and printed without @.")
     "bbmain" (let [[dir pin] (checked-source tool spec)]
                [(wrapper/bbmain-command dir task) pin])
     "maven" (let [[dir pin] (checked-source tool spec)
-                  patches (str (fs/path (shell/checkout-root) "kevin/tools/kevin/resources/kevin/java-patches"))
+                  patches (str (fs/path (installed/home) "tools/kevin/resources/kevin/java-patches"))
                   cache (str (fs/path (shell/repo-root) ".kevin/m2"))
                   jar (maven-tool/build dir tool patches cache (some? pin))]
               [(str "exec java -jar " (wrapper/sq jar) " \"$@\"") pin])
     "clj" [(wrapper/clj-command tool (clj-deps tool spec) task) ref]
-    "local" [(wrapper/local-command (shell/repo-root) source) nil]))
+    "local" [(local-command source) nil]))
 
 (defn- install-one [tool]
   (let [spec (spec-of tool)

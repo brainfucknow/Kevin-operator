@@ -13,14 +13,13 @@
      :example example}))
 
 (defn fill
-  "The step text with each <parameter> of the step replaced by its example value."
-  [{:strs [text parameters]} example]
-  (let [parameters (set parameters)]
-    (str/replace text #"<([^<>\s]+)>"
-                 (fn [[whole name]]
-                   (cond (not (parameters name)) whole
-                         (contains? example name) (get example name)
-                         :else (throw (ex-info (str "no example value for <" name ">") {})))))))
+  "The step text with each <name> that is a column of the example replaced by
+  its example value. Other <...> text stays: a step may quote a placeholder
+  such as <major>, and the parser does not list a hyphenated name among the
+  step's parameters."
+  [{:strs [text]} example]
+  (str/replace text #"<([^<>\s]+)>"
+               (fn [[whole name]] (get example name whole))))
 
 (defn- run-step [handlers world text]
   (let [matches (keep (fn [[pattern handler]]

@@ -8,7 +8,6 @@ Contracts for the mutation cache described in the
 | `metrics_load.feature` | Loading missing cache files into task worktrees. |
 | `metrics_save.feature` | Saving manifests at handoff and approval. |
 | `gherkin_block.feature` | Keeping mutator blocks outside tracked feature files. |
-| `install_ignore.feature` | Ignoring `.metrics/` on installation. |
 
 Run `bash test/acceptance.sh` from the repository root. Shared fixtures and
 placeholders follow the [task-store conventions](../task_store/README.md);

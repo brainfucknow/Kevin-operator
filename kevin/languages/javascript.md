@@ -1,6 +1,6 @@
 # JavaScript and TypeScript tooling
 
-Run `kevin/bin/kevin-js` from the task worktree beside `package.json`.
+Run `kevin js` from the task worktree beside `package.json`.
 It needs Babashka, Node, `npx`, and the project's package manager. Reports go
 under `./tmp/`; commands are echoed as `$ ` lines.
 
@@ -96,7 +96,7 @@ JavaScript has no mutation scan/count mode.
 
 ## Mutation and output
 
-Mutation must be differential: use `kevin-js mutate` without `--all`, so StrykerJS
+Mutation must be differential: use `kevin js mutate` without `--all`, so StrykerJS
 mutates only the changed source files, incrementally.
 
 Stryker uses four workers unless overridden, its project config when present,
@@ -118,4 +118,4 @@ reaches the line. Mutation scores exclude `Ignored`, `CompileError`, and
 `RuntimeError`; `Timeout` counts as detected.
 
 Gherkin uses the shared Acceptance Pipeline Specification tools and the
-project's JavaScript/TypeScript runtime and handlers, run through `kevin-js test`.
+project's JavaScript/TypeScript runtime and handlers, run through `kevin js test`.

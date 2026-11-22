@@ -1,21 +1,14 @@
 (ns acceptance.rebrand-steps
   "Step handlers for test/features/rebrand (see its README): the steps of
-  acceptance.install-steps, and fixtures in the legacy SwarmForge form made
+  acceptance.metrics-steps, and fixtures in the legacy SwarmForge form made
   with git and plain files, as an old sf wrote them."
-  (:require [acceptance.install-steps :as install]
-            [acceptance.metrics-steps :as metrics]
+  (:require [acceptance.metrics-steps :as metrics]
             [acceptance.store-steps :as store :refer [expected fill git must-in run-in when-step worktree write-file]]
             [acceptance.support :as support :refer [check unescape]]
             [babashka.fs :as fs]
             [clojure.string :as str]))
 
 (def new-world store/new-world)
-
-(def ^:private swarm-line
-  "Follow kevin/README.md and kevin/roles/orchestrator.md when asked to swarm a feature; delegate subagent roles by name and keep all task bookkeeping in kevin/bin/kevin.")
-
-(def ^:private old-swarm-line
-  "Follow swarmforge/README.md and swarmforge/roles/orchestrator.md when asked to swarm a feature; delegate subagent roles by name and keep all task bookkeeping in swarmforge/bin/sf.")
 
 (def ^:private old-hook
   "The commit-msg hook as an old sf wrote it."
@@ -61,12 +54,6 @@
 
 (defn- hook-text [world]
   (slurp (str (hook-file world))))
-
-(defn- repo-file [world path]
-  (fs/path (:repo world) path))
-
-(defn- file-lines [world path]
-  (str/split-lines (slurp (str (repo-file world path)))))
 
 ;; Legacy records
 
@@ -120,31 +107,6 @@
     (git world "branch" "-D" (str "swarm/" id))
     world))
 
-;; A legacy install
-
-(defn- legacy-install
-  "A scratch repository with an install as an old install.sh left it: this
-  checkout's kevin/ as swarmforge/ with the old command names, the old
-  AGENTS.md line, .gitignore entries and commit-msg hook, all committed."
-  [world]
-  (let [world (assoc world :repo (support/project false))
-        repo (:repo world)
-        old (fs/path repo "swarmforge")]
-    (git world "mv" "kevin" "swarmforge")
-    (git world "mv" "swarmforge/bin/kevin" "swarmforge/bin/sf")
-    (doseq [file (fs/glob (fs/path old "bin") "kevin-*")
-            :let [name (str (fs/file-name file))]]
-      (git world "mv" (str "swarmforge/bin/" name) (str "swarmforge/bin/" (str/replace name #"^kevin-" "sf-"))))
-    (write-file repo "AGENTS.md" (str old-swarm-line "\n"))
-    (write-file repo "CLAUDE.md" "@AGENTS.md\n")
-    (write-file repo ".gitignore" ".worktrees/\n.swarmforge/\ntmp/\n.metrics/\n")
-    (write-file repo "swarmforge/.gitignore" "!/bin/\n!/bin/**\n")
-    (write-file repo ".git/hooks/commit-msg" old-hook)
-    (fs/set-posix-file-permissions (hook-file world) "rwxr-xr-x")
-    (git world "add" "-A")
-    (git world "commit" "-q" "-m" "Install SwarmForge")
-    world))
-
 (defn- new-commit
   "Commits a new file in the worktree of task name past the hook and names
   the commit after the task."
@@ -180,9 +142,6 @@
 
 (def ^:private rebrand-handlers
   [;; Given
-   [#"a git repository with a legacy install"
-    legacy-install]
-
    [#"a git repository with one commit and no user.name or user.email"
     (fn [world]
       (let [home (str (fs/path @support/scratch (str "home-" (random-uuid))))]
@@ -201,13 +160,10 @@
    [#"task \"(\w)\" titled \"([^\"]*)\" on route \"([^\"]*)\" has legacy records up to stage \"([^\"]*)\""
     (fn [world name title route stage] (legacy-task world name title route stage))]
 
-   [#"task \"(\w)\" titled \"([^\"]*)\" was started on route \"([^\"]*)\" before the migration"
-    (fn [world name title route] (legacy-task world name title route (first (str/split route #","))))]
-
    [#"task \"(\w)\" titled \"([^\"]*)\" on route \"([^\"]*)\" was finished with legacy records"
     (fn [world name title route] (legacy-finished world name title route))]
 
-   [#"task \"(\w)\" has a new commit in its worktree(?: that does not touch swarmforge/)?"
+   [#"task \"(\w)\" has a new commit in its worktree"
     (fn [world name] (new-commit world name))]
 
    [#"a fake claude on PATH that prints its environment"
@@ -221,16 +177,6 @@
           world)
         (metrics/hold-on world (str "refs/heads/" branch) path text)))]
 
-   [#"the file \"([^\"]+)\" in the repository holds \"(.*)\""
-    (fn [world path text]
-      (if (after-when? world)
-        (let [file (repo-file world path)
-              actual (when (fs/exists? file) (slurp (str file)))]
-          (check (= (str (unescape text) "\n") actual) (str path " holds " (pr-str actual)))
-          world)
-        (do (write-file (:repo world) path (str (unescape text) "\n"))
-            world)))]
-
    ;; When
    [#"I (run|ran) \"([^\"]*)\"(?: in the worktree of task \"(\w)\")?(?: with the text \"(.*)\")?(?: with environment \"([^\"]*)\")?"
     (fn [world tense command name text env]
@@ -240,12 +186,6 @@
         (if (= "ran" tense)
           (assoc world :ran-out (:out (run-in world dir cmd env)))
           (assoc (when-step world #(run-in % dir cmd env)) :ran-env env))))]
-
-   [#"I commit every change in the main checkout"
-    (fn [world]
-      (git world "add" "-A")
-      (git world "commit" "-q" "-m" "Migrate to Kevin")
-      world)]
 
    ;; Then
    [#"the newest record has the author \"(.*)\""
@@ -303,7 +243,10 @@
 
    [#"the commit-msg hook runs \"(.*)\""
     (fn [world path]
-      (check (str/includes? (hook-text world) (str "$root/" path "\"")) (str "the hook does not run " path))
+      ;; The hook runs the kevin that installed it by its absolute path; here
+      ;; that is the scratch repository's own copy of the runtime.
+      (check (str/includes? (hook-text world) (str "'" (fs/path (:repo world) path) "' commit-msg"))
+             (str "the hook does not run " path))
       world)]
 
    [#"the commit-msg hook does not mention \"(.*)\""
@@ -311,61 +254,18 @@
       (check (not (str/includes? (hook-text world) text)) (str "the hook mentions " text))
       world)]
 
-   [#"the repository has no path \"([^\"]+)\""
-    (fn [world path]
-      (check (not (or (fs/exists? (repo-file world path)) (fs/sym-link? (repo-file world path)))) (str path " exists"))
-      world)]
-
-   [#"the repository has the file \"([^\"]+)\""
-    (fn [world path]
-      (check (fs/regular-file? (repo-file world path)) (str path " is missing"))
-      world)]
-
-   [#"the repository has no file under \"([^\"]+)\" whose name starts with \"([^\"]+)\""
-    (fn [world dir prefix]
-      (let [found (filter #(str/starts-with? (str (fs/file-name %)) prefix) (fs/list-dir (repo-file world dir)))]
-        (check (empty? found) (str "found " (pr-str (map str found))))
-        world))]
-
-   [#"the repository did not change"
-    (fn [world]
-      (let [before (:snapshot world)
-            after (metrics/snapshot (:repo world))
-            changed (sort (filter #(not= (get before %) (get after %)) (set (concat (keys before) (keys after)))))]
-        (check (empty? changed) (str "changed: " (pr-str changed)))
-        world))]
-
-   [#"the file \"([^\"]+)\" in the repository has no line that mentions \"(.*)\""
-    (fn [world path text]
-      (let [found (filter #(str/includes? % text) (file-lines world path))]
-        (check (empty? found) (str path " has " (pr-str found)))
-        world))]
-
-   [#"the file \"([^\"]+)\" in the repository has the new swarm line once"
-    (fn [world path]
-      (let [n (count (filter #{swarm-line} (file-lines world path)))]
-        (check (= 1 n) (str path " has the new swarm line " n " times"))
-        world))]
-
    [#"the branch \"([^\"]+)\" did not move"
     (fn [world branch]
       (let [ref (str "refs/heads/" branch)]
         (check (= (get-in world [:before ref]) (get (store/tips world) ref)) (str branch " moved"))
-        world))]
-
-   [#"the base branch has the commit of task \"(\w)\""
-    (fn [world name]
-      (let [commit (get-in world [:names (str "work-" name)])]
-        (check (zero? (:exit (run-in world (:repo world) ["git" "merge-base" "--is-ancestor" commit "main"])))
-               (str "main does not have " commit))
         world))]])
 
 (def ^:private replaced-steps
   "Step texts of the inherited handlers that a rebrand handler takes over."
-  ["I run \"x\"" "the file \"x\" in the repository holds \"y\""])
+  ["I run \"x\""])
 
 (defn- replaced? [[pattern]]
   (some #(re-matches pattern %) replaced-steps))
 
 (def handlers
-  (concat (remove replaced? install/handlers) rebrand-handlers))
+  (concat (remove replaced? metrics/handlers) rebrand-handlers))

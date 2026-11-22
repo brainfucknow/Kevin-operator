@@ -1,5 +1,7 @@
-# Worker image for the Kevin workflows: Python plus git and Babashka,
-# which kevin/bin/kevin needs inside the cloned repository.
+# Worker image for the Kevin workflows: Python, git, Babashka, and the Kevin
+# runtime with its kevin on PATH. Build it from the repository root, so the
+# image carries the runtime of this checkout:
+#   docker build -f kevin/workflows/Dockerfile .
 FROM python:3.12-bookworm
 
 RUN apt-get update \
@@ -11,11 +13,15 @@ RUN apt-get update \
     && rm /tmp/bb.tar.gz \
     && bb --version
 
+COPY .claude-plugin /opt/kevin/.claude-plugin
+COPY kevin /opt/kevin/kevin
+RUN ln -s /opt/kevin/kevin/bin/kevin /usr/local/bin/kevin && kevin version
+
 WORKDIR /app
-COPY pyproject.toml uv.lock ./
+COPY kevin/workflows/pyproject.toml kevin/workflows/uv.lock ./
 # The project is installed from src/, so the sources must exist before uv sync.
-COPY src ./src
+COPY kevin/workflows/src ./src
 RUN pip install uv && uv sync --frozen --no-dev
-COPY . .
+COPY kevin/workflows .
 
 CMD ["uv", "run", "python", "-m", "kevin_pipeline.worker"]

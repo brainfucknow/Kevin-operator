@@ -4,29 +4,35 @@
             [clojure.string :as str]
             [kevin.catalogue :as catalogue]
             [kevin.flow :as flow]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
 (def ^:dynamic *root*
   "The checkout whose kevin/ is read; nil reads the main checkout's."
   nil)
 
-(defn conf-dir
-  "kevin/ of the checkout, or its legacy swarmforge/ while a checkout that
-  has not been migrated yet has only that, so a kevin run from a task
-  worktree can still hand off and finish there."
+(def ^:private runtime-defaults
+  "The files a project may leave out; kevin then reads the runtime's."
+  #{"roles.conf" "routes.conf" "tiers.conf" "tools.conf"})
+
+(defn project-dir
+  "kevin/ of the checkout: the project's configuration."
   []
-  (let [root (or *root* (shell/repo-root))
-        dir (fs/path root "kevin")
-        legacy (fs/path root "swarmforge")]
-    (str (if (and (not (fs/exists? dir)) (fs/directory? legacy)) legacy dir))))
+  (str (fs/path (or *root* (shell/repo-root)) "kevin")))
 
 (defn in-checkout
   "The command f, reading the config of the checkout it runs in."
   [f]
   (fn [args] (binding [*root* (shell/checkout-root)] (f args))))
 
-(defn conf-file [name]
-  (str (fs/path (conf-dir) name)))
+(defn conf-file
+  "The project's kevin/<name>; for a catalogue file the project does not have,
+  the runtime's."
+  [name]
+  (let [file (fs/path (project-dir) name)]
+    (str (if (or (fs/exists? file) (not (runtime-defaults name)))
+           file
+           (fs/path (installed/home) name)))))
 
 (defn rows [name]
   (shell/conf-rows (conf-file name)))
@@ -167,7 +173,20 @@
         (not= "subagent" runs) (conj (str "roles.conf: '" role "' is a spec-judge and must run as subagent"))
         (some #{"send-back"} flags) (conj (str "roles.conf: '" role "' is a spec-judge and cannot also be send-back"))))))
 
-(defn- check-role [[role tier runs & flags :as row] seen]
+(defn- runtime-roles
+  "The roles of the runtime's roles.conf."
+  []
+  (set (map first (shell/conf-rows (fs/path (installed/home) "roles.conf")))))
+
+(defn- prompt-problem
+  "Why the role's prompt is missing from the runtime, or nil. A role that the
+  runtime does not have is refused once, for that."
+  [role known]
+  (cond
+    (not (known role)) (str "roles.conf: '" role "' is not a role of the Kevin runtime")
+    (not (fs/exists? (fs/path (installed/home) "roles" (str role ".md")))) (str "roles/" role ".md: missing role prompt for '" role "'")))
+
+(defn- check-role [known [role tier runs & flags :as row] seen]
   (if-not (<= 3 (count row) 6)
     [(str "roles.conf: '" role "' needs <role> <tier> <runs-as> [audit] [optional] [send-back]")]
     (cond-> (vec (flag-problems role runs flags))
@@ -176,7 +195,7 @@
       (seen role) (conj (str "roles.conf: role '" role "' listed twice"))
       (not (tier-field tier 2)) (conj (str "roles.conf: '" role "' uses unknown tier '" tier "' (see tiers.conf)"))
       (not (#{"subagent" "session"} runs)) (conj (str "roles.conf: '" role "' runs-as must be subagent or session, not '" runs "'"))
-      (not (fs/exists? (fs/path (conf-dir) "roles" (str role ".md")))) (conj (str "roles/" role ".md: missing role prompt for '" role "'")))))
+      true (into (some-> (prompt-problem role known) vector)))))
 
 (defn- second-spec-judges []
   (for [role (rest (map first (filter spec-judge-row? (rows "roles.conf"))))]
@@ -185,7 +204,7 @@
 (defn- check-roles []
   (if-not (fs/exists? (conf-file "roles.conf"))
     ["roles.conf: missing"]
-    (cond-> (into (scan (rows "roles.conf") check-role) (second-spec-judges))
+    (cond-> (into (scan (rows "roles.conf") (partial check-role (runtime-roles))) (second-spec-judges))
       (empty? (pipeline)) (conj "roles.conf: no roles"))))
 
 (defn- route-problem [route]
@@ -211,5 +230,5 @@
     (when (seq problems)
       (binding [*out* *err*]
         (doseq [problem problems] (println (str "CHECK: " problem))))
-      (shell/die (count problems) " configuration problem(s) in " (conf-dir)))
+      (shell/die (count problems) " configuration problem(s) in " (project-dir)))
     (println (str "CHECK: ok (" (count (pipeline)) " roles, " (count (named-routes)) " routes)"))))
