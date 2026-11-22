@@ -47,7 +47,7 @@ Feature: CI manifest guard
     Examples:
       | path                          |
       | .metrics/mutate/a.edn         |
-      | tools/sf/.metrics/crap.edn    |
+      | tools/kevin/.metrics/crap.edn    |
 
   # CI manifest guard 3
   Scenario Outline: CI manifest guard 3: a tracked file under target/coverage/ fails
@@ -60,7 +60,7 @@ Feature: CI manifest guard
     Examples:
       | path                                           | state     |
       | target/coverage/lcov.info                      | committed |
-      | swarmforge/tools/sf/target/coverage/index.html | staged    |
+      | kevin/tools/kevin/target/coverage/index.html | staged    |
 
   # CI manifest guard 4
   Scenario Outline: CI manifest guard 4: markers that do not start a line, and other names, pass

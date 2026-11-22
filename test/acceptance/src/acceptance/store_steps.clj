@@ -9,7 +9,7 @@
 (defn new-world [] {:ids {} :created {} :names {} :env {}})
 
 (defn id-of
-  "The id of task name, or of the task that sf new printed when name is nil."
+  "The id of task name, or of the task that kevin new printed when name is nil."
   [world name]
   (or (if name (get-in world [:ids name]) (:new world))
       (throw (ex-info (str "no task " (or name "NEW")) {}))))
@@ -45,7 +45,7 @@
   "Runs program and args in dir with the world's environment and env."
   ([world dir cmd] (run-in world dir cmd {}))
   ([world dir [program & args] env]
-   (run dir (cons (if (= "sf" program) (support/sf-path (:repo world)) program) args)
+   (run dir (cons (if (= "kevin" program) (support/kevin-path (:repo world)) program) args)
         (merge (:env world) env))))
 
 (defn must-in [world dir & cmd]
@@ -74,14 +74,14 @@
     (under-test world (f world))))
 
 (defn- create-task [world name title request route]
-  (let [id (must-in world (:repo world) "sf" "new" title "-m" (unescape request) "--route" route)
+  (let [id (must-in world (:repo world) "kevin" "new" title "-m" (unescape request) "--route" route)
         world (assoc-in world [:ids name] id)]
     (-> world
         (assoc-in [:created name] (git world "rev-parse" "--short" (branch-ref world name)))
         (assoc-in [:created-sha name] (git world "rev-parse" (branch-ref world name))))))
 
 (defn- start-task [world name]
-  (must-in world (:repo world) "sf" "start" (id-of world name))
+  (must-in world (:repo world) "kevin" "start" (id-of world name))
   world)
 
 (defn- handoff-to-done
@@ -89,9 +89,9 @@
   [world name]
   (let [id (id-of world name)]
     (loop [handoffs 0]
-      (when (not= "done" (must-in world (:repo world) "sf" "stage" id))
+      (when (not= "done" (must-in world (:repo world) "kevin" "stage" id))
         (check (< handoffs 20) (str "task " name " did not reach done"))
-        (must-in world (:repo world) "sf" "handoff" id)
+        (must-in world (:repo world) "kevin" "handoff" id)
         (recur (inc handoffs))))))
 
 (defn- handoff-to-stage
@@ -100,13 +100,13 @@
   [world name stage]
   (let [id (id-of world name)]
     (loop [handoffs 0]
-      (let [now (must-in world (:repo world) "sf" "stage" id)]
+      (let [now (must-in world (:repo world) "kevin" "stage" id)]
         (when (not= stage now)
           (check (< handoffs 20) (str "task " name " did not reach " stage))
           (if (= "specifier" now)
-            (do (must-in world (:repo world) "sf" "review" id)
-                (must-in world (:repo world) "sf" "approve" id))
-            (must-in world (:repo world) "sf" "handoff" id))
+            (do (must-in world (:repo world) "kevin" "review" id)
+                (must-in world (:repo world) "kevin" "approve" id))
+            (must-in world (:repo world) "kevin" "handoff" id))
           (recur (inc handoffs)))))))
 
 (defn- commit [world name message env]
@@ -148,10 +148,10 @@
 
 (def handlers
   [;; Given
-   [#"a project with swarmforge initialized"
+   [#"a project with kevin initialized"
     (fn [world] (assoc world :repo (support/project true)))]
 
-   [#"a git repository with a copy of swarmforge and no git-bug on PATH"
+   [#"a git repository with a copy of kevin and no git-bug on PATH"
     (fn [world] (assoc world :repo (support/project false)))]
 
    [#"the git identity of the project is \"(.*)\""
@@ -176,7 +176,7 @@
    [#"task \"(\w)\" was finished"
     (fn [world name]
       (handoff-to-done world name)
-      (must-in world (:repo world) "sf" "finish" (id-of world name))
+      (must-in world (:repo world) "kevin" "finish" (id-of world name))
       world)]
 
    [#"task \"(\w)\" was handed off to stage \"([^\"]+)\""
@@ -188,7 +188,7 @@
     (fn [world name from to n]
       (dotimes [_ (parse-long n)]
         (handoff-to-stage world name from)
-        (must-in world (:repo world) "sf" "handoff" (id-of world name) "--to" to))
+        (must-in world (:repo world) "kevin" "handoff" (id-of world name) "--to" to))
       world)]
 
    [#"task \"(\w)\" was handed off to done and squash-merged into main"
@@ -210,7 +210,7 @@
         (when path
           (write-file dir path "x\n")
           (must-in world dir "git" "add" path))
-        (require-ok (commit world name (expected world message) {"SWARMFORGE_ROLE" role}) "git commit")
+        (require-ok (commit world name (expected world message) {"KEVIN_ROLE" role}) "git commit")
         (name-commit world dir commit-name)))]
 
    [#"\"([^\"]*)\" was committed in the worktree of task \"(\w)\" with the hook skipped as (C\d+)"
@@ -280,23 +280,23 @@
 
    [#"the operator asked and answered (\d+) questions on task \"(\w)\""
     (fn [world n name]
-      (let [operator (update world :env dissoc "SWARMFORGE_ROLE")
+      (let [operator (update world :env dissoc "KEVIN_ROLE")
             id (id-of world name)]
         (doseq [i (range 1 (inc (parse-long n)))]
-          (must-in operator (:repo world) "sf" "ask" id (str "q" i))
-          (must-in operator (:repo world) "sf" "answer" id (str "a" i)))
+          (must-in operator (:repo world) "kevin" "ask" id (str "q" i))
+          (must-in operator (:repo world) "kevin" "answer" id (str "a" i)))
         world))]
 
    [#"the route of task \"(\w)\" was set to \"([^\"]+)\" (\d+) times"
     (fn [world name route n]
       (dotimes [_ (parse-long n)]
-        (must-in world (:repo world) "sf" "route" (id-of world name) route))
+        (must-in world (:repo world) "kevin" "route" (id-of world name) route))
       world)]
 
    [#"the wrappers for \"([^\"]+)\" are executable in the main checkout"
     (fn [world tools]
       (doseq [tool (str/split tools #" ")
-              :let [path (fs/path (:repo world) ".swarmforge" "bin" tool)]]
+              :let [path (fs/path (:repo world) ".kevin" "bin" tool)]]
         (write-file (:repo world) (str (fs/relativize (:repo world) path)) "#!/usr/bin/env bash\n")
         (fs/set-posix-file-permissions path "rwxr-xr-x"))
       world)]
@@ -318,17 +318,17 @@
           (assoc world :ran-out (:out (run-in world dir cmd)))
           (when-step world #(run-in % dir cmd)))))]
 
-   [#"I run sf new with the title \"([^\"]*)\"(?:, the request \"([^\"]*)\"(?:,| and) the route \"([^\"]*)\")?(?: and the options \"([^\"]*)\")?"
+   [#"I run kevin new with the title \"([^\"]*)\"(?:, the request \"([^\"]*)\"(?:,| and) the route \"([^\"]*)\")?(?: and the options \"([^\"]*)\")?"
     (fn [world title request route options]
-      (let [world (when-step world #(run-in % (:repo %) (concat ["sf" "new" title]
+      (let [world (when-step world #(run-in % (:repo %) (concat ["kevin" "new" title]
                                                                  (when request ["-m" (unescape request) "--route" route])
                                                                  (when options (str/split (fill % options) #" ")))))]
         (assoc world :new (str/trim (:out world)))))]
 
-   [#"I commit \"([^\"]*)\" in the (?:worktree of task \"(\w)\"|main checkout)(?: with SWARMFORGE_ROLE \"([^\"]*)\")?"
+   [#"I commit \"([^\"]*)\" in the (?:worktree of task \"(\w)\"|main checkout)(?: with KEVIN_ROLE \"([^\"]*)\")?"
     (fn [world message name role]
       (when-step world #(if name
-                          (commit % name message (if role {"SWARMFORGE_ROLE" role} {}))
+                          (commit % name message (if role {"KEVIN_ROLE" role} {}))
                           (run-in % (:repo %) ["git" "commit" "-q" "--allow-empty" "-m" (unescape message)]))))]
 
    ;; Then: status and output

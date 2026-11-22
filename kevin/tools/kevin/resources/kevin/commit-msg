@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+{{marker}}
+# Adds "By <role>." and a Lore-id to a commit in a task worktree (kevin
+# commit-msg), and refuses one with a Kevin-* trailer. <role> is KEVIN_ROLE,
+# else the legacy SWARMFORGE_ROLE, else the task stage. Other commits do not
+# change. A task commit is refused when its role is not known.
+msg="$1"
+top="$(git rev-parse --show-toplevel)"
+common="$(git rev-parse --path-format=absolute --git-common-dir)"
+root="$(cd "$common/.." && pwd)"
+case "$top" in
+  "$root/${KEVIN_WORKTREE_DIR:-${SWARMFORGE_WORKTREE_DIR:-{{worktree-dir}}}}"/*) ;;
+  *) exit 0 ;;
+esac
+role="${KEVIN_ROLE:-${SWARMFORGE_ROLE:-}}"
+if [ -z "$role" ]; then
+  role="$("$root/kevin/bin/kevin" stage "$(basename "$top")" 2>&1)" || {
+    echo "commit-msg: cannot find the role for this task worktree ($role); set KEVIN_ROLE" >&2
+    exit 1
+  }
+fi
+exec "$root/kevin/bin/kevin" commit-msg "$role" "$msg"
