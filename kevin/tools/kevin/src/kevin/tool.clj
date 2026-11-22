@@ -122,7 +122,7 @@ out, and printed without @.")
   [source]
   (if (fs/exists? (fs/path (shell/repo-root) source))
     (wrapper/local-command (shell/repo-root) source)
-    (wrapper/runtime-command (installed/launcher) source)))
+    (wrapper/runtime-command (shell/repo-root) (installed/launcher) source)))
 
 (defn- command-for
   "The wrapper command for the tool and the ref it is pinned at, if any."
