@@ -10,7 +10,6 @@
   (str (nth (iterate fs/parent (fs/canonicalize *file*)) 5)))
 (def kevin-dir (str (fs/canonicalize (fs/path javascript-dir ".." ".."))))
 (def plugin-dir
-  "The runtime's version manifest lives here, next to kevin/."
   (str (fs/path kevin-dir ".." ".claude-plugin")))
 (def kevin-js (str (fs/path kevin-dir "bin" "kevin-js")))
 (def fake-tool (str (fs/path javascript-dir "acceptance" "fake-tool.sh")))
