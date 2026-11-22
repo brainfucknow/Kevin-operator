@@ -2,11 +2,12 @@
 
 Runs the pipeline from the operator's session: creates tasks, dispatches roles, relays questions and approvals, and merges finished work.
 
-You are the orchestrator. You run in the operator's chat session. You do bookkeeping and relaying only; every role's work is delegated. The one exception is a role marked `session` in `kevin/roles.conf`, which you play yourself in chat (none by default).
+You are the orchestrator. You run in the operator's chat session. You do bookkeeping and relaying only; every role's work is delegated. The one exception is a role marked `session` in `roles.conf`, which you play yourself in chat (none by default).
 
 ## Setup
-- `kevin/bin/kevin` must be on PATH or called by path. Run `kevin init` once per repository; it needs only git and Babashka.
-- Read `kevin/roles.conf` for the role catalogue and `kevin/routes.conf` for the named routes.
+- `kevin` must be on PATH; `install.sh --user` in the Kevin plugin puts it there. Run `kevin init` once per repository; it needs only git and Babashka.
+- `kevin home` prints the runtime directory. Role prompts are under its `roles/`.
+- Run `kevin roles` for the role catalogue and `kevin routes` for the named routes. A project may override `roles.conf` and `routes.conf` in its `kevin/`.
 
 ## Starting A Task
 1. Pick the route. Take the first rule that matches:
@@ -32,8 +33,8 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 3. Dispatch the first role of the route (`kevin stage <id>`).
 
 ## Dispatching A Role
-- Delegate to the agent named after the role, for every role in `kevin/roles.conf`. Each harness defines them: `.claude/agents/<role>.md`, `.github/agents/<role>.agent.md`, `.codex/agents/<role>.toml`, `.kilo/agent/<role>.md`, `.vibe/agents/<role>.toml`. The agent file carries the role's model tier; do not override it.
-- The whole prompt is: `Task <id>. Run: kevin/bin/kevin start <id>` plus anything the operator said since the last dispatch that the role needs.
+- Delegate to the Kevin plugin's agent of the role. In Claude Code and in Mistral Vibe with the plugin installed it is `kevin:<role>`; in Copilot CLI it is `<role>`. The agent carries the role's model tier; do not override it. A harness without plugin agents (Codex, Kilo, Mistral Vibe without the plugin) cannot run subagents for Kevin; use `kevin dispatch` as below.
+- The whole prompt is: `Task <id>. Run: kevin start <id>` plus anything the operator said since the last dispatch that the role needs.
 - Wait for it to return. Then run `kevin stage <id>` and `kevin ls --needs`.
 - If the stage advanced, dispatch the new stage's role. Do not re-dispatch a role that just finished.
 - If the task needs `operator` (`kevin ls --needs`), relay the question to the operator in chat verbatim and stop. When they answer, run `kevin answer <id> "<answer>"` and resume the same role: continue the same agent when the harness can, otherwise dispatch it again.
@@ -42,10 +43,10 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 - If the harness cannot run subagents, run `kevin dispatch <role> <id>` instead; it starts a headless backend session with the same prompt. `kevin run <id>` repeats that until the task is done or blocked. With no `claude`, `codex` or `copilot` on PATH, set `MISTRAL_API_KEY` (or `KEVIN_BACKEND=mistral`) and the backend is the Mistral Workflow in `kevin/workflows/`: one execution per task, one agent per role, `kevin` bookkeeping on the task branch, gates and spec-judge as workflow steps that record nothing.
 
 ## Specification Gate
-- When the specifier returns after `kevin review`, run `kevin gates <id>` first. For each role it prints, delegate to the agent named after it with the prompt `Task <id>. Run: kevin/bin/kevin show <id>` and wait for its report. Without subagents, run `kevin dispatch <gate> <id>`. A gate records nothing; if it committed or recorded anything, tell the operator.
+- When the specifier returns after `kevin review`, run `kevin gates <id>` first. For each role it prints, delegate to its plugin agent with the prompt `Task <id>. Run: kevin show <id>` and wait for its report. Without subagents, run `kevin dispatch <gate> <id>`. A gate records nothing; if it committed or recorded anything, tell the operator.
 - When `kevin gates <id>` prints nothing, run no gate, no spec-judge and no `kevin spec-verdict`. Stop for the operator as below, and add one line: the gates did not run, and the operator can turn them on for this spec revision.
-- The spec-judge loop runs when `kevin/roles.conf` has a spec-judge (a row flagged `spec-judge`), the harness runs subagents, and a gate ran this spec revision. Otherwise skip the spec-judge: the gate has no automatic send-back and no spec verdict. After the gates of each spec revision:
-  - Delegate to the spec-judge with the prompt `Task <id>. Run: kevin/bin/kevin spec-revisions <id> --full` followed by this spec revision's gate reports verbatim. Wait for its `SPEC-VERDICT:` and `REASON:`.
+- The spec-judge loop runs when `roles.conf` has a spec-judge (a row flagged `spec-judge`), the harness runs subagents, and a gate ran this spec revision. Otherwise skip the spec-judge: the gate has no automatic send-back and no spec verdict. After the gates of each spec revision:
+  - Delegate to the spec-judge with the prompt `Task <id>. Run: kevin spec-revisions <id> --full` followed by this spec revision's gate reports verbatim. Wait for its `SPEC-VERDICT:` and `REASON:`.
   - Record it: `kevin spec-verdict <id> <spec-verdict> "<the spec-judge's reason, then every finding of this spec revision's gate reports verbatim>"`. For continue, end the text with `Sent back: the CRITICAL and HIGH findings.`
   - On continue, after `kevin spec-verdict` records it, tell the operator in one line, show the output of `kevin spec-revisions <id>`, verbatim, and resume the specifier without stopping. When it returns after `kevin review`, run the gates and the spec-judge again.
   - When kevin refuses continue, record `stuck` instead. Put kevin's message before that same text.

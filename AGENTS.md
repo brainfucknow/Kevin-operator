@@ -4,13 +4,17 @@ This repository runs Kevin: AI roles that pass work through task
 branches, each task on its own route through the role catalogue. Read
 `kevin/README.md` for the model.
 
+- Install the runtime once per user: `./install.sh --user` in this checkout
+  puts `kevin` on PATH. `kevin home` prints the runtime directory.
 - The operator's session is the orchestrator. Follow
-  `kevin/roles/orchestrator.md` when asked to swarm, specify, or forge a
+  `<kevin home>/roles/orchestrator.md` when asked to swarm, specify, or forge a
   feature, or when a task id is mentioned.
-- Every role, the specifier included, is defined in `.codex/agents/*.toml`,
-  `.claude/agents/*.md`, `.github/agents/*.agent.md`, and `.vibe/agents/*.toml`.
-  Delegate to them by role name; do not do their work in the session.
-- All task bookkeeping goes through `kevin/bin/kevin`. Never write a
+- Every role, the specifier included, is an agent of the Kevin plugin:
+  `agents/*.md` for Claude Code and `.github/plugin/agents/*.agent.md` for
+  Copilot CLI. `kevin adapters` generates them. Delegate to them by role
+  name; do not do their work in the session. Other harnesses run roles
+  through `kevin dispatch`.
+- All task bookkeeping goes through `kevin`. Never write a
   `Kevin-*` trailer by hand.
 - Roles that need a decision stop and ask in chat. Do not guess.
 

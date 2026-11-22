@@ -1,11 +1,11 @@
 # VB.NET tooling
 
-Run `kevin/bin/kevin-vb` from the task worktree for SDK-style `.vbproj`
+Run `kevin vb` from the task worktree for SDK-style `.vbproj`
 projects. It reuses the .NET wrapper and writes reports under `./tmp/`.
 Prerequisites: Babashka (`bb`), the .NET SDK, and Node with `npx` on PATH.
 Coverage runs dotnet-coverage, which the project pins in a committed
 `dotnet-tools.json` or `.config/dotnet-tools.json` at the repository root, as
-for Stryker in [C#](csharp.md); `kevin-vb tools` restores it. Test projects need
+for Stryker in [C#](csharp.md); `kevin vb tools` restores it. Test projects need
 no coverage package, on VSTest or Microsoft.Testing.Platform.
 
 | Command | Behavior |

@@ -1,0 +1,20 @@
+{
+  "name": "kevin",
+  "version": "0.2.0",
+  "description": "Run a feature request through Kevin roles on Git task branches. Adds the swarm skill and the role agents; kevin init sets up a project.",
+  "author": { "name": "brainfucknow" },
+  "homepage": "https://github.com/brainfucknow/Kevin-operator",
+  "repository": "https://github.com/brainfucknow/Kevin-operator",
+  "license": "MIT",
+  "keywords": ["kevin", "agents", "workflow", "specification", "review"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Kevin",
+    "shortDescription": "Run a feature request through Kevin roles on Git task branches.",
+    "developerName": "brainfucknow",
+    "category": "Coding",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/brainfucknow/Kevin-operator",
+    "defaultPrompt": ["Use the swarm skill to specify, build and verify a feature."]
+  }
+}

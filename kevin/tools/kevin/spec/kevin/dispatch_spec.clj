@@ -4,6 +4,7 @@
             [speclj.core :refer [around describe it should-contain should-not-contain should=]]
             [kevin.dispatch :as dispatch]
             [kevin.repo-support :as support :refer [*dir* git with-repo]]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.task :as task]))
 
@@ -11,6 +12,7 @@
 (def ^:private detect-backend @#'kevin.dispatch/detect-backend)
 (def ^:private mistral-command @#'kevin.dispatch/mistral-command)
 (def ^:private pipeline-command @#'kevin.dispatch/pipeline-command)
+(def ^:private role-prompt @#'kevin.dispatch/role-prompt)
 
 (defn- env-of [variables]
   (fn [name default] (get variables name default)))
@@ -168,8 +170,9 @@
                 "--disallowedTools=Edit" "--disallowedTools=Write" "--disallowedTools=NotebookEdit"
                 "--model" "opus"]
                (take 9 cmd))
-      (should-contain "kevin/roles/falsifier.md" (last cmd))
-      (should-contain (str "kevin/bin/kevin show " id) (last cmd))
+      (should-contain (str (installed/home) "/roles/falsifier.md") (last cmd))
+      (should-contain (str "Start with: kevin show " id) (last cmd))
+      (should-not-contain "kevin/bin/kevin" (last cmd))
       (should-not-contain "kevin start" (last cmd))))
 
   (it "dispatches a gate on codex and copilot without edit permissions, keeping the extra arguments"
@@ -325,7 +328,14 @@
   (it "builds the kevin-mistral dispatch command for role and id"
     (let [cmd (vec (mistral-command "coder" "add-login-3f9a2c1"))]
       (should= ["dispatch" "coder" "add-login-3f9a2c1"] (drop 2 cmd))
-      (should-contain "kevin-mistral" (nth cmd 1))))
+      (should= (str (installed/home) "/bin/kevin-mistral") (nth cmd 1))))
+
+  (it "reads the role prompt and the constitution from the runtime and runs kevin from PATH"
+    (let [prompt (role-prompt "coder" "add-login-3f9a2c1")]
+      (should-contain (str (installed/home) "/constitution.md") prompt)
+      (should-contain (str (installed/home) "/roles/coder.md") prompt)
+      (should-contain "Start with: kevin start add-login-3f9a2c1" prompt)
+      (should-not-contain "kevin/bin/kevin" prompt)))
 
   (it "builds the kevin-mistral run command for id"
     (let [cmd (vec (pipeline-command "add-login-3f9a2c1"))]

@@ -2,11 +2,16 @@
   "kevin: Kevin task helper. Each task is a git branch, swarm/<id>. A role
   hands work to the next role: it commits on the task branch and kevin records a
   handoff commit."
-  (:require [kevin.adapters :as adapters]
+  (:require [babashka.fs :as fs]
+            [babashka.process :as p]
+            [kevin.adapters :as adapters]
             [kevin.config :as config]
+            [kevin.convert :as convert]
             [kevin.dispatch :as dispatch]
             [kevin.hook :as hook]
             [kevin.options :as options]
+            [kevin.runtime :as runtime]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.task :as task]
             [kevin.tool :as tool]))
@@ -14,8 +19,29 @@
 (defn- print-roles [_]
   (run! println (config/pipeline)))
 
+(def ^:private subcommands
+  "The runtime's other commands, run as kevin <name>: kevin/bin/kevin-<name>."
+  #{"cs" "fs" "vb" "js" "rb" "java" "mistral"})
+
+(defn- run-subcommand
+  "Runs the runtime's kevin-<name> from the current directory with the
+  terminal's input and output, and stops with its exit status."
+  [name args]
+  (let [program (str (fs/path (installed/home) "bin" (str "kevin-" name)))
+        {:keys [exit]} (try (p/shell {:continue true :cmd (into [program] args)})
+                            (catch java.io.IOException e (shell/die name ": " (ex-message e))))]
+    (when-not (zero? exit) (shell/fail exit nil))))
+
+(defn- init [args]
+  (case (vec args)
+    [] (task/init args)
+    ["--convert"] (convert/convert)
+    (shell/die "init takes [--convert]")))
+
 (def ^:private commands
-  {"init" task/init
+  {"init" init
+   "version" (fn [_] (println (installed/version)))
+   "home" (fn [_] (println (installed/home)))
    "new" task/new-task
    "route" task/route
    "ls" task/ls
@@ -46,9 +72,24 @@
    "check" (config/in-checkout (fn [_] (config/check)))
    "commit-msg" hook/commit-msg})
 
+(defn- help? [command] (contains? #{nil "" "-h" "--help" "help"} command))
+
+(defn- check-runtime!
+  "Stops when the main checkout's kevin/project.md needs a newer runtime.
+  Outside a git repository there is no project to check."
+  []
+  (when-let [root (shell/main-root)]
+    (let [file (fs/path root "kevin" "project.md")]
+      (when (fs/exists? file)
+        (when-let [refusal (runtime/project-refusal (slurp (str file)) (installed/version))]
+          (shell/die refusal))))))
+
 (defn main [[command & args]]
+  (when-not (or (help? command) (#{"version" "home"} command))
+    (check-runtime!))
   (cond
-    (contains? #{nil "" "-h" "--help" "help"} command) (println options/usage)
+    (help? command) (println options/usage)
+    (subcommands command) (run-subcommand command args)
     (= "tool" command) (let [status (tool/main args)]
                          (when-not (zero? status) (shell/fail status nil)))
     (commands command) ((commands command) (vec args))

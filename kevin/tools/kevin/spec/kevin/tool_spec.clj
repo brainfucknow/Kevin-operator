@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [speclj.core :refer [describe context it should= should should-not around]]
             [kevin.clone :as clone]
+            [kevin.installed :as installed]
             [kevin.shell :as shell]
             [kevin.tool :as tool]))
 
@@ -35,6 +36,7 @@ moved          bb     github.com/x/aps      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       (spit (str (fs/path dir "kevin" "tools.conf")) catalogue)
       (with-redefs [shell/repo-root (constantly dir)
                     shell/checkout-root (constantly dir)
+                    installed/home (constantly (str (fs/path dir "kevin")))
                     shell/env (fn [name default] (get *env* name default))
                     clone/ensure-at (fn [& args] (*clone* args))]
         (binding [*dir* dir
@@ -140,8 +142,25 @@ moved          bb     github.com/x/aps      aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
       (should= 0 (first (kevin-tool "ensure" "speclj")))
       (should= 0 (first (kevin-tool "ensure" "clj-mutate")))
       (should (str/includes? (slurp (wrapper "clj-mutate")) "--mutate-all"))
+      (fs/create-dirs (fs/path *dir* "bin"))
+      (spit (str (fs/path *dir* "bin" "probe")) "#!/bin/sh\n")
       (should= [0 (str "INSTALLED: probe " (wrapper "probe") "\n") ""] (kevin-tool "ensure" "probe"))
       (should (str/includes? (slurp (wrapper "probe")) (str "'" *dir* "/bin/probe'"))))
+
+    (it "runs a local script that the project lacks from the runtime that kevin home names when the wrapper runs"
+      (with-redefs [installed/launcher (constantly "/home/me/.local/bin/kevin")]
+        (should= 0 (first (kevin-tool "ensure" "probe"))))
+      (let [text (slurp (wrapper "probe"))]
+        (should (str/includes? text "exec \"$('/home/me/.local/bin/kevin' home)/../\"'bin/probe' \"$@\""))
+        (should-not (str/includes? text (str *dir* "/bin/probe")))))
+
+    (it "reads the runtime's tools.conf when the project has none"
+      (let [runtime-dir (str (fs/create-temp-dir {:prefix "tool-runtime-"}))]
+        (try (spit (str (fs/path runtime-dir "tools.conf")) "only local bin/only - - - -\n")
+             (fs/delete (fs/path *dir* "kevin" "tools.conf"))
+             (with-redefs [installed/home (constantly runtime-dir)]
+               (should= "only                   local  bin/only -\n" (second (kevin-tool "list"))))
+             (finally (fs/delete-tree runtime-dir)))))
 
     (it "keeps an earlier wrapper and stops when the entry point is missing"
       (source "aps" :tasks ["other"])

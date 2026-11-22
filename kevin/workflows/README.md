@@ -15,7 +15,7 @@ Two workflows:
 One workflow execution per task, one Agents SDK agent per role. The agent's
 model is the role's tier mapped through the `vibe` column of
 `kevin/tiers.conf`. All task bookkeeping goes through
-`kevin/bin/kevin` on the task branch: the worker clones the repository,
+`kevin` on the task branch: the worker clones the repository,
 fetches `swarm/<task-id>`, works in a `kevin start` worktree, and pushes the
 branch when the execution ends. Gate roles and the spec-judge run as workflow
 steps that record nothing (read-only agent tools plus a before/after snapshot
@@ -26,7 +26,7 @@ the operator's session can show them and record the verdict with
 ## kevin side
 
 `kevin dispatch <role> <id> mistral` and `kevin run <id> mistral` call
-`kevin/bin/kevin-mistral`, which pushes the local task branch, starts the
+`kevin mistral` (the runtime's `kevin/bin/kevin-mistral`), which pushes the local task branch, starts the
 execution through the REST API (`POST /v1/workflows/<name>/execute`), polls
 `GET /v1/workflows/executions/<id>` until it ends, and fetches the branch
 back. Exit 0 on done/advanced, 2 on blocked, 1 on failure. `kevin run` with the
@@ -54,7 +54,11 @@ MISTRAL_API_KEY=... uv run python -m kevin_pipeline.worker
 
 Deploy it as a managed workflow deployment so executions run without a local
 worker (see the Mistral Workflows documentation). The `Dockerfile` builds the
-worker image: Python, git, and Babashka, which `kevin` needs. A managed worker has
+worker image: Python, git, Babashka, and this checkout's Kevin runtime with
+`kevin` on PATH. Build it from the repository root:
+`docker build -f kevin/workflows/Dockerfile .`. The worker reads the role
+prompts from `kevin home` and the catalogue from the project's `kevin/`,
+else from the runtime. A managed worker has
 no `MISTRAL_API_KEY`; `completion.py` gives every role agent a completion config
 whose provider calls the model through the workflow worker's client
 (`get_mistral_client`), which authenticates each request with the deployment

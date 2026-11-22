@@ -75,6 +75,7 @@ async def test_gate_that_changes_the_task_fails_the_execution_without_retry(monk
         ),
     )
     monkeypatch.setattr(runner, "build_agent", lambda *args, **kwargs: object())
+    monkeypatch.setattr(kevinkit, "kevin_home", lambda: "/opt/kevin/kevin")
 
     async def fake_agent_turn(agent, role, prompt, worktree):
         agent_runs["n"] += 1
