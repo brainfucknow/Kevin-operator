@@ -24,7 +24,7 @@
 
 (def ^:private pure
   "The high-level namespaces: plain values in and out, no IO."
-  '#{kevin.lore kevin.record kevin.flow kevin.spec-revisions kevin.harvest kevin.feature-block kevin.coverage-args kevin.catalogue kevin.runtime kevin.missing-tools})
+  '#{kevin.lore kevin.record kevin.flow kevin.spec-revisions kevin.harvest kevin.feature-block kevin.coverage-args kevin.catalogue kevin.missing-tools})
 
 (def ^:private allowed
   "The kevin namespaces each kevin namespace may require. Dependencies point from the
@@ -37,13 +37,13 @@
     kevin.catalogue #{}
     kevin.spec-revisions #{kevin.lore kevin.record}
     kevin.harvest #{kevin.flow kevin.lore kevin.record}
-    kevin.config #{kevin.catalogue kevin.flow kevin.shell}
+    kevin.config #{kevin.catalogue kevin.flow kevin.runtime kevin.shell}
     kevin.entry-point #{}
     kevin.maven-tool #{kevin.shell}
     kevin.wrapper #{kevin.shell}
     kevin.clone #{kevin.shell}
-    kevin.tool #{kevin.maven-tool kevin.catalogue kevin.clone kevin.entry-point kevin.shell kevin.wrapper}
-    kevin.adapters #{kevin.config kevin.shell}
+    kevin.tool #{kevin.maven-tool kevin.catalogue kevin.clone kevin.config kevin.entry-point kevin.runtime kevin.shell kevin.wrapper}
+    kevin.adapters #{kevin.config kevin.runtime kevin.shell}
     kevin.git #{kevin.shell}
     kevin.store #{kevin.git kevin.record kevin.shell}
     kevin.metrics #{kevin.git kevin.shell}
@@ -52,14 +52,15 @@
     kevin.gherkin-cache #{kevin.feature-block kevin.shell}
     kevin.coverage-args #{}
     kevin.coverage-rewrite #{kevin.coverage-args kevin.shell kevin.wrapper}
-    kevin.hook #{kevin.lore kevin.record kevin.shell}
+    kevin.hook #{kevin.lore kevin.record kevin.runtime kevin.shell kevin.wrapper}
     kevin.options #{kevin.record kevin.shell}
     kevin.audit #{kevin.config kevin.flow kevin.shell kevin.store}
     kevin.history #{kevin.flow kevin.lore kevin.record kevin.spec-revisions kevin.shell kevin.store}
-    kevin.dispatch #{kevin.config kevin.flow kevin.record kevin.shell kevin.store kevin.task}
+    kevin.dispatch #{kevin.config kevin.flow kevin.record kevin.runtime kevin.shell kevin.store kevin.task}
     kevin.missing-tools #{kevin.record}
-    kevin.task #{kevin.audit kevin.config kevin.flow kevin.git kevin.harvest kevin.history kevin.hook kevin.lore kevin.metrics kevin.missing-tools kevin.options kevin.record kevin.spec-revisions kevin.shell kevin.store kevin.tool kevin.verify}
-    kevin.cli #{kevin.adapters kevin.config kevin.dispatch kevin.hook kevin.options kevin.shell kevin.task kevin.tool}})
+    kevin.task #{kevin.audit kevin.config kevin.flow kevin.git kevin.harvest kevin.history kevin.hook kevin.lore kevin.metrics kevin.missing-tools kevin.options kevin.record kevin.runtime kevin.spec-revisions kevin.shell kevin.store kevin.tool kevin.verify}
+    kevin.convert #{kevin.adapters kevin.config kevin.runtime kevin.shell kevin.task}
+    kevin.cli #{kevin.adapters kevin.config kevin.convert kevin.dispatch kevin.hook kevin.options kevin.runtime kevin.shell kevin.task kevin.tool}})
 
 (defn- source-namespaces []
   (let [dir (fs/parent (fs/path (io/resource (source-path 'kevin.cli))))]

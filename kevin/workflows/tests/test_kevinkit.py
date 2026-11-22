@@ -229,3 +229,28 @@ def test_checkout_dir_namespaces_by_repository():
     a = activities.checkout_dir("https://github.com/x/a.git", "t-1")
     b = activities.checkout_dir("https://github.com/x/b.git", "t-1")
     assert a != b and a.endswith("t-1") and b.endswith("t-1")
+
+
+def test_kevin_runs_the_kevin_on_path(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(kevinkit, "run", lambda cmd, cwd=None, check=True: calls.append((cmd, cwd)))
+    kevinkit.kevin(str(tmp_path), "ls")
+    assert calls == [(["kevin", "ls"], str(tmp_path))]
+
+
+def test_kevin_home_is_what_kevin_home_prints(monkeypatch):
+    monkeypatch.setattr(
+        kevinkit, "run",
+        lambda cmd, cwd=None, check=True: subprocess.CompletedProcess(cmd, 0, "/opt/kevin/kevin\n", ""),
+    )
+    assert kevinkit.kevin_home() == "/opt/kevin/kevin"
+
+
+def test_conf_file_prefers_the_project_then_the_runtime(tmp_path):
+    main, home = tmp_path / "main", tmp_path / "home"
+    (main / "kevin").mkdir(parents=True)
+    home.mkdir()
+    (home / "roles.conf").write_text("runtime", encoding="utf-8")
+    assert kevinkit.conf_file(str(main), str(home), "roles.conf") == str(home / "roles.conf")
+    (main / "kevin" / "roles.conf").write_text("project", encoding="utf-8")
+    assert kevinkit.conf_file(str(main), str(home), "roles.conf") == str(main / "kevin" / "roles.conf")

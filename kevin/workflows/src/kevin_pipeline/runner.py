@@ -94,7 +94,7 @@ def _run_argv(argv: list[str], wt: Worktree) -> str:
 @agents.tool
 async def run_shell(command: str, wt: Annotated[Worktree, agents.Depends()]) -> str:
     """Run a shell command in the task worktree and return its combined output
-    and exit code. Use it for kevin/bin/kevin commands, tests, and git. The
+    and exit code. Use it for kevin commands, tests, and git. The
     command runs with KEVIN_DISPATCHED set to your role, so kevin refuses the
     operator-only commands."""
     return _run(command, wt)
@@ -141,7 +141,7 @@ def _readonly_argv(command: str) -> list[str]:
     prog = parts[0]
     if prog == "kevin" or prog == "kevin/bin/kevin" or prog.endswith("/kevin/bin/kevin"):
         if len(parts) > 1 and parts[1] in _READONLY_KEVIN:
-            return ["kevin/bin/kevin" if prog == "kevin" else prog, *parts[1:]]
+            return [prog, *parts[1:]]
     elif prog == "git" and len(parts) > 1 and parts[1] in _READONLY_GIT:
         if parts[1] == "branch" and not _readonly_branch_args(parts[2:]):
             raise agents.ToolError(f"read-only shell refuses '{command}': use git branch inspection flags or --list patterns")
@@ -158,7 +158,7 @@ def _readonly_argv(command: str) -> list[str]:
 
 @agents.tool
 async def run_readonly_shell(command: str, wt: Annotated[Worktree, agents.Depends()]) -> str:
-    """Run a read-only inspection command in the task worktree: kevin/bin/kevin
+    """Run a read-only inspection command in the task worktree: kevin
     show/ls/stage/spec-revisions/route/harvest (also as bare kevin), git
     log/diff/status/show/rev-parse/branch/ls-files/ls-remote/blame/describe,
     or basic unix readers (cat, ls, grep, head, tail, ...). The command runs as

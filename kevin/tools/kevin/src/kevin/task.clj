@@ -14,6 +14,7 @@
             [kevin.missing-tools :as missing-tools]
             [kevin.options :as options]
             [kevin.record :as record]
+            [kevin.runtime :as runtime]
             [kevin.spec-revisions :as spec-revisions]
             [kevin.shell :as shell]
             [kevin.store :as store]
@@ -108,15 +109,63 @@
         (shell/fail 4 nil))
       (str/join " " missing))))
 
-(defn init [_]
+(def ignored-lines
+  "The lines kevin init adds to the shared .git/info/exclude."
+  [(str (hook/worktree-dir) "/") ".kevin/" "tmp/" ".metrics/"])
+
+(defn committed-install?
+  "True when the index of the main checkout holds a committed Kevin install:
+  kevin/bin/kevin and kevin/constitution/articles/project.md."
+  [root]
+  (every? #(seq (git root "ls-files" "--" %)) ["kevin/bin/kevin" "kevin/constitution/articles/project.md"]))
+
+(defn- append-line
+  "text with line appended on a line of its own."
+  [text line]
+  (str text (when-not (or (str/blank? text) (str/ends-with? text "\n")) "\n") line "\n"))
+
+(defn- write-project-md!
+  "Writes the starter kevin/project.md when it is missing, and the runtime's
+  version as the minimum when the file names none."
+  [root]
+  (let [file (fs/path root "kevin" "project.md")
+        text (if (fs/exists? file) (slurp (str file)) (shell/template "project-starter.md"))
+        version (runtime/version)]
+    (when (and version (nil? (runtime/minimum-value text)))
+      (fs/create-dirs (fs/parent file))
+      (spit (str file) (append-line text (str runtime/minimum-label " " version))))))
+
+(defn- exclude!
+  "Adds each ignored line that the shared exclude file lacks."
+  [root]
+  (let [file (fs/path (git root "rev-parse" "--path-format=absolute" "--git-path" "info/exclude"))
+        text (if (fs/exists? file) (slurp (str file)) "")
+        present (set (map str/trim (str/split-lines text)))
+        missing (remove present ignored-lines)]
+    (when (seq missing)
+      (fs/create-dirs (fs/parent file))
+      (spit (str file) (reduce append-line text missing)))))
+
+(defn setup!
+  "The project setup that kevin init and kevin init --convert share: the
+  project article, the exclude lines and the hook. Prints the identity, roles
+  and routes."
+  []
   (shell/quietly config/check)
   (let [[name email] (plumbing/author)]
     (println (str "identity: " name " <" email ">")))
   (let [root (shell/repo-root)]
+    (write-project-md! root)
+    (exclude! root)
     (fs/create-dirs (str root "/" (hook/worktree-dir)))
     (hook/install root))
   (println (str "roles: " (str/join " " (config/pipeline))))
   (println (str "routes: " (str/join " " (map first (config/named-routes))))))
+
+(defn init [_]
+  (when (committed-install? (shell/repo-root))
+    (shell/die "this project has a committed Kevin install; run kevin init --convert"))
+  (setup!))
 
 (defn- gate-choice
   "The :gates value that spec names, or nil for none; stops on a refusal,

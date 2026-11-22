@@ -1,7 +1,8 @@
 # Kevin
 
-This directory is Kevin installed into the project. It runs AI roles as
-harness agents in Kilo, Mistral Vibe, Claude Code, Codex, or Copilot CLI. Each task takes a
+This directory is the Kevin runtime; `kevin home` prints its path. It runs
+AI roles as harness agents in Claude Code or Copilot CLI, and as headless
+runs from Codex, Kilo or Mistral Vibe sessions. Each task takes a
 route through the role catalogue, and roles pass work through task branches in
 this repository.
 
@@ -10,10 +11,11 @@ this repository.
 | `roles.conf` | The role catalogue in canonical order, each with a model tier. All run as subagents unless marked `session`. |
 | `routes.conf` | Named routes: which roles a task visits. `feature` is the default. |
 | `tiers.conf` | Model per tier per harness. |
+| `tools.conf` | The constitution tools and the commits they are pinned at. |
 | `constitution.md`, `constitution/articles/` | Rules every role obeys. |
 | `constitution/existing-code.md` | Refactoring policy read only when the project opts into `Existing code: ask before refactoring`. |
 | `roles/*.md` | What each role owns, verifies, and hands off. `orchestrator.md` is the session's own role. |
-| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. |
+| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. Only `kevin` goes on PATH; `kevin cs`, `kevin fs`, `kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral` run the other `bin/kevin-*` commands. |
 | `bin/kevin-mistral`, `workflows/` | The mistral backend: runs tasks and roles on Mistral Workflows when no backend CLI is on PATH. See [workflows/README.md](workflows/README.md). |
 | `bin/kevin-cs`, `languages/csharp.md` | C# tool wrapper: tests, coverage, CRAP, DRY, mutation, each scoped to the task's changes. |
 | `bin/kevin-fs`, `languages/fsharp.md` | F# .NET tests, coverage, compiled-method CRAP and DRY; mutation unsupported. |
@@ -25,14 +27,28 @@ this repository.
 | `languages/semgrep.md` | Shared scanner setup used by language guides, which define the scan scope and required/optional status. |
 | `tools/core/` | Report readers shared by the language tool wrappers: changed lines, CRAP, jscpd, Stryker. |
 | `handoff-protocol.md` | The task branch, record commits, and lifecycle. |
-| `verify.conf` | Optional, written by the project: one shell command per line that `kevin finish` runs on the merge before it merges, for example `make test`. |
+| `project.md` | This repository's own project article, not a default for other projects. |
 
 The [handoff protocol](handoff-protocol.md) covers task state, approval, merge
 recovery, and sharing the mutation cache on `kevin/metrics`.
 
 Prerequisites: `git`, `bash`, and [Babashka](https://babashka.org) (`bb`). `kevin`
 needs `bb` 1.12.216 or newer and refuses an older one.
-Run `kevin/bin/kevin init` once per clone.
+Run `install.sh --user` in the plugin directory once per user, then
+`kevin init` once per clone of a project.
+
+A project keeps its configuration in its own `kevin/`:
+
+| File | Purpose |
+|---|---|
+| `project.md` | Required. The project article that the constitution reads, and `Minimum Kevin version: <major>.<minor>.<patch>`. `kevin init` writes a starter. Every command but `help`, `version` and `home` refuses a runtime older than that version. |
+| `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may narrow the roles but not add one. |
+| `verify.conf` | Optional: one shell command per line that `kevin finish` runs on the merge before it merges, for example `make test`. Without it, `kevin finish` runs none. |
+
+Role prompts, the constitution, the language guides and the tool sources
+come only from the runtime. `kevin init` adds `.worktrees/`, `.kevin/`,
+`tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
+project with an old committed install into this layout.
 
 Start a task from the harness with `/swarm <feature request>`, or by hand:
 
@@ -61,18 +77,14 @@ gates and spec-judge are skipped.
 
 ## Configuration
 
-After editing `roles.conf`, `routes.conf`, or `tiers.conf`, run `kevin adapters`
-to regenerate the agent files under `.claude/agents/`, `.codex/agents/`,
-`.github/agents/`, `.kilo/agent/`, and `.vibe/agents/`. `kevin check` validates the configuration
-files and the role prompts; `kevin init` and `kevin adapters` run it first and refuse
-a broken setup. `kevin check`, `kevin adapters`, `kevin roles`, `kevin routes` and `kevin tool`
-read the checkout they run in; `kevin init` and task bookkeeping read the main
-checkout's.
-
-Adapter ownership is recorded in ignored `.kevin/adapters.edn` in the
-checkout where `kevin adapters` runs; without one, it reads the main checkout's,
-then the old `.swarmforge/adapters.edn`. Regeneration preserves unrelated agents and
-refuses conflicting or locally edited adapters before changing agent files.
+In the Kevin source checkout, run `kevin adapters` after editing `roles.conf`
+or `tiers.conf`. It regenerates the plugin agents: `agents/<role>.md` for
+Claude Code and `.github/plugin/agents/<role>.agent.md` for Copilot CLI. It
+refuses to run in any other checkout. `kevin check` validates the
+configuration files and the role prompts; `kevin init` and `kevin adapters`
+run it first and refuse a broken setup. `kevin check`, `kevin adapters`,
+`kevin roles`, `kevin routes` and `kevin tool` read the checkout they run in;
+`kevin init` and task bookkeeping read the main checkout's.
 
 Catalogue settings:
 
@@ -87,7 +99,7 @@ Catalogue settings:
   task's gates when a specification it produced waits for approval.
   `kevin dispatch` starts a gate without edit permissions: claude in its default permission mode with
   Edit, Write and NotebookEdit disallowed, codex in its read-only sandbox,
-  copilot with the write tool denied. The Claude and Copilot gate adapters
+  copilot with the write tool denied. The Claude and Copilot gate agents
   list only reading, search and shell tools. The shell can still write, so
   `kevin run` also stops when a gate records, commits or changes the task
   worktree. The shipped [falsifier](roles/falsifier.md) is a gate.

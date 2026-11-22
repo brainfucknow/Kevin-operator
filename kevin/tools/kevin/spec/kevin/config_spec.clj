@@ -3,6 +3,7 @@
             [clojure.string :as str]
             [speclj.core :refer [describe context it should= should should-not should-throw around]]
             [kevin.config :as config]
+            [kevin.runtime :as runtime]
             [kevin.shell :as shell]))
 
 (def ^:dynamic *dir* nil)
@@ -17,6 +18,7 @@
       (fs/create-dirs (fs/path dir "kevin" "roles"))
       (doseq [role ["specifier" "coder" "qa"]] (spit (str (fs/path dir "kevin" "roles" (str role ".md"))) role))
       (with-redefs [shell/repo-root (constantly dir)
+                    runtime/home (constantly (str (fs/path dir "kevin")))
                     shell/env (fn [name default] (get *env* name default))]
         (binding [*dir* dir]
           (conf "tiers.conf" "strong opus high gpt\nfast sonnet low mini\n")
@@ -37,27 +39,78 @@
         out (with-out-str (binding [*err* err] (reset! status (shell/main-with "kevin: " config/check))))]
     [@status out (str/split-lines (str err))]))
 
-(describe "conf-dir"
-  (it "is kevin/ of the main checkout"
-    (let [dir (str (fs/create-temp-dir {:prefix "conf-dir-"}))]
-      (try (fs/create-dirs (fs/path dir "kevin"))
-           (fs/create-dirs (fs/path dir "swarmforge"))
-           (with-redefs [shell/repo-root (constantly dir)]
-             (should= (str (fs/path dir "kevin")) (config/conf-dir)))
-           (finally (fs/delete-tree dir)))))
+(defn- in-dirs
+  "Calls (f project runtime) with a scratch main checkout and a scratch runtime
+  kevin/ directory, with kevin's repo-root and home pointing at them."
+  [f]
+  (let [project (str (fs/create-temp-dir {:prefix "conf-project-"}))
+        runtime (str (fs/create-temp-dir {:prefix "conf-runtime-"}))]
+    (try (fs/create-dirs (fs/path project "kevin"))
+         (with-redefs [shell/repo-root (constantly project)
+                       runtime/home (constantly runtime)]
+           (f project runtime))
+         (finally (fs/delete-tree project) (fs/delete-tree runtime)))))
 
-  (it "is the legacy swarmforge/ of a main checkout that has not moved it yet"
-    (let [dir (str (fs/create-temp-dir {:prefix "conf-dir-"}))]
-      (try (fs/create-dirs (fs/path dir "swarmforge"))
-           (with-redefs [shell/repo-root (constantly dir)]
-             (should= (str (fs/path dir "swarmforge")) (config/conf-dir)))
-           (finally (fs/delete-tree dir)))))
+(describe "conf-file"
+  (it "is the project's kevin/<name> when the project has it"
+    (in-dirs (fn [project runtime]
+               (doseq [name ["roles.conf" "routes.conf" "tiers.conf" "tools.conf"]]
+                 (spit (str (fs/path project "kevin" name)) "x")
+                 (spit (str (fs/path runtime name)) "y")
+                 (should= (str (fs/path project "kevin" name)) (config/conf-file name))))))
 
-  (it "is kevin/ when neither exists"
-    (let [dir (str (fs/create-temp-dir {:prefix "conf-dir-"}))]
-      (try (with-redefs [shell/repo-root (constantly dir)]
-             (should= (str (fs/path dir "kevin")) (config/conf-dir)))
-           (finally (fs/delete-tree dir))))))
+  (it "is the runtime's file when the project has none"
+    (in-dirs (fn [_ runtime]
+               (doseq [name ["roles.conf" "routes.conf" "tiers.conf" "tools.conf"]]
+                 (should= (str (fs/path runtime name)) (config/conf-file name))))))
+
+  (it "never falls back to the runtime for verify.conf"
+    (in-dirs (fn [project runtime]
+               (spit (str (fs/path runtime "verify.conf")) "false")
+               (should= (str (fs/path project "kevin" "verify.conf")) (config/conf-file "verify.conf")))))
+
+  (it "reads the checkout that *root* names"
+    (in-dirs (fn [_ _]
+               (let [other (str (fs/create-temp-dir {:prefix "conf-other-"}))]
+                 (try (fs/create-dirs (fs/path other "kevin"))
+                      (spit (str (fs/path other "kevin" "routes.conf")) "x")
+                      (binding [config/*root* other]
+                        (should= (str (fs/path other "kevin" "routes.conf")) (config/conf-file "routes.conf")))
+                      (finally (fs/delete-tree other)))))))
+
+  (it "does not read a legacy swarmforge/ directory"
+    (in-dirs (fn [project runtime]
+               (fs/create-dirs (fs/path project "swarmforge"))
+               (spit (str (fs/path project "swarmforge" "routes.conf")) "x")
+               (should= (str (fs/path runtime "routes.conf")) (config/conf-file "routes.conf"))))))
+
+(describe "check against the runtime"
+  (it "refuses a project role that the runtime's roles.conf lacks, and only once"
+    (in-dirs (fn [project runtime]
+               (spit (str (fs/path runtime "tiers.conf")) "strong opus high gpt\n")
+               (spit (str (fs/path runtime "roles.conf")) "coder strong subagent\n")
+               (spit (str (fs/path runtime "routes.conf")) "feature coder\n")
+               (fs/create-dirs (fs/path runtime "roles"))
+               (spit (str (fs/path runtime "roles" "coder.md")) "# coder")
+               (spit (str (fs/path project "kevin" "roles.conf")) "coder strong subagent\ndesigner strong subagent\n")
+               (fs/create-dirs (fs/path project "kevin" "roles"))
+               (spit (str (fs/path project "kevin" "roles" "designer.md")) "# designer")
+               (let [[status _ errors] (check)]
+                 (should= 1 status)
+                 (should= ["CHECK: roles.conf: 'designer' is not a role of the Kevin runtime"]
+                          (filter #(str/starts-with? % "CHECK:") errors))))))
+
+  (it "reads role prompts from the runtime, not the project"
+    (in-dirs (fn [project runtime]
+               (spit (str (fs/path runtime "tiers.conf")) "strong opus high gpt\n")
+               (spit (str (fs/path runtime "roles.conf")) "coder strong subagent\n")
+               (spit (str (fs/path runtime "routes.conf")) "feature coder\n")
+               (fs/create-dirs (fs/path project "kevin" "roles"))
+               (spit (str (fs/path project "kevin" "roles" "coder.md")) "# coder")
+               (let [[status _ errors] (check)]
+                 (should= 1 status)
+                 (should= ["CHECK: roles/coder.md: missing role prompt for 'coder'"]
+                          (filter #(str/starts-with? % "CHECK:") errors)))))))
 
 (describe "catalogue"
   (around [it] (with-catalogue it))

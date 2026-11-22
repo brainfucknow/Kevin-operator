@@ -1,7 +1,7 @@
 # Engineering Rules
 
 ## Startup Tools
-- For applicable verification targets, procure each required CRAP, mutation, and DRY tool for the project language directly from the listed `github.com/unclebob/...` repositories at the version pinned in `kevin/tools.conf`, and get each one ready to run. A stage with no applicable target does not require tool installation.
+- For applicable verification targets, procure each required CRAP, mutation, and DRY tool for the project language directly from the listed `github.com/unclebob/...` repositories at the version pinned in `tools.conf` (the project's `kevin/tools.conf`, else the runtime's), and get each one ready to run. A stage with no applicable target does not require tool installation.
 - Do not rely on stale cached, vendored, or preinstalled copies, or on a copy at another version, when a fresh GitHub install/build is possible in the current environment. `KEVIN_TOOL_SRC` points `kevin tool` at a local, unpinned checkout for tool development; do not cite it as pinned evidence.
 - Use these language tools. Before running verification, read the applicable linked guide for wrapper commands, test conventions, and language-specific mutation scope:
 
@@ -9,12 +9,12 @@
   |---|---|---|---|---|
   | Go | `github.com/unclebob/mutate4go` | `github.com/unclebob/crap4go` | `github.com/unclebob/dry4go` | `go install` |
   | Clojure | `github.com/unclebob/clj-mutate` | `github.com/unclebob/crap4clj` | `github.com/unclebob/dry4clj` | Clojure CLI/deps.edn; [Babashka guide](../../languages/clojure.md) |
-  | Java | `github.com/unclebob/mutate4java` | `github.com/unclebob/crap4java` | `github.com/unclebob/dry4java` | [`kevin-java`](../../languages/java.md) |
-  | C# | Stryker.NET | dotnet-coverage | jscpd | [`kevin-cs tools`](../../languages/csharp.md) |
-  | F# | Unsupported (exit 2) | dotnet-coverage compiled methods | jscpd | [`kevin-fs tools`](../../languages/fsharp.md) |
-  | VB.NET | Unsupported (exit 2) | dotnet-coverage compiled methods | jscpd | [`kevin-vb tools`](../../languages/vbnet.md) |
-  | JavaScript/TypeScript | StrykerJS | oxlint or ESLint + Istanbul | jscpd | [`kevin-js tools`](../../languages/javascript.md) |
-  | Ruby | mutant (optional: needs the project's mutant usage) | RuboCop or flog + SimpleCov | jscpd or flay | [`kevin-rb`](../../languages/ruby.md) |
+  | Java | `github.com/unclebob/mutate4java` | `github.com/unclebob/crap4java` | `github.com/unclebob/dry4java` | [`kevin java`](../../languages/java.md) |
+  | C# | Stryker.NET | dotnet-coverage | jscpd | [`kevin cs tools`](../../languages/csharp.md) |
+  | F# | Unsupported (exit 2) | dotnet-coverage compiled methods | jscpd | [`kevin fs tools`](../../languages/fsharp.md) |
+  | VB.NET | Unsupported (exit 2) | dotnet-coverage compiled methods | jscpd | [`kevin vb tools`](../../languages/vbnet.md) |
+  | JavaScript/TypeScript | StrykerJS | oxlint or ESLint + Istanbul | jscpd | [`kevin js tools`](../../languages/javascript.md) |
+  | Ruby | mutant (optional: needs the project's mutant usage) | RuboCop or flog + SimpleCov | jscpd or flay | [`kevin rb`](../../languages/ruby.md) |
 
 - A tool that is not installed is no reason to skip a check. Run `kevin tool ensure <tool>`, then the check. A `Not-tested` trailer may skip a check only for one of these reasons:
   - The check has no applicable target in the task.
@@ -23,7 +23,7 @@
   - The tool ran and failed. Quote the error.
   - `kevin tool ensure` failed. Quote the error, then `kevin ask`, naming the tool in the question.
 - In any `Not-tested` trailer, for a check, a behavior or a bug, name a catalogue tool only for the last two reasons. Otherwise name the check or the behavior. `kevin handoff` and `kevin review` refuse a trailer that names a missing tool. Pass `--allow-missing-tool` only after an operator answer accepts the missing tool.
-- Stryker.NET and dotnet-coverage are pinned by the project's committed dotnet tool manifest instead of `kevin/tools.conf`; `kevin-cs tools` (and `kevin-fs`/`kevin-vb tools` for dotnet-coverage) restores them, and `kevin-cs mutate` and `coverage` refuse any other copy.
+- Stryker.NET and dotnet-coverage are pinned by the project's committed dotnet tool manifest instead of `tools.conf`; `kevin cs tools` (and `kevin fs`/`kevin vb tools` for dotnet-coverage) restores them, and `kevin cs mutate` and `coverage` refuse any other copy.
 - Install every listed tool with `kevin tool ensure <tool>` and check it with `kevin tool require <tool>`; `kevin tool list` prints the catalogue. Cite the `@<ref>` that ends each `INSTALLED:` line of `kevin tool ensure` for each tool you ran in your `Tested` trailers. Wrappers land in `.kevin/bin/` at the repository root, ignored by git and shared by every task worktree, so a tool install never writes outside the project. Run tools through those wrappers (`kevin tool bin` prints the directory to put on PATH); they carry the argument guardrails below.
 
 ## Language Defaults
@@ -73,7 +73,7 @@
 - Before handoff, confirm the relevant local verification evidence is current for the affected targets.
 
 ## Source Quality Gates
-- CRAP must be 10 or below for the targets the role owns (20 for Ruby's `kevin-rb crap --complexity flog`, whose ABC score runs higher). A single `cond` or `case` answering one question may stay above 10. Split nested or mixed-duty functions over 10; extracts must own their inputs, not take booleans the caller already knew.
+- CRAP must be 10 or below for the targets the role owns (20 for Ruby's `kevin rb crap --complexity flog`, whose ABC score runs higher). A single `cond` or `case` answering one question may stay above 10. Split nested or mixed-duty functions over 10; extracts must own their inputs, not take booleans the caller already knew.
 - Scan changed and new files with the mutation tool's scan/count mode as a hint of mixed responsibilities. Without that mode, use the wrapper's CRAP complexity column as described in its language guide. Split multi-job files, not one-job files merely to lower site counts.
 - Preserve project manifests through splits. Move mutation cache files to match moved source paths under `.metrics/`; never hand-edit them or commit the cache.
 
@@ -81,7 +81,7 @@
 - When `project.md` says `Existing code: ask before refactoring`, read and obey the [existing-code refactoring policy](../existing-code.md) before working on existing code. It takes precedence over role cleanup and quality-gate instructions for existing code. Otherwise skip it.
 
 ## Guardrails
-- Do not invent project-local CRAP, DRY, mutation, or coverage proxies. Install and run the constitution tools (`crap4clj` with cloverage, `dry4clj`, `clj-mutate`, speclj, `kevin-cs`, `kevin-fs`, `kevin-vb`, `kevin-js`, `kevin-rb`, or the language table). Do not treat a homegrown `bb crap` / `bb coverage` / `bb mutation-count` task or a throwaway report-parsing script as those tools.
+- Do not invent project-local CRAP, DRY, mutation, or coverage proxies. Install and run the constitution tools (`crap4clj` with cloverage, `dry4clj`, `clj-mutate`, speclj, `kevin cs`, `kevin fs`, `kevin vb`, `kevin js`, `kevin rb`, or the language table). Do not treat a homegrown `bb crap` / `bb coverage` / `bb mutation-count` task or a throwaway report-parsing script as those tools.
 - Do not edit mutation testing or Gherkin acceptance mutation manifests by hand; allow approved mutation tools to update those manifests as part of their normal runs.
 - Mutation manifests live on the branch `kevin/metrics`, not in tracked files: clj-mutate's under `.metrics/mutate/`, and the gherkin-mutator stamp and manifest block, which the `gherkin-mutator` wrapper keeps in `.metrics/gherkin/<feature path>` between runs. `kevin start` loads them and `kevin handoff` saves them. Do not commit `.metrics/` or a mutation block in a feature file.
 - Do not commit unrelated local changes or generated artifacts unless required for the task.

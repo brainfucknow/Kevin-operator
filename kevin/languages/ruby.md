@@ -1,6 +1,6 @@
 # Ruby tooling
 
-Run `kevin/bin/kevin-rb` from the task worktree beside `Gemfile`. It needs
+Run `kevin rb` from the task worktree beside `Gemfile`. It needs
 Babashka, Ruby with Bundler, and Node with `npx` for jscpd. Gems run through
 `bundle exec`; reports go under `./tmp/`. Tests use RSpec; Minitest is
 unsupported.
@@ -44,14 +44,14 @@ scan mode.
 
 ## Mutation
 
-Mutation must be differential: use `kevin-rb mutate` without `--all`, so mutant
+Mutation must be differential: use `kevin rb mutate` without `--all`, so mutant
 mutates only subjects touched since the merge base.
 
 mutant reads its configuration from `mutant.yml`, `config/mutant.yml` or
 `.mutant.yml`; add `.mutant/` to `.gitignore`. kevin-rb never sets `--usage`:
 `usage: opensource` is licensed for public open-source repositories only, and
 other code needs `usage: commercial` (paid). Mutation is optional: without a
-usage key `kevin-rb mutate` exits 2, so record `Not-tested: mutation: no mutant
+usage key `kevin rb mutate` exits 2, so record `Not-tested: mutation: no mutant
 usage` and continue.
 
 ## Security scanners
