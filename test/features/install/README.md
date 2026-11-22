@@ -1,15 +1,11 @@
 # Install acceptance features
 
-`bin_tracked.feature` verifies that installed `kevin/bin` files remain
-trackable under project ignore rules such as Visual Studio's `[Bb]in/`.
-It also checks reinstall behavior and duplicate ignore entries.
-`babashka_check.feature` verifies that install.sh, with no `bb` on PATH,
-refuses before it changes the target project, and that a `bb.edn` in the
-directory it runs from does not affect its Babashka check.
+`user_install.feature` verifies `install.sh --user`: the one link
+`$HOME/.local/bin/kevin` to the plugin's `kevin/bin/kevin`, its Babashka
+check, and its usage errors.
 
 Run `bash test/acceptance.sh` from the repository root. The fixtures use the
-real installer, Git, and Babashka in scratch repositories. See the
-[install step handlers](../../acceptance/src/acceptance/install_steps.clj)
-and shared [metrics fixtures](../../acceptance/src/acceptance/metrics_steps.clj)
-for operations and assertions; placeholder conventions follow the
-[task-store guide](../task_store/README.md).
+real installer, Git, and Babashka with a scratch `HOME` and a scratch copy of
+this repository as the plugin directory. `$HOME` in a step is that scratch
+home. See the [install step handlers](../../acceptance/src/acceptance/install_steps.clj)
+for operations and assertions.
