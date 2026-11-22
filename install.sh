@@ -210,7 +210,8 @@ printf '%s\0' "${shipped[@]}" | (cd "$HERE" && bb -e '
                    [#"`sf`" "`kevin`"]
                    [#"\bSwarmForge\b" "Kevin"]
                    [#"SWARMFORGE_" "KEVIN_"]
-                   [#"swarmforge/" "kevin/"]]]
+                   [#"swarmforge/" "kevin/"]
+                   [#"(?<![\w./$-])sf(?![\w/-])(?!\.[A-Za-z0-9])" "kevin"]]]
       (when migrating?
         (doseq [path kept
                 :when (str/starts-with? path "kevin/")
