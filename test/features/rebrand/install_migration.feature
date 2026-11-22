@@ -17,9 +17,13 @@ Feature: install.sh migrates a legacy install
   names as plain text (swarmforge/tools/sf/, swarmforge/bin/sf and
   swarmforge/bin/sf-*, the sf-* command names, SwarmForge-*, SWARMFORGE_*,
   swarmforge/, the sf command word before a kevin subcommand or "property",
-  `sf` in backticks, and the word SwarmForge), and for each file it changed
-  it prints "install.sh: rewrote the old names in <path>". Other uses of sf,
-  such as the namespace sf.cli, stay.
+  `sf` in backticks, the word SwarmForge, and sf as a bare word), and for
+  each file it changed it prints "install.sh: rewrote the old names in
+  <path>". A bare word sf has no letter, digit, "_", "-", "/", ".", or "$"
+  just before it, and no letter, digit, "_", "-", "/", or "." with a letter
+  or digit after it just after it. Other uses of sf, such as the namespace
+  sf.cli, the path src/sf/, the extension .sf, and the names sfcore and
+  my_sf, stay.
 
   With both swarmforge/ and kevin/ present, it prints "install.sh: both
   swarmforge/ and kevin/ exist; keep one", exits 1, and changes nothing.
@@ -71,6 +75,16 @@ Feature: install.sh migrates a legacy install
     And the file "kevin/routes.conf" in the repository holds "# Kevin routes: kevin handoff, kevin new --route, kevin tool ensure; sf.cli stays\nmine: coder,qa"
     And the file "kevin/constitution/articles/project.md" in the repository holds "`kevin finish` runs the kevin property suite; run `kevin` from the root"
     And the output has the line "install.sh: rewrote the old names in kevin/routes.conf"
+
+  # install.sh migrates a legacy install 8
+  Scenario: install.sh migrates a legacy install 8: a kept file that uses sf as a bare word is rewritten
+    Given the file "swarmforge/notes.txt" in the repository holds "# sf refuses the first handoff. sf records the audit (sf).\nsf: done"
+    And the file "swarmforge/constitution/articles/project.md" in the repository holds "the sf tools cover the code; sf.cli, src/sf/x, a.sf, sfcore and my_sf stay; end with sf."
+    When I run install.sh into it 1 times
+    Then the exit status is 0
+    And the file "kevin/notes.txt" in the repository holds "# kevin refuses the first handoff. kevin records the audit (kevin).\nkevin: done"
+    And the file "kevin/constitution/articles/project.md" in the repository holds "the kevin tools cover the code; sf.cli, src/sf/x, a.sf, sfcore and my_sf stay; end with kevin."
+    And the output has the line "install.sh: rewrote the old names in kevin/constitution/articles/project.md"
 
   # install.sh migrates a legacy install 4
   Scenario: install.sh migrates a legacy install 4: both trees present is refused
