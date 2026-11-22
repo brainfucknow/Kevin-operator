@@ -126,11 +126,16 @@
           (not= (count kept) (count (str/split-lines text)))
           (do (spit (str file) (str (str/join "\n" kept) "\n")) true))))))
 
-(def ^:private runtime-command #"(?:\./)?kevin/bin/kevin(?:-([a-z]+))?\b")
+(def ^:private runtime-command
+  "A kevin/bin path, with a ./ before it and a bare bash, sh or bb launcher
+  before that. A converted project has no kevin/bin, so the launcher would
+  name the kevin directory."
+  #"(?:(?<!\S)(?:bash|sh|bb) +)?(?:\./)?kevin/bin/kevin(?:-([a-z]+))?\b")
 
 (defn- rewrite-config!
   "Replaces kevin/bin/kevin-<name> with kevin <name> and kevin/bin/kevin with
-  kevin in kept configuration other than tools.conf. Returns the rewritten paths."
+  kevin, launcher included, in kept configuration other than tools.conf.
+  Returns the rewritten paths."
   [root]
   (vec (for [path (conj (vec (filter #(re-matches #"kevin/[^/]+\.conf" %) (tracked root "kevin")))
                         article)
