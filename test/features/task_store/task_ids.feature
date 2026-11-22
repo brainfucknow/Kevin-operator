@@ -1,6 +1,6 @@
-Feature: sf task ids
+Feature: kevin task ids
 
-  sf new makes a task id from the title: a slug, "-", and 7 random lowercase
+  kevin new makes a task id from the title: a slug, "-", and 7 random lowercase
   hexadecimal digits, and prints it. The slug is the title lowercased, with
   å made "aa", ä and æ made "ae", ö and ø made "oe", each other letter of
   U+00C0 to U+024F and U+1E00 to U+1EFF that has a canonical decomposition
@@ -18,11 +18,11 @@ Feature: sf task ids
   is refused with "no task '<argument>'". The exit status is 1.
 
   Background:
-    Given a project with swarmforge initialized
+    Given a project with kevin initialized
 
-  # sf task ids 1
-  Scenario Outline: sf task ids 1: sf new makes the id from the slug of the title and seven hex digits
-    When I run sf new with the title "<title>"
+  # kevin task ids 1
+  Scenario Outline: kevin task ids 1: kevin new makes the id from the slug of the title and seven hex digits
+    When I run kevin new with the title "<title>"
     Then the exit status is 0
     And the output matches "^<slug>-[0-9a-f]{7}$"
     And the branch "swarm/NEW" exists
@@ -43,19 +43,19 @@ Feature: sf task ids
       | Supercalifragilisticexpialidocious word | supercalifragilisticexpialidoc |
       | !!!                                     | task                           |
 
-  # sf task ids 2
-  Scenario: sf task ids 2: two tasks with the same title get different ids
+  # kevin task ids 2
+  Scenario: kevin task ids 2: two tasks with the same title get different ids
     Given task "A" titled "Add login" was created on route "specifier"
-    When I run sf new with the title "Add login"
+    When I run kevin new with the title "Add login"
     Then the exit status is 0
     And the output matches "^add-login-[0-9a-f]{7}$"
     And the output is not "$A"
 
-  # sf task ids 3
-  Scenario Outline: sf task ids 3: a command takes the full id, the hex part or a unique prefix
+  # kevin task ids 3
+  Scenario Outline: kevin task ids 3: a command takes the full id, the hex part or a unique prefix
     Given task "A" titled "Add login" was created on route "specifier"
     And task "B" titled "Add logout" was created on route "coder"
-    When I run "sf stage <argument>"
+    When I run "kevin stage <argument>"
     Then the exit status is 0
     And the output is "<stage>"
 
@@ -67,15 +67,15 @@ Feature: sf task ids
       | add-logi | specifier |
       | add-logo | coder     |
 
-  # sf task ids 4
-  Scenario Outline: sf task ids 4: an argument that matches more than one task or none is refused
+  # kevin task ids 4
+  Scenario Outline: kevin task ids 4: an argument that matches more than one task or none is refused
     Given task "A" titled "Add login" was created on route "specifier"
     And task "B" titled "Add logout" was created on route "coder"
-    When I run "sf stage <argument>"
+    When I run "kevin stage <argument>"
     Then the exit status is 1
     And the error output has the line "<error>"
 
     Examples:
       | argument | error                                       |
-      | add-log  | sf: task id 'add-log' is ambiguous: $A $B   |
-      | nothing  | sf: no task 'nothing'                       |
+      | add-log  | kevin: task id 'add-log' is ambiguous: $A $B   |
+      | nothing  | kevin: no task 'nothing'                       |

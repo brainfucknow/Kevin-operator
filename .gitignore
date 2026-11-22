@@ -1,8 +1,9 @@
 .worktrees/
+.kevin/
 .swarmforge/
 tmp/
 .metrics/
-/swarmforge/tools/*/target/
+/kevin/tools/*/target/
 # Temporary Python files
 __pycache__/
 *.py[cod]

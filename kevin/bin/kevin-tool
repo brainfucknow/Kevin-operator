@@ -1,0 +1,7 @@
+#!/usr/bin/env bb
+;; kevin-tool: the `kevin tool` command on its own. Source: kevin/tools/kevin/.
+(require '[babashka.classpath :as classpath] '[babashka.fs :as fs])
+(let [home (fs/path (fs/parent (fs/canonicalize *file*)) ".." "tools" "kevin")]
+  (run! #(classpath/add-classpath (str (fs/path home %))) ["src" "resources"]))
+(require 'kevin.tool)
+(System/exit ((resolve 'kevin.tool/main) *command-line-args*))

@@ -1,7 +1,7 @@
 (ns acceptance.support
   "Scratch repositories for the step handlers. Each execution works in a fresh
-  copy of a scratch git repository that holds this checkout's swarmforge/,
-  without its verify.conf, and a .gitignore. The real sf and git run there,
+  copy of a scratch git repository that holds this checkout's kevin/,
+  without its verify.conf, and a .gitignore. The real kevin and git run there,
   with git-bug off PATH. Scratch files go under ./tmp/acceptance/ and are
   removed when the process exits."
   (:require [babashka.fs :as fs]
@@ -39,10 +39,10 @@
 
 (defn clean-env
   "The fixture environment, using only the selected scratch home's Git config,
-  without the session's SWARMFORGE_, GIT_, CLAUDECODE and CODEX_THREAD_ID
-  variables. A scenario sets those through extra-env."
+  without the session's KEVIN_, legacy SWARMFORGE_, GIT_, CLAUDECODE and
+  CODEX_THREAD_ID variables. A scenario sets those through extra-env."
   [home-dir]
-  (-> (into {} (remove (fn [[k _]] (re-find #"^(SWARMFORGE_|GIT_|CLAUDECODE$|CODEX_THREAD_ID$)" k)) (System/getenv)))
+  (-> (into {} (remove (fn [[k _]] (re-find #"^(KEVIN_|SWARMFORGE_|GIT_|CLAUDECODE$|CODEX_THREAD_ID$)" k)) (System/getenv)))
       (assoc "HOME" (or home-dir (home)) "PATH" @path
              "GIT_CONFIG_NOSYSTEM" "1"
              "GIT_CONFIG_GLOBAL" (str (fs/path (or home-dir (home)) ".gitconfig")))))
@@ -61,7 +61,7 @@
       (throw (ex-info (str (str/join " " cmd) " exited " exit ": " (str/trim (str out err))) {})))
     (str/trim-newline out)))
 
-(defn sf-path [repo] (str (fs/path repo "swarmforge" "bin" "sf")))
+(defn kevin-path [repo] (str (fs/path repo "kevin" "bin" "kevin")))
 
 (def gitconfig "[init]\n\tdefaultBranch = main\n")
 
@@ -72,9 +72,9 @@
            (spit (str (fs/path (home) ".gitconfig"))
                  (str "[user]\n\tname = tester\n\temail = tester@example.com\n" gitconfig))
            (must repo "git" "init" "-q" ".")
-           (fs/copy-tree (fs/path checkout "swarmforge") (fs/path repo "swarmforge"))
-           (fs/delete-if-exists (fs/path repo "swarmforge" "verify.conf"))
-           (spit (str (fs/path repo ".gitignore")) ".worktrees/\n.swarmforge/\ntmp/\n")
+           (fs/copy-tree (fs/path checkout "kevin") (fs/path repo "kevin"))
+           (fs/delete-if-exists (fs/path repo "kevin" "verify.conf"))
+           (spit (str (fs/path repo ".gitignore")) ".worktrees/\n.kevin/\ntmp/\n")
            (must repo "git" "add" "-A")
            (must repo "git" "commit" "-q" "-m" "seed")
            repo)))
@@ -82,13 +82,13 @@
 (def ^:private initialized
   (delay (let [repo (str (fs/path @scratch "initialized"))]
            (must @scratch "cp" "-a" @seed repo)
-           (must repo (sf-path repo) "init")
+           (must repo (kevin-path repo) "init")
            repo)))
 
 (def ^:private copies (atom 0))
 
 (defn project
-  "A fresh copy of the scratch repository, after sf init when initialized?."
+  "A fresh copy of the scratch repository, after kevin init when initialized?."
   [initialized?]
   (let [repo (str (fs/path @scratch (str "run-" (swap! copies inc))))]
     (must @scratch "cp" "-a" (if initialized? @initialized @seed) repo)

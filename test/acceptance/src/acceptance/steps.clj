@@ -5,7 +5,7 @@
             [babashka.fs :as fs]
             [clojure.string :as str]))
 
-(defn- sf [world] (support/sf-path (:repo world)))
+(defn- kevin [world] (support/kevin-path (:repo world)))
 
 (defn new-world [] {:names {}})
 
@@ -36,18 +36,18 @@
      "GIT_CONFIG_VALUE_0" (str "https://github.com/unclebob/" (:name upstream) ".git")}))
 
 (defn- tool-env
-  "SWARMFORGE_TOOL_SRC when the world has a tool source override, else
+  "KEVIN_TOOL_SRC when the world has a tool source override, else
   GIT_TERMINAL_PROMPT=0 so a clone that should not happen fails fast; and the
   upstream's insteadOf rule."
   [world]
-  (merge (if-let [src (:src world)] {"SWARMFORGE_TOOL_SRC" src} {"GIT_TERMINAL_PROMPT" "0"})
+  (merge (if-let [src (:src world)] {"KEVIN_TOOL_SRC" src} {"GIT_TERMINAL_PROMPT" "0"})
          (upstream-env world)))
 
 (defn- run-command
-  "Runs command, split on spaces, from the place; sf is the scratch project's sf."
+  "Runs command, split on spaces, from the place; kevin is the scratch project's kevin."
   [world command place]
   (let [[program & args] (str/split command #" ")]
-    (select-keys (run (place-dir world place) (cons (if (= "sf" program) (sf world) program) args) (tool-env world))
+    (select-keys (run (place-dir world place) (cons (if (= "kevin" program) (kevin world) program) args) (tool-env world))
                  [:exit :out :err])))
 
 (defn- commit
@@ -68,7 +68,7 @@
   (str/split-lines (:out world)))
 
 (def ^:private task-handlers
-  [[#"a project with swarmforge initialized"
+  [[#"a project with kevin initialized"
     (fn [world]
       (assoc world :repo (support/project true)))]
 
@@ -77,23 +77,23 @@
       (require-ok (commit (:repo world) message {}) "git commit")
       world)]
 
-   [#"a task at stage \"([^\"]+)\" started with sf start"
+   [#"a task at stage \"([^\"]+)\" started with kevin start"
     (fn [world stage]
-      (let [id (must (:repo world) (sf world) "new" "t" "-m" "t" "--route" stage)]
-        (must (:repo world) (sf world) "start" id)
+      (let [id (must (:repo world) (kevin world) "new" "t" "-m" "t" "--route" stage)]
+        (must (:repo world) (kevin world) "start" id)
         (assoc world :id id :worktree (str (fs/path (:repo world) ".worktrees" id)))))]
 
-   [#"I commit \"(.*)\" in the (task worktree|main checkout)(?: with SWARMFORGE_ROLE \"([^\"]+)\")?( twice)?"
+   [#"I commit \"(.*)\" in the (task worktree|main checkout)(?: with KEVIN_ROLE \"([^\"]+)\")?( twice)?"
     (fn [world message place role twice]
       (let [dir (place-dir world place)
-            env (if role {"SWARMFORGE_ROLE" role} {})
+            env (if role {"KEVIN_ROLE" role} {})
             results (doall (repeatedly (if twice 2 1) #(commit dir message env)))]
         (assoc world :dir dir :exit (some #(when-not (zero? (:exit %)) (:exit %)) results)
                :err (str/join (map :err results)))))]
 
    [#"role \"([^\"]+)\" committed \"(.*)\" in the task worktree as (C\d+)"
     (fn [world role message name]
-      (require-ok (commit (:worktree world) message {"SWARMFORGE_ROLE" role}) "git commit")
+      (require-ok (commit (:worktree world) message {"KEVIN_ROLE" role}) "git commit")
       (name-commit world name))]
 
    [#"\"(.*)\" was committed in the task worktree with the hook skipped as (C\d+)"
@@ -101,10 +101,10 @@
       (require-ok (commit (:worktree world) message {} "--no-verify") "git commit")
       (name-commit world name))]
 
-   [#"the task was finished with sf finish"
+   [#"the task was finished with kevin finish"
     (fn [world]
       (doseq [command ["review" "approve" "finish"]]
-        (must (:repo world) (sf world) command (:id world)))
+        (must (:repo world) (kevin world) command (:id world)))
       world)]
 
    [#"I run \"(.*)\" in the (main checkout|task worktree)"
@@ -161,7 +161,7 @@
         (check (empty? found) (str "found " (pr-str (vec found))))
         world))]])
 
-;; sf tool (test/features/sf_tool)
+;; kevin tool (test/features/kevin_tool)
 
 (defn- fill-paths
   "text with MAIN, SRC, CFG and CLONE replaced by the scratch project's paths,
@@ -172,7 +172,7 @@
                  (case name
                    "MAIN" (:repo world)
                    "SRC" (or (:src world) (:clone world) (throw (ex-info "no tool source" {})))
-                   "CFG" (str (fs/path (:repo world) ".swarmforge" "tools" "crap4clj-coverage" "bb.edn"))
+                   "CFG" (str (fs/path (:repo world) ".kevin" "tools" "crap4clj-coverage" "bb.edn"))
                    "CLONE" (or (:clone world) (throw (ex-info "no upstream" {})))
                    (or (get-in world [:upstream :commits name]) (throw (ex-info (str "no commit " name) {})))))))
 
@@ -185,11 +185,11 @@
   (fs/set-posix-file-permissions file "rwxr-xr-x"))
 
 (defn- other-repository
-  "A git repository of its own whose swarmforge/bin/sf-cs prints \"other\"."
+  "A git repository of its own whose kevin/bin/kevin-cs prints \"other\"."
   []
   (let [dir (scratch-dir "other-")]
     (must dir "git" "init" "--quiet")
-    (write-script (fs/path dir "swarmforge" "bin" "sf-cs") "echo other")
+    (write-script (fs/path dir "kevin" "bin" "kevin-cs") "echo other")
     dir))
 
 (defn- tool-source [world bb-edn]
@@ -201,7 +201,7 @@
   (remove str/blank? (str/split text #" ")))
 
 (defn- wrapper-path [world tool]
-  (fs/path (:repo world) ".swarmforge" "bin" tool))
+  (fs/path (:repo world) ".kevin" "bin" tool))
 
 (defn- wrapper-env
   "PATH for a wrapper run: the fake bb, a fake clj when present, and no real clj."
@@ -222,7 +222,7 @@
 
 (defn- commit-all [dir message]
   (require-ok (run dir ["git" "add" "-A"]) "git add")
-  (require-ok (run dir ["git" "commit" "-q" "-m" message] {"SWARMFORGE_ROLE" "tester"}) "git commit"))
+  (require-ok (run dir ["git" "commit" "-q" "-m" message] {"KEVIN_ROLE" "tester"}) "git commit"))
 
 (def ^:private stale-wrapper "echo stale")
 
@@ -373,7 +373,7 @@
    [#"the upstream \"([^\"]+)\" has the commits \"([^\"]+)\""
     (fn [world repo names]
       (assoc world :upstream (new-upstream repo (words names))
-             :clone (str (fs/path (:repo world) ".swarmforge" "tools" repo))))]
+             :clone (str (fs/path (:repo world) ".kevin" "tools" repo))))]
 
    [#"the upstream \"([^\"]+)\" is (reachable|unreachable)"
     (fn [world _ how]
@@ -381,7 +381,7 @@
 
    [#"the main checkout's tools.conf pins \"([^\"]+)\" at \"([^\"]+)\""
     (fn [world tool ref]
-      (let [file (str (fs/path (:repo world) "swarmforge" "tools.conf"))]
+      (let [file (str (fs/path (:repo world) "kevin" "tools.conf"))]
         (spit file (set-ref (slurp file) tool (fill-paths world ref)))
         world))]
 
@@ -432,7 +432,7 @@
    [#"the (task worktree|main checkout)'s tools.conf adds the line \"(.*)\""
     (fn [world place line]
       (let [dir (place-dir world place)]
-        (spit (str (fs/path dir "swarmforge" "tools.conf")) (str line "\n") :append true)
+        (spit (str (fs/path dir "kevin" "tools.conf")) (str line "\n") :append true)
         (when (= "task worktree" place) (commit-all dir "Add a tool"))
         world))]
 
@@ -507,13 +507,13 @@
     (fn [world tool args]
       (merge world (run-wrapper world tool (:repo world) (words (fill-paths world args)) {})))]
 
-   [#"I run the sf-cs wrapper in the (task worktree|main checkout|second task worktree|directory outside git|another git repository)"
+   [#"I run the kevin-cs wrapper in the (task worktree|main checkout|second task worktree|directory outside git|another git repository)"
     (fn [world place]
       (let [outside? (= "directory outside git" place)
             world (cond-> world
                     outside? (assoc :outside (scratch-dir "outside-"))
                     (= "another git repository" place) (assoc :other (other-repository)))]
-        (merge world (run-wrapper world "sf-cs" (place-dir world place) []
+        (merge world (run-wrapper world "kevin-cs" (place-dir world place) []
                                   (if outside? {"GIT_CEILING_DIRECTORIES" @support/scratch} {})))))]
 
    [#"bb received \"([^\"]*)\""

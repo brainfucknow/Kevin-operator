@@ -6,8 +6,8 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$HERE"
-export PATH="$(swarmforge/bin/sf tool bin):$PATH"
-command -v gherkin-parser >/dev/null || { echo "gherkin-parser missing; run: swarmforge/bin/sf tool ensure gherkin-parser" >&2; exit 1; }
+export PATH="$(kevin/bin/kevin tool bin):$PATH"
+command -v gherkin-parser >/dev/null || { echo "gherkin-parser missing; run: kevin/bin/kevin tool ensure gherkin-parser" >&2; exit 1; }
 
 out=tmp/acceptance
 rm -rf "$out/ir" "$out/generated"
