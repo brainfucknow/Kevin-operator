@@ -206,7 +206,9 @@ printf '%s\0' "${shipped[@]}" | (cd "$HERE" && bb -e '
                    [#"swarmforge/bin/sf-" "kevin/bin/kevin-"]
                    [#"swarmforge/bin/sf\b" "kevin/bin/kevin"]
                    [#"\bsf-(cs|fs|vb|js|rb|java|mistral|tool)\b" "kevin-$1"]
-                   [#"SwarmForge-" "Kevin-"]
+                   [#"\bsf (init|new|route|ls|show|next|stage|harvest|start|handoff|ask|answer|review|approve|reject|spec-verdict|spec-revisions|finish|roles|pipeline|gates|routes|dispatch|run|adapters|check|commit-msg|tool|property)\b" "kevin $1"]
+                   [#"`sf`" "`kevin`"]
+                   [#"\bSwarmForge\b" "Kevin"]
                    [#"SWARMFORGE_" "KEVIN_"]
                    [#"swarmforge/" "kevin/"]]]
       (when migrating?

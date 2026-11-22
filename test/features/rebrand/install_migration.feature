@@ -16,8 +16,10 @@ Feature: install.sh migrates a legacy install
   commits. In each kept project-owned file under kevin/ it replaces the old
   names as plain text (swarmforge/tools/sf/, swarmforge/bin/sf and
   swarmforge/bin/sf-*, the sf-* command names, SwarmForge-*, SWARMFORGE_*,
-  swarmforge/), and for each file it changed it prints "install.sh: rewrote
-  the old names in <path>".
+  swarmforge/, the sf command word before a kevin subcommand or "property",
+  `sf` in backticks, and the word SwarmForge), and for each file it changed
+  it prints "install.sh: rewrote the old names in <path>". Other uses of sf,
+  such as the namespace sf.cli, stay.
 
   With both swarmforge/ and kevin/ present, it prints "install.sh: both
   swarmforge/ and kevin/ exist; keep one", exits 1, and changes nothing.
@@ -59,6 +61,16 @@ Feature: install.sh migrates a legacy install
     Then the exit status is 0
     And the file "kevin/verify.conf" in the repository holds "bb kevin/bin/kevin-cs test"
     And the output has the line "install.sh: rewrote the old names in kevin/verify.conf"
+
+  # install.sh migrates a legacy install 7
+  Scenario: install.sh migrates a legacy install 7: a kept file that names the sf command and SwarmForge is rewritten
+    Given the file "swarmforge/routes.conf" in the repository holds "# SwarmForge routes: sf handoff, sf new --route, sf tool ensure; sf.cli stays\nmine: coder,qa"
+    And the file "swarmforge/constitution/articles/project.md" in the repository holds "`sf finish` runs the sf property suite; run `sf` from the root"
+    When I run install.sh into it 1 times
+    Then the exit status is 0
+    And the file "kevin/routes.conf" in the repository holds "# Kevin routes: kevin handoff, kevin new --route, kevin tool ensure; sf.cli stays\nmine: coder,qa"
+    And the file "kevin/constitution/articles/project.md" in the repository holds "`kevin finish` runs the kevin property suite; run `kevin` from the root"
+    And the output has the line "install.sh: rewrote the old names in kevin/routes.conf"
 
   # install.sh migrates a legacy install 4
   Scenario: install.sh migrates a legacy install 4: both trees present is refused
