@@ -70,7 +70,7 @@ Catalogue commands
   adapters                        write the project agents that the project's tiers.conf and
                                   roles.conf need, untracked, and remove those it no longer
                                   needs; in the Kevin source checkout also regenerate the
-                                  plugin agents
+                                  plugin agents, Vibe's in ai.mistral.vibe/agents
   agent <role> <harness>          print the agent that runs the role in claude, copilot or
                                   codex (AGENT), the model to pass (MODEL) and a WARNING when
                                   its project agent is missing or stale

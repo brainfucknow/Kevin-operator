@@ -38,7 +38,8 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
   - When it prints `MODEL:`, pass that model as the model of the delegation call. Otherwise pass no model.
   - On `AGENT: none`, run `kevin dispatch` as below.
   - On `WARNING:`, run `kevin adapters`, then run `kevin agent` again.
-- Kilo and Mistral Vibe cannot run subagents for Kevin; use `kevin dispatch` as below.
+- In Mistral Vibe with the Kevin plugin installed, delegate to `kevin:<role>`. The agent carries the role's model tier; do not override it.
+- Kilo and Mistral Vibe without the plugin cannot run subagents for Kevin; use `kevin dispatch` as below.
 - The whole prompt is: `Task <id>. Run: kevin start <id>` plus anything the operator said since the last dispatch that the role needs.
 - Wait for it to return. Then run `kevin stage <id>` and `kevin ls --needs`.
 - If the stage advanced, dispatch the new stage's role. Do not re-dispatch a role that just finished.

@@ -17,6 +17,10 @@ The plugin root is two directories above this file. Before the request:
 3. When the project has no `kevin/project.md`, run `kevin init`. Then tell
    the operator to commit `kevin/project.md`, and stop. Task branches start
    from `HEAD`, so do not create a task before that commit exists.
+4. Before creating a task, require `kevin/project.md` in `HEAD` with
+   `git cat-file -e HEAD:kevin/project.md`, and require
+   `git status --porcelain -- kevin/` to be empty. If either check fails,
+   tell the operator to commit the project setup and stop.
 
 Then act as the Kevin orchestrator. Read `<home>/roles/orchestrator.md`,
 where `<home>` is the directory `kevin home` prints, and follow it for the
