@@ -48,8 +48,8 @@ A project keeps its configuration in its own `kevin/`:
 
 The prompts of the runtime's roles, the constitution, the language guides
 and the tool sources come only from the runtime; a project file with the
-name of a runtime role's prompt is never read. `kevin init` adds `.worktrees/`, `.kevin/`,
-`tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
+name of a runtime role's prompt is never read. `kevin init` adds
+`.worktrees/`, `.kevin/`, `tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
 project with an old committed install into this layout.
 
 Start a task from the harness with `/swarm <feature request>`, or by hand:

@@ -131,8 +131,7 @@ agent: `.claude/agents/kevin-<role>.md`, `.github/agents/<role>.agent.md`
 or `.codex/agents/<role>.toml`. `kevin init` and `kevin adapters` write
 these files, list them in `.git/info/exclude`, and remove those no longer
 needed. Run `kevin adapters` again in each clone and after each change to
-the configuration. A project that relies on project agents or adds a role
-sets `Minimum Kevin version: 0.3.0` in its `kevin/project.md`.
+the configuration. Such a project sets `Minimum Kevin version: 0.3.0`.
 
 If a harness cannot delegate, `kevin dispatch <role> <id>` runs the role in a
 headless `claude -p`, `codex exec`, or `copilot -p` session started in the

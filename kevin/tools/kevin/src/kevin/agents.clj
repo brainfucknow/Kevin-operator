@@ -118,30 +118,36 @@
   [templates {:keys [role kind prompt]}]
   (-> (templates kind) (str/replace "{{role}}" role) (str/replace "{{prompt}}" prompt)))
 
+(defn- front-matter [name description model extra stamp-line]
+  (str "---\nname: " name "\ndescription: " (json/generate-string description) "\nmodel: " model
+       extra (when stamp-line (str "\n" stamp-line)) "\n---\n\n"))
+
+(defn- render-claude [name {:keys [kind description model]} text stamp-line]
+  (str (front-matter name description model
+                     (when (not= :stage kind) (str "\ntools: " (:claude gate-tools)))
+                     stamp-line)
+       text))
+
+(defn- render-copilot [name {:keys [kind description model]} text stamp-line]
+  (let [tools (if (= :stage kind) "[\"*\"]" (:copilot gate-tools))]
+    (str (front-matter name description model
+                       (str "\ntools: " tools "\ninclude-custom-instructions: true")
+                       stamp-line)
+         text)))
+
+(defn- render-codex [name {:keys [description model]} text stamp-line]
+  (str (when stamp-line (str stamp-line "\n"))
+       "name = \"" (toml-escape name) "\"\ndescription = \"" (toml-escape description)
+       "\"\nmodel_reasoning_effort = \"" (toml-escape model) "\"\ndeveloper_instructions = \"\"\"\n"
+       (toml-multiline text) "\"\"\"\n"))
+
 (defn render
   "The text of the agent file named name for the fields in the harness.
   templates maps each kind to its template text. stamp is the runtime version
   of a project agent, or nil for a plugin agent."
-  [harness name {:keys [kind description model] :as fields} templates stamp]
-  (let [read-only? (not= :stage kind)
-        stamp-line (when stamp (str "# " stamp-label " " stamp))
-        text (body templates fields)]
-    (case harness
-      "claude"
-      (str "---\nname: " name "\ndescription: " (json/generate-string description) "\nmodel: " model
-           (when read-only? (str "\ntools: " (:claude gate-tools)))
-           (when stamp (str "\n" stamp-line)) "\n---\n\n" text)
-
-      "copilot"
-      (str "---\nname: " name "\ndescription: " (json/generate-string description) "\nmodel: " model
-           "\ntools: " (if read-only? (:copilot gate-tools) "[\"*\"]") "\ninclude-custom-instructions: true"
-           (when stamp (str "\n" stamp-line)) "\n---\n\n" text)
-
-      "codex"
-      (str (when stamp (str stamp-line "\n"))
-           "name = \"" (toml-escape name) "\"\ndescription = \"" (toml-escape description)
-           "\"\nmodel_reasoning_effort = \"" (toml-escape model) "\"\ndeveloper_instructions = \"\"\"\n"
-           (toml-multiline text) "\"\"\"\n"))))
+  [harness name fields templates stamp]
+  ((case harness "claude" render-claude "copilot" render-copilot "codex" render-codex)
+   name fields (body templates fields) (when stamp (str "# " stamp-label " " stamp))))
 
 (defn stamped?
   "True when the agent text has the line that marks a project agent kevin wrote."
