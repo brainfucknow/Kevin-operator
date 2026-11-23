@@ -42,12 +42,14 @@ A project keeps its configuration in its own `kevin/`:
 | File | Purpose |
 |---|---|
 | `project.md` | Required. The project article that the constitution reads, and `Minimum Kevin version: <major>.<minor>.<patch>`. `kevin init` writes a starter. Every command but `help`, `version` and `home` refuses a runtime older than that version. |
-| `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may narrow the roles but not add one. |
+| `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may drop roles, change their tiers and flags, and add roles. |
+| `roles/<role>.md` | The prompt of each role that the project's `roles.conf` adds: a title line, then a summary line. An added role is a stage or a gate, not a spec-judge. |
 | `verify.conf` | Optional: one shell command per line that `kevin finish` runs on the merge before it merges, for example `make test`. Without it, `kevin finish` runs none. |
 
-Role prompts, the constitution, the language guides and the tool sources
-come only from the runtime. `kevin init` adds `.worktrees/`, `.kevin/`,
-`tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
+The prompts of the runtime's roles, the constitution, the language guides
+and the tool sources come only from the runtime; a project file with the
+name of a runtime role's prompt is never read. `kevin init` adds
+`.worktrees/`, `.kevin/`, `tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
 project with an old committed install into this layout.
 
 Start a task from the harness with `/swarm <feature request>`, or by hand:
@@ -77,12 +79,33 @@ gates and spec-judge are skipped.
 
 ## Configuration
 
-In the Kevin source checkout, run `kevin adapters` after editing `roles.conf`
-or `tiers.conf`. It regenerates the plugin agents: `agents/<role>.md` for
-Claude Code and `.github/plugin/agents/<role>.agent.md` for Copilot CLI. It
-refuses to run in any other checkout. `kevin check` validates the
-configuration files and the role prompts; `kevin init` and `kevin adapters`
-run it first and refuse a broken setup. `kevin check`, `kevin adapters`,
+Run `kevin adapters` after editing `roles.conf` or `tiers.conf`. It writes
+the project agents into the main checkout, from any worktree. A role has a
+project agent for a harness when the agent generated from the project's
+configuration differs from the one generated from the runtime's:
+`.claude/agents/kevin-<role>.md` for Claude Code,
+`.github/agents/<role>.agent.md` for Copilot CLI and
+`.codex/agents/<role>.toml` for Codex. A Claude Code model change to
+`sonnet`, `opus`, `haiku` or `fable` alone needs no file. Each project agent
+has a `kevin-generated: <version>` line. `kevin adapters` lists each one in
+`.git/info/exclude`, removes those no longer needed, and refuses to write over
+a file without that line. `kevin init` does the same. In the Kevin source
+checkout, `kevin adapters` also regenerates the plugin agents:
+`agents/<role>.md` for Claude Code and `.github/plugin/agents/<role>.agent.md`
+for Copilot CLI.
+
+`kevin agent <role> <harness>` prints how the orchestrator runs a role in
+`claude`, `copilot` or `codex`: `AGENT: <name>`, then `MODEL: <alias>` when
+the delegation call takes the model, then a `WARNING:` when the project agent
+is missing or stale. `AGENT: none` means `kevin dispatch`; `AGENT: session`
+means the orchestrator plays the role. A project that relies on project
+agents or adds a role sets `Minimum Kevin version: 0.3.0`.
+
+`kevin check` validates the configuration files and the role prompts, and
+refuses a `tiers.conf` value that does not start with a letter or a digit or
+holds a character other than letters, digits and `. _ : / @ [ ] -`.
+`kevin init`, `kevin adapters`, `kevin agent` and `kevin dispatch` run it
+first and refuse a broken setup. `kevin check`, `kevin adapters`,
 `kevin roles`, `kevin routes` and `kevin tool` read the checkout they run in;
 `kevin init` and task bookkeeping read the main checkout's.
 

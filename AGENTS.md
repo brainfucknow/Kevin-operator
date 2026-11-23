@@ -11,9 +11,10 @@ branches, each task on its own route through the role catalogue. Read
   feature, or when a task id is mentioned.
 - Every role, the specifier included, is an agent of the Kevin plugin:
   `agents/*.md` for Claude Code and `.github/plugin/agents/*.agent.md` for
-  Copilot CLI. `kevin adapters` generates them. Delegate to them by role
-  name; do not do their work in the session. Other harnesses run roles
-  through `kevin dispatch`.
+  Copilot CLI. `kevin adapters` generates them, and the project agents a
+  project's configuration needs. Delegate to the agent that
+  `kevin agent <role> <harness>` names; do not do their work in the
+  session. Other harnesses run roles through `kevin dispatch`.
 - All task bookkeeping goes through `kevin`. Never write a
   `Kevin-*` trailer by hand.
 - Roles that need a decision stop and ask in chat. Do not guess.

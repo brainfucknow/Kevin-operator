@@ -14,6 +14,12 @@
 (def ^:private pipeline-command @#'kevin.dispatch/pipeline-command)
 (def ^:private role-prompt @#'kevin.dispatch/role-prompt)
 
+(defn- prompts!
+  "Writes a role prompt for each role in the repository's runtime."
+  [& roles]
+  (doseq [role roles]
+    (spit (str (fs/path *dir* "kevin" "roles" (str role ".md"))) (str "# " role "\n\nDoes " role " work.\n"))))
+
 (defn- env-of [variables]
   (fn [name default] (get variables name default)))
 
@@ -109,6 +115,7 @@
   (it "dispatches an optional reviewer with the existing strong tier on every backend"
     (support/write-conf! *dir* "roles.conf"
                          "specifier frontier subagent\narchitecture-design-reviewer strong subagent optional\ncoder strong subagent\ncleaner fast subagent\n")
+    (prompts! "architecture-design-reviewer")
     (doseq [backend dispatch/backends]
       (let [id (new-id (str "Design " backend) "--route" "architecture-design-reviewer,coder")
             [{:keys [cmd dir]}] (dispatched "architecture-design-reviewer" id backend)
@@ -121,6 +128,8 @@
 
   (it "dispatches an explicitly selected optional reviewer with the existing strong tier on every backend"
     (support/write-conf! *dir* "roles.conf" "coder strong subagent\nsecurity-reviewer strong subagent optional\ncleaner fast subagent\n")
+    (support/write-conf! *dir* "routes.conf" "quick coder\n")
+    (prompts! "security-reviewer")
     (doseq [backend dispatch/backends]
       (let [id (new-id (str "Review " backend) "--route" "coder,security-reviewer,cleaner")
             [{:keys [cmd dir]}] (dispatched "security-reviewer" id backend)
@@ -163,6 +172,8 @@
 
   (it "dispatches a gate read-only on the task's specification"
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\ncoder strong subagent\n")
+    (support/write-conf! *dir* "routes.conf" "feature specifier,coder\n")
+    (prompts! "falsifier")
     (let [id (new-id "Add login" "--route" "specifier,coder")
           [{:keys [cmd dir]}] (dispatched "falsifier" id "claude")]
       (should= (str *dir* "/.worktrees/" id) dir)
@@ -183,12 +194,23 @@
       (should= ["copilot" "-p" "prompt" "--model" "gpt-5" "--deny-tool=write" "--allow-all-tools"]
                (vec (command-for "copilot" "falsifier" "prompt")))))
 
+  (it "refuses an unsafe tiers.conf value without starting a backend"
+    (let [started (atom false)
+          id (new-id "Unsafe" "-m" "x")]
+      (support/write-conf! *dir* "tiers.conf" "frontier inherit high gpt\nstrong --dangerous medium gpt-5\nfast sonnet low gpt-mini\n")
+      (with-redefs [p/shell (backend-shell (fn [_] (reset! started true) {:exit 0}))]
+        (let [{:keys [status err]} (support/captured #(dispatch/dispatch ["coder" id "claude"]))]
+          (should= 1 status)
+          (should-contain "CHECK: tiers.conf: 'strong' has the unsafe value '--dangerous'" err)))
+      (should= false @started)))
+
   (it "needs a known role"
     (should-contain "dispatch needs a role" (:err (support/captured #(dispatch/dispatch []))))
     (should-contain "unknown role" (:err (support/captured #(dispatch/dispatch ["nobody" "x"])))))
 
   (it "refuses the spec-judge without starting a backend"
     (support/write-conf! *dir* "roles.conf" "specifier frontier subagent\nspec-judge strong subagent spec-judge\ncoder strong subagent\ncleaner fast subagent\n")
+    (prompts! "spec-judge")
     (let [started (atom false)
           id (new-id "Judged" "-m" "x")]
       (with-redefs [p/shell (backend-shell (fn [_] (reset! started true) {:exit 0}))]

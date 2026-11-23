@@ -33,7 +33,12 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 3. Dispatch the first role of the route (`kevin stage <id>`).
 
 ## Dispatching A Role
-- Delegate to the Kevin plugin's agent of the role. In Claude Code it is `kevin:<role>`; in Copilot CLI it is `<role>`. The agent carries the role's model tier; do not override it. A harness without plugin agents (Codex, Kilo, Mistral Vibe) cannot run subagents for Kevin; use `kevin dispatch` as below.
+- In Claude Code (`claude`), Copilot CLI (`copilot`) and Codex (`codex`), run `kevin agent <role> <harness>` before each delegation, for gates and the spec-judge too:
+  - Delegate to the agent that `AGENT:` names.
+  - When it prints `MODEL:`, pass that model as the model of the delegation call. Otherwise pass no model.
+  - On `AGENT: none`, run `kevin dispatch` as below.
+  - On `WARNING:`, run `kevin adapters`, then run `kevin agent` again.
+- Kilo and Mistral Vibe cannot run subagents for Kevin; use `kevin dispatch` as below.
 - The whole prompt is: `Task <id>. Run: kevin start <id>` plus anything the operator said since the last dispatch that the role needs.
 - Wait for it to return. Then run `kevin stage <id>` and `kevin ls --needs`.
 - If the stage advanced, dispatch the new stage's role. Do not re-dispatch a role that just finished.

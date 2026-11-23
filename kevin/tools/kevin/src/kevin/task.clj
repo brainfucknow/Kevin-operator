@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [kevin.audit :as audit]
             [kevin.config :as config]
+            [kevin.exclude :as exclude]
             [kevin.flow :as flow]
             [kevin.git :as plumbing]
             [kevin.harvest :as harvest]
@@ -13,6 +14,7 @@
             [kevin.metrics :as metrics]
             [kevin.missing-tools :as missing-tools]
             [kevin.options :as options]
+            [kevin.project-agents :as project-agents]
             [kevin.record :as record]
             [kevin.runtime :as runtime]
             [kevin.installed :as installed]
@@ -136,20 +138,9 @@
       (fs/create-dirs (fs/parent file))
       (spit (str file) (append-line text (str runtime/minimum-label " " version))))))
 
-(defn- exclude!
-  "Adds each ignored line that the shared exclude file lacks."
-  [root]
-  (let [file (fs/path (git root "rev-parse" "--path-format=absolute" "--git-path" "info/exclude"))
-        text (if (fs/exists? file) (slurp (str file)) "")
-        present (set (map str/trim (str/split-lines text)))
-        missing (remove present ignored-lines)]
-    (when (seq missing)
-      (fs/create-dirs (fs/parent file))
-      (spit (str file) (reduce append-line text missing)))))
-
 (defn setup!
   "The project setup that kevin init and kevin init --convert share: the
-  project article, the exclude lines and the hook. Prints the identity, roles
+  project article, the exclude lines, the hook and the project agents. Prints the identity, roles
   and routes."
   []
   (shell/quietly config/check)
@@ -157,9 +148,10 @@
     (println (str "identity: " name " <" email ">")))
   (let [root (shell/repo-root)]
     (write-project-md! root)
-    (exclude! root)
+    (exclude/add! root ignored-lines)
     (fs/create-dirs (str root "/" (hook/worktree-dir)))
-    (hook/install root))
+    (hook/install root)
+    (project-agents/sync!))
   (println (str "roles: " (str/join " " (config/pipeline))))
   (println (str "routes: " (str/join " " (map first (config/named-routes))))))
 

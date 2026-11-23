@@ -36,10 +36,11 @@
   [(bb-bin) (kevin-mistral-path) "dispatch" role id])
 
 (defn- role-prompt [role short]
-  (let [home (installed/home)]
+  (let [home (installed/home)
+        prompt (config/prompt-file role)]
     (if (config/gate? role)
-      (str "You are the Kevin '" role "' gate. Read " home "/roles/" role ".md, then audit the specification of task " short " that waits for approval. Start with: kevin show " short ". Change nothing: no edits, no commits, no kevin command that records. End with your report.")
-      (str "You are the Kevin '" role "' role. Read " home "/constitution.md and follow its reading instructions, then read " home "/roles/" role ".md, then do your role's work for task " short ". Start with: kevin start " short))))
+      (str "You are the Kevin '" role "' gate. Read " prompt ", then audit the specification of task " short " that waits for approval. Start with: kevin show " short ". Change nothing: no edits, no commits, no kevin command that records. End with your report.")
+      (str "You are the Kevin '" role "' role. Read " home "/constitution.md and follow its reading instructions, then read " prompt ", then do your role's work for task " short ". Start with: kevin start " short))))
 
 (defn- detect-backend []
   (or (shell/kevin-env "BACKEND" nil)
@@ -83,6 +84,7 @@
 
 (defn dispatch [[role id-arg backend]]
   (when (str/blank? role) (shell/die "dispatch needs a role"))
+  (shell/quietly config/check)
   (config/require-agent role)
   (when (config/spec-judge? role)
     (shell/die "'" role "' is the spec-judge: it needs the spec revision's gate reports and runs only as a subagent of the session"))

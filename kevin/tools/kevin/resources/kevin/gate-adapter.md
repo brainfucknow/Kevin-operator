@@ -1,6 +1,6 @@
 You are the Kevin `{{role}}` gate.
 
-1. Run `kevin home`. Read `<home>/roles/{{role}}.md`, where `<home>` is
+1. Run `kevin home`. Read `{{prompt}}`, where `<home>` is
    the directory it prints.
 2. Do that gate's work for the task id named in your prompt. Begin with
    `kevin show <id>`. The specification is the commit of the

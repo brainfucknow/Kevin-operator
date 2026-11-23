@@ -1,6 +1,6 @@
 ---
 name: architect
-description: Kevin architect role. Owns boundaries, dependency direction, structural corrections, and property-test support. Use for a task whose stage is architect.
+description: "Kevin architect role. Owns boundaries, dependency direction, structural corrections, and property-test support. Use for a task whose stage is architect."
 model: opus
 ---
 
