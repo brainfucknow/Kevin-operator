@@ -45,7 +45,8 @@
     kevin.wrapper #{kevin.shell}
     kevin.clone #{kevin.shell}
     kevin.tool #{kevin.maven-tool kevin.catalogue kevin.clone kevin.config kevin.entry-point kevin.installed kevin.shell kevin.wrapper}
-    kevin.adapters #{kevin.agents kevin.config kevin.exclude kevin.installed kevin.shell}
+    kevin.project-agents #{kevin.agents kevin.config kevin.exclude kevin.installed kevin.shell}
+    kevin.adapters #{kevin.agents kevin.config kevin.installed kevin.project-agents kevin.shell}
     kevin.exclude #{kevin.shell}
     kevin.git #{kevin.shell}
     kevin.store #{kevin.git kevin.record kevin.shell}
@@ -61,9 +62,9 @@
     kevin.history #{kevin.flow kevin.lore kevin.record kevin.spec-revisions kevin.shell kevin.store}
     kevin.dispatch #{kevin.config kevin.flow kevin.installed kevin.record kevin.shell kevin.store kevin.task}
     kevin.missing-tools #{kevin.record}
-    kevin.task #{kevin.adapters kevin.audit kevin.config kevin.exclude kevin.flow kevin.git kevin.harvest kevin.history kevin.hook kevin.lore kevin.metrics kevin.missing-tools kevin.options kevin.record kevin.installed kevin.runtime kevin.spec-revisions kevin.shell kevin.store kevin.tool kevin.verify}
-    kevin.convert #{kevin.adapters kevin.config kevin.installed kevin.shell kevin.task}
-    kevin.cli #{kevin.adapters kevin.config kevin.convert kevin.dispatch kevin.hook kevin.installed kevin.options kevin.runtime kevin.shell kevin.task kevin.tool}})
+    kevin.task #{kevin.audit kevin.config kevin.exclude kevin.flow kevin.git kevin.harvest kevin.history kevin.hook kevin.lore kevin.metrics kevin.missing-tools kevin.options kevin.project-agents kevin.record kevin.installed kevin.runtime kevin.spec-revisions kevin.shell kevin.store kevin.tool kevin.verify}
+    kevin.convert #{kevin.adapters kevin.agents kevin.config kevin.installed kevin.shell kevin.task}
+    kevin.cli #{kevin.adapters kevin.config kevin.convert kevin.dispatch kevin.hook kevin.installed kevin.options kevin.project-agents kevin.runtime kevin.shell kevin.task kevin.tool}})
 
 (defn- source-namespaces []
   (let [dir (fs/parent (fs/path (io/resource (source-path 'kevin.cli))))]

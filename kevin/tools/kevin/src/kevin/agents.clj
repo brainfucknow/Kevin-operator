@@ -44,6 +44,16 @@
           (flags "spec-judge") :spec-judge
           :else :stage)))
 
+(defn subagents
+  "The roles of the roles.conf rows that run as subagents."
+  [roles]
+  (for [[role _ runs] roles :when (= "subagent" runs)] role))
+
+(defn home-prompt
+  "The prompt path that a runtime role's agent names: kevin home prints <home>."
+  [role]
+  (str "<home>/roles/" role ".md"))
+
 (defn description [role kind summary]
   (let [{:keys [noun use]} (kinds kind)]
     (str "Kevin " role " " noun ". " summary " " (str/replace use "{{role}}" role))))

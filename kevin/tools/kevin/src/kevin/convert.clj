@@ -8,6 +8,7 @@
             [clojure.edn :as edn]
             [clojure.string :as str]
             [kevin.adapters :as adapters]
+            [kevin.agents :as agents]
             [kevin.config :as config]
             [kevin.installed :as installed]
             [kevin.shell :as shell]
@@ -72,7 +73,7 @@
   (distinct (for [file [(fs/path root "kevin" "roles" (str role ".md"))
                         (fs/path (installed/home) "roles" (str role ".md"))]
                   :when (fs/exists? file)]
-              (adapters/summary (slurp (str file))))))
+              (agents/summary (slurp (str file))))))
 
 (defn- generated
   "Path to the set of normalized texts that kevin generated for the roles of
@@ -81,7 +82,7 @@
   (reduce (fn [acc [path text]] (update acc path (fnil conj #{}) (normalized path text)))
           {}
           (for [[role tier] rows
-                kind (keys adapters/kinds)
+                kind (keys agents/kinds)
                 templates ["" "legacy/"]
                 summary (summaries root role)
                 file (adapters/agent-files role tier kind {:templates templates :summary summary})]

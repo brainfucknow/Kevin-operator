@@ -23,6 +23,20 @@
   (fs/create-dirs (fs/path dir "kevin"))
   (spit (str (fs/path dir "kevin" name)) text))
 
+(defn write!
+  "Writes the file at path under *dir*, with its parent directories."
+  [path text]
+  (let [file (fs/path *dir* path)]
+    (fs/create-dirs (fs/parent file))
+    (spit (str file) text)))
+
+(defn files
+  "Every file under *dir* outside .git: path to text."
+  []
+  (into {} (for [file (fs/glob *dir* "**" {:hidden true})
+                 :when (and (fs/regular-file? file) (not (str/includes? (str file) "/.git/")))]
+             [(str file) (slurp (str file))])))
+
 (defn- write-config! [dir conf]
   (doseq [[name text] conf] (write-conf! dir name text))
   (fs/create-dirs (fs/path dir "kevin" "roles"))

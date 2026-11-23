@@ -1,29 +1,18 @@
 (ns kevin.adapters
   "Agent files for each subagent role. In the Kevin source checkout, kevin
   adapters writes the plugin agents: Claude Code's agents/<role>.md and
-  Copilot's .github/plugin/agents/<role>.agent.md. In any project it writes
-  the project agents into the main checkout: the agents that differ from the
-  plugin's because the project changes a tier or a role, or adds a role.
-  kevin agent tells the orchestrator which agent to delegate a role to. The
-  five shapes that an old committed install wrote into a project stay here so
-  kevin init --convert can recognize them."
+  Copilot's .github/plugin/agents/<role>.agent.md. In any project it then
+  writes the project agents (kevin.project-agents). The five shapes that an
+  old committed install wrote into a project stay here so kevin init
+  --convert can recognize them."
   (:require [babashka.fs :as fs]
             [cheshire.core :as json]
             [clojure.string :as str]
             [kevin.agents :as agents]
             [kevin.config :as config]
-            [kevin.exclude :as exclude]
             [kevin.installed :as installed]
+            [kevin.project-agents :as project-agents]
             [kevin.shell :as shell]))
-
-(def summary agents/summary)
-
-(def kinds agents/kinds)
-
-(defn kind-of [role]
-  (cond (config/gate? role) :gate
-        (config/spec-judge? role) :spec-judge
-        :else :stage))
 
 (defn- runtime-prompt
   "The text of the runtime's prompt of the role."
@@ -31,11 +20,6 @@
   (let [file (fs/path (installed/home) "roles" (str role ".md"))]
     (when-not (fs/exists? file) (shell/die "missing role prompt " file))
     (slurp (str file))))
-
-(defn- home-prompt
-  "The prompt path that a plugin agent names: kevin home prints <home>."
-  [role]
-  (str "<home>/roles/" role ".md"))
 
 ;; The shapes of the removed committed install, for kevin init --convert.
 
@@ -64,12 +48,12 @@
   for the current ones, \"legacy/\" for those of the removed committed
   install), summary the first line of the role prompt."
   [role tier kind {:keys [templates summary]}]
-  (let [{:keys [template noun use]} (kinds kind)
+  (let [{:keys [template]} (agents/kinds kind)
         read-only? (not= :stage kind)
         body (-> (shell/template (str templates template))
-                 (str/replace "{{prompt}}" (home-prompt role))
+                 (str/replace "{{prompt}}" (agents/home-prompt role))
                  (str/replace "{{role}}" role))
-        description (str "Kevin " role " " noun ". " summary " " (str/replace use "{{role}}" role))
+        description (agents/description role kind summary)
         toml-escape agents/toml-escape
         gate-tools agents/gate-tools]
     {(str ".claude/agents/" role ".md")
@@ -98,12 +82,6 @@
 
 ;; Agents rendered from the model in kevin.agents.
 
-(defn- templates []
-  (into {} (for [[kind {:keys [template]}] kinds] [kind (shell/template template)])))
-
-(defn- subagents [roles]
-  (for [[role _ runs] roles :when (= "subagent" runs)] role))
-
 (def plugin-dirs
   "The plugin agent directories of the source checkout, with the harness
   of each and the file suffix."
@@ -115,9 +93,9 @@
   []
   (let [roles (config/rows "roles.conf")
         tiers (config/rows "tiers.conf")
-        templates (templates)]
-    (into {} (for [role (subagents roles)
-                   :let [text {:summary (summary (runtime-prompt role)) :prompt (home-prompt role)}]
+        templates (project-agents/templates)]
+    (into {} (for [role (agents/subagents roles)
+                   :let [text {:summary (agents/summary (runtime-prompt role)) :prompt (agents/home-prompt role)}]
                    [dir {:keys [harness suffix]}] plugin-dirs]
                [(str dir "/" role suffix)
                 (agents/render harness role (agents/fields harness roles tiers role text) templates nil)]))))
@@ -149,130 +127,9 @@
     (doseq [[role tier] (filter #(= "subagent" (nth % 2)) (config/rows "roles.conf"))]
       (println (str role ": " tier)))))
 
-;; Project agents: the main checkout's configuration against the runtime's.
-
-(defn- project-context
-  "The rows that the fields of each role's agent come from: the main
-  checkout's and the runtime's."
-  []
-  {:roles (config/rows "roles.conf")
-   :tiers (config/rows "tiers.conf")
-   :runtime-roles (config/runtime-rows "roles.conf")
-   :runtime-tiers (config/runtime-rows "tiers.conf")
-   :templates (templates)})
-
-(defn- role-text
-  "The summary of the role's prompt and the prompt path that its agent names:
-  <home>/roles/<role>.md for a runtime role, the absolute path of the main
-  checkout's prompt for an added role."
-  [role runtime-roles]
-  (let [file (config/prompt-file role)]
-    (when-not (fs/exists? file) (shell/die "missing role prompt " file))
-    {:summary (summary (slurp file))
-     :prompt (if (some #{role} (map first runtime-roles)) (home-prompt role) file)}))
-
-(defn- project-agent
-  "How the main checkout runs the role in the harness: the resolution of
-  kevin.agents, with :text, the project agent file, when it has a :path."
-  [harness role {:keys [roles tiers runtime-roles runtime-tiers templates]}]
-  (let [text (role-text role runtime-roles)
-        project (agents/fields harness roles tiers role text)
-        runtime (agents/fields harness runtime-roles runtime-tiers role text)
-        {:keys [agent path] :as resolution} (agents/resolution harness role project runtime)]
-    (cond-> resolution
-      path (assoc :text (agents/render harness agent project templates (installed/version))))))
-
-(defn- desired
-  "The project agents that the main checkout needs: path to text."
-  []
-  (let [context (project-context)]
-    (into {} (for [role (subagents (:roles context))
-                   harness agents/harnesses
-                   :let [{:keys [path text]} (project-agent harness role context)]
-                   :when path]
-               [path text]))))
-
-(def ^:private project-globs
-  [[".claude/agents" "kevin-*.md"] [".github/agents" "*.agent.md"] [".codex/agents" "*.toml"]])
-
-(def ^:private project-line
-  #"/(\.claude/agents/kevin-[^/]+\.md|\.github/agents/[^/]+\.agent\.md|\.codex/agents/[^/]+\.toml)")
-
-(defn project-paths
-  "The files under root where project agents live, kevin's or not, sorted."
-  [root]
-  (sort (for [[dir glob] project-globs
-              :when (fs/directory? (fs/path root dir))
-              file (fs/glob (fs/path root dir) glob)]
-          (str dir "/" (fs/file-name file)))))
-
-(defn- linked?
-  "True when the path under root, or a directory on the way to it, is a
-  symbolic link."
-  [root path]
-  (boolean (some #(fs/sym-link? (fs/path root %)) (reductions #(str %1 "/" %2) (str/split path #"/")))))
-
-(defn- kevins?
-  "True when root holds a project agent that kevin wrote at path."
-  [root path]
-  (let [file (fs/path root path)]
-    (and (fs/regular-file? file) (agents/stamped? (slurp (str file))))))
-
-(defn- refusal [root path]
-  (cond
-    (linked? root path) (str path " is under a symbolic link; kevin does not write through it")
-    (and (fs/exists? (fs/path root path)) (not (kevins? root path))) (str path " exists and kevin did not write it")))
-
-(defn sync-project-agents!
-  "Writes the project agents that the main checkout needs, removes those
-  that kevin wrote and it no longer needs, and keeps one line in the shared
-  exclude file per project agent. Writes nothing when a needed path holds a
-  file that kevin did not write."
-  []
-  (binding [config/*root* nil]
-    (shell/quietly config/check)
-    (let [root (shell/repo-root)
-          wanted (desired)]
-      (when-let [problem (some #(refusal root %) (sort (keys wanted)))]
-        (shell/die problem))
-      (doseq [[path text] wanted
-              :let [file (fs/path root path)]
-              :when (not (and (fs/regular-file? file) (= text (slurp (str file)))))]
-        (fs/create-dirs (fs/parent file))
-        (spit (str file) text))
-      (doseq [path (project-paths root)
-              :when (and (not (wanted path)) (not (linked? root path)) (kevins? root path))]
-        (fs/delete (fs/path root path)))
-      (exclude/add! root (map #(str "/" %) (sort (keys wanted))))
-      (exclude/remove! root (for [line (exclude/lines root)
-                                  :let [[_ path] (re-matches project-line line)]
-                                  :when (and path (not (wanted path)) (not (fs/exists? (fs/path root path))))]
-                              line)))))
-
 (defn adapters [_]
   (shell/quietly config/check)
   (let [root (shell/checkout-root)]
     (when (source-checkout? root)
       (write-plugin-agents! root)))
-  (sync-project-agents!))
-
-(defn agent-command
-  "kevin agent <role> <harness>: how the orchestrator runs the role in the
-  harness. Prints AGENT, then MODEL when the delegation call takes the model,
-  then a WARNING when the project agent is missing or stale. Writes nothing."
-  [[role harness]]
-  (binding [config/*root* nil]
-    (when-not (some #{harness} agents/harnesses)
-      (shell/die "unknown harness '" harness "' (" (str/join ", " agents/harnesses) ")"))
-    (shell/quietly config/check)
-    (config/require-agent role)
-    (if (not= "subagent" (config/role-field role 3))
-      (println "AGENT: session")
-      (let [{:keys [agent model path text]} (project-agent harness role (project-context))
-            file (some->> path (fs/path (shell/repo-root)))]
-        (println (str "AGENT: " agent))
-        (when model (println (str "MODEL: " model)))
-        (cond
-          (nil? file) nil
-          (not (fs/regular-file? file)) (println (str "WARNING: " path " is missing; run kevin adapters"))
-          (not= text (slurp (str file))) (println (str "WARNING: " path " is stale; run kevin adapters")))))))
+  (project-agents/sync!))

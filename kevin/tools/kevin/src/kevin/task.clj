@@ -2,7 +2,6 @@
   "The commands that create, move, and close tasks."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
-            [kevin.adapters :as adapters]
             [kevin.audit :as audit]
             [kevin.config :as config]
             [kevin.exclude :as exclude]
@@ -15,6 +14,7 @@
             [kevin.metrics :as metrics]
             [kevin.missing-tools :as missing-tools]
             [kevin.options :as options]
+            [kevin.project-agents :as project-agents]
             [kevin.record :as record]
             [kevin.runtime :as runtime]
             [kevin.installed :as installed]
@@ -151,7 +151,7 @@
     (exclude/add! root ignored-lines)
     (fs/create-dirs (str root "/" (hook/worktree-dir)))
     (hook/install root)
-    (adapters/sync-project-agents!))
+    (project-agents/sync!))
   (println (str "roles: " (str/join " " (config/pipeline))))
   (println (str "routes: " (str/join " " (map first (config/named-routes))))))
 
