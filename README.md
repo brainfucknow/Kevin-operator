@@ -41,6 +41,14 @@ the tool sources. A project commits only its configuration.
    copilot plugin install brainfucknow/Kevin-operator
    ```
 
+   Mistral Vibe: copy or clone this repository into a plugins directory, so
+   the plugin root is this repository's root:
+
+   ```sh
+   git clone https://github.com/brainfucknow/Kevin-operator ~/.vibe/plugins/kevin
+   # or one trusted project: git clone ... .vibe/plugins/kevin
+   ```
+
 2. Put `kevin` on PATH once per user. Run `install.sh --user` in the
    plugin directory, or in a clone of this repository. It links
    `~/.local/bin/kevin` to the runtime's `kevin/bin/kevin` and writes nothing
@@ -57,9 +65,12 @@ the tool sources. A project commits only its configuration.
 | Claude Code | `.claude-plugin/plugin.json` | `.claude-plugin/marketplace.json` |
 | Codex CLI | `.codex-plugin/plugin.json` | `.agents/plugins/marketplace.json` |
 | Copilot CLI | `.github/plugin/plugin.json` | `.github/plugin/marketplace.json` |
+| Mistral Vibe | `plugin.json` (Agent Plugins 1.0, at the plugin root) | `~/.vibe/plugins/kevin` or `./.vibe/plugins/kevin` |
 
-All three load `skills/swarm/SKILL.md`. Start with `/kevin:swarm <feature
-request>` in Claude Code, `$swarm` in Codex, or `/swarm` in Copilot.
+All four load `skills/swarm/SKILL.md` and `ai.mistral.vibe/agents` is the Vibe
+extension. Start with `/kevin:swarm <feature request>` in Claude Code or
+Mistral Vibe, `$swarm` in Codex, or `/swarm` in Copilot. In Vibe run
+`/reload-plugins` after installing or updating the plugin.
 
 ### Project files
 

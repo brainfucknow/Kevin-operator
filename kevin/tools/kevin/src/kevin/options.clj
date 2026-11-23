@@ -67,7 +67,8 @@ Catalogue commands
                                   task's gates when the specification it dispatched waits for approval;
                                   with mistral one kevin-pipeline workflow execution per
                                   call runs the loop on the Mistral platform (kevin/workflows/)
-  adapters                        regenerate the plugin agents (Kevin source checkout only)
+  adapters                        regenerate the plugin agents (Kevin source checkout only);
+                                  Vibe's land in ai.mistral.vibe/agents
   tool require|ensure|list|bin    install constitution tools project-locally (kevin tool --help)
   check                           validate roles.conf, tiers.conf, routes.conf, tools.conf, role prompts
 

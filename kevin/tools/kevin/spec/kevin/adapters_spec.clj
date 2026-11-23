@@ -52,6 +52,20 @@
       (should-contain (str/replace (shell/template "adapter.md") "{{role}}" "coder") coder))
     (should-contain "\nmodel: gpt-5\n" (read ".github/plugin/agents/coder.agent.md")))
 
+  (it "writes the Vibe plugin agents with the plugin schema version and deletes them with the role"
+    (source-checkout!)
+    (should= 0 (:status (captured #(adapters/adapters []))))
+    (should= ["cleaner.toml" "coder.toml" "specifier.toml"]
+             (sort (map fs/file-name (fs/list-dir (fs/path *dir* "ai.mistral.vibe/agents")))))
+    (let [coder (read "ai.mistral.vibe/agents/coder.toml")]
+      (should (str/starts-with? coder "schema_version = 1\n"))
+      (should-contain "agent_type = \"subagent\"" coder)
+      (should-contain (str/replace (shell/template "adapter.md") "{{role}}" "coder") coder))
+    (write-conf! *dir* "roles.conf" "specifier frontier session\ncoder fast subagent\ncleaner fast subagent\n")
+    (should= 0 (:status (captured #(adapters/adapters []))))
+    (should-not (fs/exists? (fs/path *dir* "ai.mistral.vibe/agents/specifier.toml")))
+    (should (fs/exists? (fs/path *dir* "ai.mistral.vibe/agents/coder.toml"))))
+
   (it "gives gates and the spec-judge their own templates and read-only tools"
     (source-checkout!)
     (write-gate!)

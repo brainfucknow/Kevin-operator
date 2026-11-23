@@ -462,6 +462,8 @@ printf 'specifier frontier session\ncoder frontier subagent\ncleaner fast subage
 out="$(kevin adapters)"
 assert_eq "adapters only for subagent roles" "$(ls agents | paste -sd ' ' -)" "cleaner.md coder.md"
 assert_eq "adapters for copilot" "$(ls .github/plugin/agents | paste -sd ' ' -)" "cleaner.agent.md coder.agent.md"
+assert_eq "adapters for the vibe plugin" "$(ls ai.mistral.vibe/agents | paste -sd ' ' -)" "cleaner.toml coder.toml"
+assert_match "vibe plugin agent carries the plugin schema version" "$(cat ai.mistral.vibe/agents/cleaner.toml)" "^schema_version = 1$"
 assert_eq "adapters write no project agents" "$(ls -d .claude .codex .github/agents .kilo .vibe 2>/dev/null)" ""
 assert_match "claude agent uses the tier model" "$(cat agents/cleaner.md)" "^model: sonnet$"
 assert_match "frontier agent inherits the session model" "$(cat agents/coder.md)" "^model: inherit$"
@@ -475,7 +477,7 @@ assert_eq "adapters write nothing outside the Kevin source checkout" "$(ls -A "$
 
 # committed plugin agents are current
 work="$(mktemp -d "$scratch/adapters.XXXX")"
-mkdir -p "$work/.github/plugin" && cp -R "$HERE/agents" "$work/" && cp -R "$HERE/.github/plugin/agents" "$work/.github/plugin/" \
+mkdir -p "$work/.github/plugin" && cp -R "$HERE/agents" "$HERE/ai.mistral.vibe" "$work/" && cp -R "$HERE/.github/plugin/agents" "$work/.github/plugin/" \
   && copy_kevin "$work"
 (cd "$work" && git init -q . && git add -A && git commit -q -m seed && ./kevin/bin/kevin adapters >/dev/null && git add -A && git diff --cached --quiet) \
   && pass "committed plugin agents match kevin adapters" \

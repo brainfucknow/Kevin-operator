@@ -110,16 +110,17 @@
 
 (def plugin-dirs
   "The plugin agent directories of the source checkout, with the harness
-  agent each takes and the file suffix."
+  agent each takes, the file suffix, and the prefix the plugin format adds."
   {"agents" {:from ".claude/agents" :suffix ".md"}
-   ".github/plugin/agents" {:from ".github/agents" :suffix ".agent.md"}})
+   ".github/plugin/agents" {:from ".github/agents" :suffix ".agent.md"}
+   "ai.mistral.vibe/agents" {:from ".vibe/agents" :suffix ".toml" :prefix "schema_version = 1\n"}})
 
 (defn plugin-files
   "The plugin agents of the role: path to text."
   [role tier kind]
   (let [files (agent-files role tier kind {:templates "" :summary (role-summary role)})]
-    (into {} (for [[dir {:keys [from suffix]}] plugin-dirs]
-               [(str dir "/" role suffix) (get files (str from "/" role suffix))]))))
+    (into {} (for [[dir {:keys [from suffix prefix]}] plugin-dirs]
+               [(str dir "/" role suffix) (str prefix (get files (str from "/" role suffix)))]))))
 
 (defn- source-checkout?
   "True when root is the Kevin source checkout: its Claude Code plugin
