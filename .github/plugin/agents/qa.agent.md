@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Kevin qa role. Independently verifies approved changes and records evidence in commits. Use for a task whose stage is qa.
+description: "Kevin qa role. Independently verifies approved changes and records evidence in commits. Use for a task whose stage is qa."
 model: gpt-6.1-sol
 tools: ["*"]
 include-custom-instructions: true

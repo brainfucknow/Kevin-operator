@@ -1,6 +1,6 @@
 ---
 name: coder
-description: Kevin coder role. Implements approved changes with focused tests and existing acceptance machinery. Use for a task whose stage is coder.
+description: "Kevin coder role. Implements approved changes with focused tests and existing acceptance machinery. Use for a task whose stage is coder."
 model: opus
 ---
 

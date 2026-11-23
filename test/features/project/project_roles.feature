@@ -69,7 +69,7 @@ Feature: a project adds roles
 
   # a project adds roles 4
   Scenario Outline: a project adds roles 4: an added role has a project agent in every harness
-    Given the file "kevin/roles.conf" in the repository holds the runtime's roles.conf with the row "<role> strong subagent<flag>"
+    Given the file "kevin/roles.conf" in the repository holds the runtime's roles.conf with the row "<role> strong subagent <flag>"
     And the file "kevin/roles/<role>.md" in the repository holds "# <role>\n\nDraws the screens."
     And I ran "kevin adapters"
     When I run "kevin agent <role> <harness>"

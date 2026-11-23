@@ -23,7 +23,7 @@ agents, the swarm skills and command, the `kevin/.gitignore` lines, and
 and the Copilot line. "The shared exclude file" is the file
 `git rev-parse --git-path info/exclude` names. "The project agents" are
 the files under `.claude/agents`, `.github/agents` and `.codex/agents` of
-the main checkout, or `none`. "Shows no project agent" means that
+the main checkout that hold the `kevin-generated:` line, or `none`. "Shows no project agent" means that
 `git status --porcelain` lists none of them. "The description of the
 project agent" is the `description` that a YAML parser reads from the
 front matter of a Markdown agent, or a TOML parser from a `.toml` agent.

@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: Kevin security-reviewer role. Reviews authentication, authorization, secrets, untrusted input, and external execution through concrete code paths. Use for a task whose stage is security-reviewer.
+description: "Kevin security-reviewer role. Reviews authentication, authorization, secrets, untrusted input, and external execution through concrete code paths. Use for a task whose stage is security-reviewer."
 model: gpt-6.1-sol
 tools: ["*"]
 include-custom-instructions: true

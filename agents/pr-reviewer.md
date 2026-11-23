@@ -1,6 +1,6 @@
 ---
 name: pr-reviewer
-description: Kevin pr-reviewer role. Reviews a finished diff as a whole and reports findings; changes no code. Use for a task whose stage is pr-reviewer.
+description: "Kevin pr-reviewer role. Reviews a finished diff as a whole and reports findings; changes no code. Use for a task whose stage is pr-reviewer."
 model: opus
 ---
 

@@ -67,6 +67,7 @@ request>` in Claude Code, `$swarm` in Codex, or `/swarm` in Copilot.
 |---|---|---|
 | `kevin/project.md` | yes | The project article: language, verification, ownership, and `Minimum Kevin version:` |
 | `kevin/roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | no | Override the runtime's copy of the same file |
+| `kevin/roles/<role>.md` | no | The prompt of a role that the project adds in its `roles.conf` |
 | `kevin/verify.conf` | no | The commands `kevin finish` runs; without it, none run |
 
 `kevin version` prints the runtime version, and a runtime older than the
@@ -114,13 +115,24 @@ and sharing rules.
 |---|---|---|
 | Claude Code | `/kevin:swarm` | plugin agents `kevin:<role>` from `agents/<role>.md` |
 | Copilot CLI | `/swarm` | plugin agents from `.github/plugin/agents/<role>.agent.md` |
-| Codex CLI | `$swarm` | none; roles run through `kevin dispatch` |
+| Codex CLI | `$swarm` | project agents only; other roles run through `kevin dispatch` |
 | Kilo, Mistral Vibe | ask the session to follow the orchestrator in `kevin home` | none; roles run through `kevin dispatch` |
 
 `kevin adapters`, run in this source checkout, generates the plugin agents
 from `kevin/roles.conf` and `kevin/tiers.conf`. Each agent reads the
 constitution and its role prompt in the directory `kevin home` prints.
-A project's `roles.conf` and `tiers.conf` do not change the plugin agents.
+
+A project changes its role agents through its own `roles.conf` and
+`tiers.conf`. `kevin agent <role> <harness>` tells the orchestrator which
+agent runs the role. When only a Claude Code model changes to `sonnet`,
+`opus`, `haiku` or `fable`, the orchestrator passes it on the delegation
+call. Any other change, and every role the project adds, needs a project
+agent: `.claude/agents/kevin-<role>.md`, `.github/agents/<role>.agent.md`
+or `.codex/agents/<role>.toml`. `kevin init` and `kevin adapters` write
+these files, list them in `.git/info/exclude`, and remove those no longer
+needed. Run `kevin adapters` again in each clone and after each change to
+the configuration. A project that relies on project agents or adds a role
+sets `Minimum Kevin version: 0.3.0` in its `kevin/project.md`.
 
 If a harness cannot delegate, `kevin dispatch <role> <id>` runs the role in a
 headless `claude -p`, `codex exec`, or `copilot -p` session started in the
@@ -157,8 +169,9 @@ The [role catalogue](kevin/roles.conf) assigns tiers and supports
 `subagent`, `session`, `audit`, `optional`, and `send-back` settings. See
 [configuration](kevin/README.md#configuration) for these settings and
 the optional reviewers. Model mappings live in
-[`kevin/tiers.conf`](kevin/tiers.conf). In this source checkout, regenerate
-the plugin agents with `kevin adapters` after changing roles or tiers.
+[`kevin/tiers.conf`](kevin/tiers.conf). Run `kevin adapters` after changing
+roles or tiers: in this source checkout it also regenerates the plugin
+agents.
 
 ## Reference
 

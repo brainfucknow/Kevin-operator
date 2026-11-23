@@ -24,7 +24,7 @@
 
 (def ^:private pure
   "The high-level namespaces: plain values in and out, no IO."
-  '#{kevin.lore kevin.record kevin.flow kevin.spec-revisions kevin.harvest kevin.feature-block kevin.coverage-args kevin.catalogue kevin.runtime kevin.missing-tools})
+  '#{kevin.lore kevin.record kevin.flow kevin.spec-revisions kevin.harvest kevin.feature-block kevin.coverage-args kevin.catalogue kevin.runtime kevin.missing-tools kevin.agents})
 
 (def ^:private allowed
   "The kevin namespaces each kevin namespace may require. Dependencies point from the
@@ -36,15 +36,17 @@
     kevin.record #{}
     kevin.flow #{kevin.record}
     kevin.catalogue #{}
+    kevin.agents #{}
     kevin.spec-revisions #{kevin.lore kevin.record}
     kevin.harvest #{kevin.flow kevin.lore kevin.record}
-    kevin.config #{kevin.catalogue kevin.flow kevin.installed kevin.shell}
+    kevin.config #{kevin.agents kevin.catalogue kevin.flow kevin.installed kevin.shell}
     kevin.entry-point #{}
     kevin.maven-tool #{kevin.shell}
     kevin.wrapper #{kevin.shell}
     kevin.clone #{kevin.shell}
     kevin.tool #{kevin.maven-tool kevin.catalogue kevin.clone kevin.config kevin.entry-point kevin.installed kevin.shell kevin.wrapper}
-    kevin.adapters #{kevin.config kevin.installed kevin.shell}
+    kevin.adapters #{kevin.agents kevin.config kevin.exclude kevin.installed kevin.shell}
+    kevin.exclude #{kevin.shell}
     kevin.git #{kevin.shell}
     kevin.store #{kevin.git kevin.record kevin.shell}
     kevin.metrics #{kevin.git kevin.shell}
@@ -59,7 +61,7 @@
     kevin.history #{kevin.flow kevin.lore kevin.record kevin.spec-revisions kevin.shell kevin.store}
     kevin.dispatch #{kevin.config kevin.flow kevin.installed kevin.record kevin.shell kevin.store kevin.task}
     kevin.missing-tools #{kevin.record}
-    kevin.task #{kevin.audit kevin.config kevin.flow kevin.git kevin.harvest kevin.history kevin.hook kevin.lore kevin.metrics kevin.missing-tools kevin.options kevin.record kevin.installed kevin.runtime kevin.spec-revisions kevin.shell kevin.store kevin.tool kevin.verify}
+    kevin.task #{kevin.adapters kevin.audit kevin.config kevin.exclude kevin.flow kevin.git kevin.harvest kevin.history kevin.hook kevin.lore kevin.metrics kevin.missing-tools kevin.options kevin.record kevin.installed kevin.runtime kevin.spec-revisions kevin.shell kevin.store kevin.tool kevin.verify}
     kevin.convert #{kevin.adapters kevin.config kevin.installed kevin.shell kevin.task}
     kevin.cli #{kevin.adapters kevin.config kevin.convert kevin.dispatch kevin.hook kevin.installed kevin.options kevin.runtime kevin.shell kevin.task kevin.tool}})
 

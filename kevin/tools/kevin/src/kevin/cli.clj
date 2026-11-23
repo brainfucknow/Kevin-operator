@@ -69,6 +69,7 @@
    "dispatch" dispatch/dispatch
    "run" dispatch/run
    "adapters" (config/in-checkout adapters/adapters)
+   "agent" adapters/agent-command
    "check" (config/in-checkout (fn [_] (config/check)))
    "commit-msg" hook/commit-msg})
 
