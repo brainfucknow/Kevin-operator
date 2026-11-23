@@ -103,6 +103,13 @@ Feature: kevin init --convert turns a committed install into configuration
       | make && bash kevin/bin/kevin-cs test           | make && kevin cs test             |
       | bash test/all.sh && kevin/bin/kevin check      | bash test/all.sh && kevin check   |
       | rebash kevin/bin/kevin-cs test                 | rebash kevin cs test              |
+      | true;bash kevin/bin/kevin-cs test              | true;kevin cs test                |
+      | (bash kevin/bin/kevin-cs test)                 | (kevin cs test)                   |
+      | make&&bb ./kevin/bin/kevin help                | make&&kevin help                  |
+      | echo `bash kevin/bin/kevin help`               | echo `kevin help`                 |
+      | X=bash kevin/bin/kevin-cs test                 | X=bash kevin cs test              |
+      | run.sh kevin/bin/kevin check                   | run.sh kevin check                |
+      | /bin/bash kevin/bin/kevin-cs test              | /bin/bash kevin cs test           |
 
   # kevin init --convert turns a committed install into configuration 5
   Scenario: kevin init --convert turns a committed install into configuration 5: uncommitted changes are refused

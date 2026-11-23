@@ -128,9 +128,10 @@
 
 (def ^:private runtime-command
   "A kevin/bin path, with a ./ before it and a bare bash, sh or bb launcher
-  before that. A converted project has no kevin/bin, so the launcher would
-  name the kevin directory."
-  #"(?:(?<!\S)(?:bash|sh|bb) +)?(?:\./)?kevin/bin/kevin(?:-([a-z]+))?\b")
+  before that. The launcher starts a line or follows whitespace or one of
+  the shell separators ; | & ( and backtick. A converted project has no
+  kevin/bin, so the launcher would name the kevin directory."
+  #"(?:(?<![^\s;|&(`])(?:bash|sh|bb) +)?(?:\./)?kevin/bin/kevin(?:-([a-z]+))?\b")
 
 (defn- rewrite-config!
   "Replaces kevin/bin/kevin-<name> with kevin <name> and kevin/bin/kevin with
