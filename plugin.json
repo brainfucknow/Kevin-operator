@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "kevin",
+  "version": "0.2.0",
+  "description": "Run a feature request through Kevin roles on Git task branches in Mistral Vibe: the /kevin:swarm skill and one kevin:<role> subagent per role. The plugin directory is the Kevin runtime; run install.sh --user once per user and kevin init in each project.",
+  "author": { "name": "brainfucknow" },
+  "homepage": "https://github.com/brainfucknow/Kevin-operator",
+  "repository": "https://github.com/brainfucknow/Kevin-operator",
+  "license": "MIT",
+  "keywords": ["kevin", "agents", "workflow", "specification", "review", "vibe"],
+  "extensions": {
+    "ai.mistral.vibe": {
+      "schemaVersion": 1,
+      "displayName": "Kevin"
+    }
+  }
+}
