@@ -114,14 +114,14 @@
   "Writes the agents that the removed install.sh generated with the base-commit
   templates, for the roles of the project's committed roles.conf. Run by bb
   with the runtime's kevin source on the classpath."
-  "(require '[kevin.adapters :as a] '[kevin.config :as c] '[kevin.installed :as r] '[babashka.fs :as fs])
+  "(require '[kevin.adapters :as a] '[kevin.agents :as g] '[kevin.config :as c] '[kevin.installed :as r] '[babashka.fs :as fs])
    (let [root (first *command-line-args*)]
      (with-redefs [r/home (constantly (str root \"/kevin\"))]
        (binding [c/*root* root]
-         (doseq [[role tier] (c/rows \"roles.conf\")
-                 [path text] (a/agent-files role tier (a/kind-of role)
+         (doseq [[role tier :as row] (c/rows \"roles.conf\")
+                 [path text] (a/agent-files role tier (g/kind row)
                                             {:templates \"legacy/\"
-                                             :summary (a/summary (slurp (str root \"/kevin/roles/\" role \".md\")))})]
+                                             :summary (g/summary (slurp (str root \"/kevin/roles/\" role \".md\")))})]
            (fs/create-dirs (fs/parent (fs/path root path)))
            (spit (str (fs/path root path)) text)))))")
 
