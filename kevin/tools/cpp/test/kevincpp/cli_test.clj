@@ -165,7 +165,9 @@
 (deftest msbuild-refusals
   (solution-project!)
   (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "Tests.vcxproj -nologo") {:exit 0 :out "{}"} (msbuild-tool %))) "test")
-                     "no test found: App.sln builds no NativeUnitTestProject"))
+                     "no test found: App.sln builds no NativeUnitTestProject (CppUnitTestFramework); built C:\\s\\Lib.vcxproj, C:\\s\\Tests.vcxproj"))
+  (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-getTargetResult") {:exit 0 :out "Restore done.\n{}"} (msbuild-tool %))) "test")
+                     "MSBuild returned no build output: Restore done."))
   (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-format json") {:exit 0 :out "[{\"installationVersion\":\"16.11.1\"}]"} (msbuild-tool %))) "test")
                      "Visual Studio 16.11.1 is older than 2022"))
   (is (= 1 (:status (run-kevin-cpp (assoc windows :tool #(if (str/includes? % "-getTargetResult") {:exit 1 :out "error C2065"} (msbuild-tool %))) "test")))))
@@ -358,6 +360,20 @@
   (let [{:keys [which]} (mull-host)]
     (is (= 0 (:status (run-kevin-cpp {:tool (mull-tool false) :which which} "mutate" "--all"))))
     (is (not (str/includes? (slurp (project-file "tmp/mull/mull.yml")) "gitDiffRef")))))
+
+(deftest mutate-without-a-mutant-in-the-diff-scores-none
+  (let [{:keys [which]} (mull-host)
+        tool #(cond (str/starts-with? % "clang --version") {:exit 0 :out "clang version 18.1.3\n"}
+                    (str/includes? % "mull-runner-18") 0
+                    :else (cmake-tool %))
+        {:keys [status out]} (run-kevin-cpp {:tool tool :which which} "mutate")]
+    (is (= 0 status))
+    (is (str/includes? out "no mutants")))
+  (let [{:keys [which]} (mull-host)
+        tool #(cond (str/starts-with? % "clang --version") {:exit 0 :out "clang version 18.1.3\n"}
+                    (str/includes? % "mull-runner-18") 3
+                    :else (cmake-tool %))]
+    (is (str/includes? (refusal {:tool tool :which which} "mutate") "mull-runner exited 3 and wrote no tmp/mull/sign_positive.json"))))
 
 (deftest mutate-is-unsupported-without-clang-and-mull
   (is (str/includes? (refusal {:tool cmake-tool} "mutate") "mutation unsupported in this setup: no clang on PATH"))

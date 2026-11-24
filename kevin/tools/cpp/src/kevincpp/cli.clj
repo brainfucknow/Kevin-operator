@@ -145,6 +145,15 @@ trees go under tmp/."))
              target targets]
          (:target target))))
 
+(defn- no-msbuild-tests
+  "Why MSBuild's answer `out` names no test output for `project`."
+  [project out]
+  (let [built (distinct (map :project (build/build-outputs out project)))]
+    (str "no test found: " project " builds no NativeUnitTestProject (CppUnitTestFramework); "
+         (if (seq built)
+           (str "built " (str/join ", " built))
+           (str "MSBuild returned no build output: " (or (first-line out) "nothing"))))))
+
 (defn- msbuild-tests
   "Builds the solution or project with MSBuild and runs vstest.console on
   its native test outputs; returns the status."
@@ -157,7 +166,7 @@ trees go under tmp/."))
       (do (println out) (build/status exit))
       (let [targets (msbuild-test-targets msbuild project (build/build-outputs out project))]
         (when (empty? targets)
-          (throw (outcome/usage-error (str "no test found: " project " builds no NativeUnitTestProject (CppUnitTestFramework)"))))
+          (throw (outcome/usage-error (no-msbuild-tests project out))))
         (run-command wrap (-> [vstest] (into targets) (into extra)))))))
 
 (defn- run-tests [system run]
@@ -293,13 +302,17 @@ trees go under tmp/."))
 (defn- test-name [test]
   (str/replace (:name test) #"[^A-Za-z0-9_.-]" "_"))
 
-(defn- run-mull [{:keys [runner]} env extra test]
+(defn- run-mull
+  "The mutants of one test run; mull-runner writes no report when it finds
+  no mutant, and then exits 0."
+  [{:keys [runner]} env extra test]
   (let [name (test-name test)
-        report (mull/report-path mull-dir name)]
-    (shell/run runner (mull/runner-args {:report-dir mull-dir :name name :command (:command test) :extra extra}) env)
-    (when-not (shell/exists? report)
-      (throw (outcome/usage-error (str "mull-runner wrote no " report))))
-    (stryker/parse-mutants (shell/read-json report))))
+        report (mull/report-path mull-dir name)
+        status (shell/run runner (mull/runner-args {:report-dir mull-dir :name name :command (:command test) :extra extra}) env)]
+    (cond
+      (shell/exists? report) (stryker/parse-mutants (shell/read-json report))
+      (zero? status) []
+      :else (throw (outcome/usage-error (str "mull-runner exited " status " and wrote no " report))))))
 
 (defn- cmd-mutate [{:keys [opts extra]}]
   (let [setup (mull-setup (select-system opts))]
