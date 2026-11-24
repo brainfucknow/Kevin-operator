@@ -62,28 +62,49 @@
    :vibe "enabled_tools = [\"read_file\", \"grep\", \"glob\", \"bash\"]\n"})
 
 (def kinds
-  "The kinds of subagent, each with its adapter template and when to use it."
+  "The kinds of subagent, each with its adapter template, when to use it, and
+  the earlier use sentences that agents in projects may still carry."
   {:stage {:template "adapter.md" :noun "role" :use "Use for a task whose stage is {{role}}."}
    :gate {:template "gate-adapter.md" :noun "gate"
-          :use "Use at a task's specification gate, after the specifier's kevin review and before the operator approves."}
+          :use "Use at a task's specification gate, before the operator approves."
+          :old-uses ["Use at a task's specification gate, after the specifier's kevin review and before the operator approves."]}
    :spec-judge {:template "spec-judge-adapter.md" :noun "spec-judge"
-                :use "Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict."}})
+                :use "Use at a task's specification gate, after each spec revision's gates."
+                :old-uses ["Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict."]}})
+
+(def max-description
+  "The most characters Vibe accepts in a plugin agent description."
+  300)
+
+(defn uses
+  "The use sentences of the kind: the current one first, then the earlier ones."
+  [kind]
+  (let [{:keys [use old-uses]} (kinds kind)]
+    (cons use old-uses)))
 
 (defn kind-of [role]
   (cond (config/gate? role) :gate
         (config/spec-judge? role) :spec-judge
         :else :stage))
 
+(defn description
+  "The description of the role's agents: Kevin, the role and its kind's noun,
+  the summary line of its prompt, and when to use it."
+  ([role kind summary] (description role kind summary (:use (kinds kind))))
+  ([role kind summary use]
+   (str "Kevin " role " " (:noun (kinds kind)) ". " summary " " (str/replace use "{{role}}" role))))
+
 (defn agent-files
   "The agent of each harness for the role as kevin wrote it into a project:
   path to text. templates is the resource directory of the templates (\"\"
   for the current ones, \"legacy/\" for those of the removed committed
-  install), summary the first line of the role prompt."
-  [role tier kind {:keys [templates summary]}]
-  (let [{:keys [template noun use]} (kinds kind)
+  install), summary the first line of the role prompt, use the sentence saying
+  when to use the agent (the kind's current one when absent)."
+  [role tier kind {:keys [templates summary use] :or {use (:use (kinds kind))}}]
+  (let [{:keys [template]} (kinds kind)
         read-only? (not= :stage kind)
         body (str/replace (shell/template (str templates template)) "{{role}}" role)
-        description (str "Kevin " role " " noun ". " summary " " (str/replace use "{{role}}" role))]
+        description (description role kind summary use)]
     {(str ".claude/agents/" role ".md")
      (str "---\nname: " role "\ndescription: " description "\nmodel: " (config/tier-field tier 2)
           (when read-only? (str "\ntools: " (:claude gate-tools))) "\n---\n\n" body)
@@ -115,10 +136,21 @@
    ".github/plugin/agents" {:from ".github/agents" :suffix ".agent.md"}
    "ai.mistral.vibe/agents" {:from ".vibe/agents" :suffix ".toml" :prefix "schema_version = 1\n"}})
 
+(defn- fitting-summary
+  "The role's summary. Dies when the role's description is longer than Vibe
+  accepts."
+  [role kind]
+  (let [summary (role-summary role)
+        length (count (description role kind summary))]
+    (when (> length max-description)
+      (shell/die "kevin adapters: the description of " role " is " length
+                 " characters; Vibe accepts at most " max-description))
+    summary))
+
 (defn plugin-files
   "The plugin agents of the role: path to text."
   [role tier kind]
-  (let [files (agent-files role tier kind {:templates "" :summary (role-summary role)})]
+  (let [files (agent-files role tier kind {:templates "" :summary (fitting-summary role kind)})]
     (into {} (for [[dir {:keys [from suffix prefix]}] plugin-dirs]
                [(str dir "/" role suffix) (str prefix (get files (str from "/" role suffix)))]))))
 

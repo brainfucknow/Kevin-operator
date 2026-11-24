@@ -1,7 +1,7 @@
 schema_version = 1
 agent_type = "subagent"
 display_name = "Spec Judge"
-description = "Kevin spec-judge spec-judge. Rules on each spec revision's gate findings at the specification gate: converged, continue, needs-operator or stuck. Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict."
+description = "Kevin spec-judge spec-judge. Rules on each spec revision's gate findings at the specification gate: converged, continue, needs-operator or stuck. Use at a task's specification gate, after each spec revision's gates."
 active_model = "mistral-medium-latest"
 enabled_tools = ["read_file", "grep", "glob", "bash"]
 instructions = """

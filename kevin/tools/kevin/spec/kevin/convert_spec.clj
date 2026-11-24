@@ -122,6 +122,31 @@
     (convert)
     (should-not (exists? ".claude/agents/coder.md")))
 
+  (it "recognizes gate and spec-judge agents that carry the old use sentences"
+    (doseq [roles-conf [(fs/path *dir* "kevin" "roles.conf") (fs/path *runtime* "roles.conf")]]
+      (spit (str roles-conf)
+            (str (slurp (str roles-conf)) "falsifier strong subagent gate\nspec-judge strong subagent spec-judge\n")))
+    (doseq [[role text] {"falsifier" "# falsifier\n\nAudits a specification.\n"
+                         "spec-judge" "# spec-judge\n\nRules on a spec revision.\n"}]
+      (write! (str "kevin/roles/" role ".md") text)
+      (spit (str (fs/path *runtime* "roles" (str role ".md"))) text))
+    (let [old-uses {"falsifier" "Use at a task's specification gate, after the specifier's kevin review and before the operator approves."
+                    "spec-judge" "Use at a task's specification gate, after the gates of each spec revision, for the spec revision's spec verdict."}
+          paths (for [[role use] old-uses
+                      templates ["" "legacy/"]
+                      [path text] (binding [config/*root* *dir*]
+                                    (adapters/agent-files role "strong" (if (= role "falsifier") :gate :spec-judge)
+                                                          {:templates templates
+                                                           :summary (adapters/summary (read (str "kevin/roles/" role ".md")))
+                                                           :use use}))]
+                  (do (write! path text) path))]
+      (doall paths)
+      (git *dir* "add" "-A")
+      (git *dir* "commit" "-q" "-m" "Old gate agents")
+      (should= 0 (:status (convert)))
+      (doseq [path paths]
+        (should-not (exists? path)))))
+
   (it "keeps the other lines of the instruction files"
     (write! "AGENTS.md" (str "Project notes.\n" swarm-line "\n"))
     (write! "CLAUDE.md" "Claude notes.\n@AGENTS.md\n")

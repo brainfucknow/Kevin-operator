@@ -76,15 +76,17 @@
 
 (defn- generated
   "Path to the set of normalized texts that kevin generated for the roles of
-  the project's roles.conf, from the current and the legacy templates."
+  the project's roles.conf, from the current and the legacy templates, with the
+  current and the earlier use sentences."
   [root rows]
   (reduce (fn [acc [path text]] (update acc path (fnil conj #{}) (normalized path text)))
           {}
           (for [[role tier] rows
                 kind (keys adapters/kinds)
+                use (adapters/uses kind)
                 templates ["" "legacy/"]
                 summary (summaries root role)
-                file (adapters/agent-files role tier kind {:templates templates :summary summary})]
+                file (adapters/agent-files role tier kind {:templates templates :summary summary :use use})]
             file)))
 
 (defn- recorded-digests
