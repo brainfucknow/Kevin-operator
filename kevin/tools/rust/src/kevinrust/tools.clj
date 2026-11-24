@@ -28,14 +28,16 @@
       (when (zero? exit)
         (str/trim out)))))
 
+(defn- llvm-executable? [bin [env name]]
+  (if-let [override (System/getenv env)]
+    (or (fs/executable? override) (fs/which override))
+    (or (fs/executable? (fs/path bin name))
+        (fs/executable? (fs/path bin (str name ".exe"))))))
+
 (defn- llvm-tools []
   (when-let [target-libdir (probe ["rustc" "--print" "target-libdir"])]
     (let [bin (fs/path (fs/parent target-libdir) "bin")]
-      (when (every? (fn [[env name]]
-                      (if-let [override (System/getenv env)]
-                        (or (fs/executable? override) (fs/which override))
-                        (or (fs/executable? (fs/path bin name))
-                            (fs/executable? (fs/path bin (str name ".exe"))))))
+      (when (every? #(llvm-executable? bin %)
                     [["LLVM_COV" "llvm-cov"] ["LLVM_PROFDATA" "llvm-profdata"]])
         "llvm-cov and llvm-profdata"))))
 

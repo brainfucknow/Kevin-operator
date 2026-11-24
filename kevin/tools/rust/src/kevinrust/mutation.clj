@@ -22,18 +22,21 @@
                           ["--"]
                           (testing/ordinary-args [] []))))))
 
+(defn- reported-outcomes [path exit]
+  (let [{:strs [caught missed timeout unviable]} (artifacts/json-report "cargo mutants" path)]
+    (when-not (every? nat-int? [caught missed timeout unviable])
+      (throw (outcome/usage-error (str "cargo mutants report lacks outcome counts: " path))))
+    (println (format "caught %d, missed %d, timed out %d, unviable %d"
+                     caught missed timeout unviable))
+    (println (str "mutation outcomes written to " path))
+    (if (or (#{2 3 4} exit) (pos? missed) (pos? timeout)) 1 0)))
+
 (defn- result [dir exit]
   (let [path (fs/path dir "mutants.out" "outcomes.json")
         candidates (fs/path dir "mutants.out" "mutants.json")]
     (cond
       (fs/regular-file? path)
-      (let [{:strs [caught missed timeout unviable]} (artifacts/json-report "cargo mutants" path)]
-        (when-not (every? nat-int? [caught missed timeout unviable])
-          (throw (outcome/usage-error (str "cargo mutants report lacks outcome counts: " path))))
-        (println (format "caught %d, missed %d, timed out %d, unviable %d"
-                         caught missed timeout unviable))
-        (println (str "mutation outcomes written to " path))
-        (if (or (#{2 3 4} exit) (pos? missed) (pos? timeout)) 1 0))
+      (reported-outcomes path exit)
 
       (and (zero? exit)
            (= [] (artifacts/json-report "cargo mutants" candidates)))

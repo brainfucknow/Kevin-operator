@@ -12,6 +12,13 @@
             [kevinrust.testing :as testing]
             [kevinrust.tools :as tools]))
 
+(defn- coverage-result [log exit out errors]
+  (cond
+    (zero? exit) {:status 0 :out out}
+    (or (= 101 exit) (re-find #"(?m)^error: process didn't exit successfully: .*cargo(?:\.exe)?['\"]? test .+\(exit status: 101\)$" errors))
+    {:status 1 :out out}
+    :else (throw (outcome/usage-error (str "cargo llvm-cov failed (exit " exit "). See " log)))))
+
 (defn- llvm-cov [project dir flags libtest capture?]
   (let [args (into ["cargo" "llvm-cov"]
                    (concat flags (options/test-args project) libtest))
@@ -25,11 +32,7 @@
                                                         "CARGO_LLVM_COV_BUILD_DIR" build}}))
         errors (slurp (str log))]
     (binding [*out* *err*] (print errors) (flush))
-    (cond
-      (zero? exit) {:status 0 :out out}
-      (or (= 101 exit) (re-find #"(?m)^error: process didn't exit successfully: .*cargo(?:\.exe)?['\"]? test .+\(exit status: 101\)$" errors))
-      {:status 1 :out out}
-      :else (throw (outcome/usage-error (str "cargo llvm-cov failed (exit " exit "). See " log))))))
+    (coverage-result log exit out errors)))
 
 (defn- finish-coverage [root files raw report]
   (let [records (try
