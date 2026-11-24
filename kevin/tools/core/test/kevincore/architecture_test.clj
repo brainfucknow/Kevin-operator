@@ -35,7 +35,7 @@
 
 (def adapters
   "The namespaces that may touch processes, files, git, or the console."
-  '#{kevincore.shell kevincore.git kevinjs.cli kevincs.cli kevincs.cobertura kevinfs.cli kevinvb.cli kevinrb.cli})
+  '#{kevincore.shell kevincore.git kevincore.dotnet kevinjs.cli kevincs.cli kevincs.cobertura kevinfs.cli kevinvb.cli kevinrb.cli})
 
 (def dotnet-entrypoints '#{kevinfs.cli kevinvb.cli})
 
