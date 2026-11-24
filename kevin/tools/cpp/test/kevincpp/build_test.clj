@@ -1,6 +1,5 @@
 (ns kevincpp.build-test
-  (:require [cheshire.core :as json]
-            [clojure.string :as str]
+  (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [kevincpp.build :as build]))
 
@@ -82,12 +81,12 @@
                       "<ProjectConfiguration Project=\"{2}\" AbsolutePath=\"C:\\s\\Tests.vcxproj\" BuildProjectInSolution=\"True\">Debug|Win32</ProjectConfiguration>"
                       "<ProjectConfiguration Project=\"{3}\" AbsolutePath=\"C:\\s\\Off.vcxproj\" BuildProjectInSolution=\"False\">Debug|x64</ProjectConfiguration>"
                       "</SolutionConfiguration>")
-        answer (json/generate-string {"TargetResults" {"Projects" {"Result" "Success" "Items" [{"Identity" contents}]}}})]
+        answer (str contents "\r\n")]
     (is (= [{:path "C:\\s\\Lib\\Lib.vcxproj" :configuration "Debug" :platform "x64"}
             {:path "C:\\s\\Tests.vcxproj" :configuration "Debug" :platform "Win32"}]
            (build/solution-projects answer))))
   (is (= [] (build/solution-projects "garbage")))
-  (is (= [] (build/solution-projects "{\"TargetResults\":{\"Projects\":{\"Items\":[]}}}")))
+  (is (= [] (build/solution-projects "")))
   (is (= ["C:/s/T.vcxproj" "-nologo" "-p:Configuration=Debug" "-p:Platform=x64" "-p:SolutionDir=C:/s/"
           "-getProperty:ProjectSubType" "-getProperty:TargetPath"]
          (build/evaluate-args {:path "C:/s/T.vcxproj" :configuration "Debug" :platform "x64" :solution-dir "C:/s/"})))
@@ -102,12 +101,13 @@
 
 (deftest msbuild-builds-a-solution-and-asks-it-for-its-projects
   (let [entry (build/entry-project "C:/My Repo/App.sln")]
-    (is (str/includes? entry "<Target Name=\"Projects\" Returns=\"@(KevinProjects)\">"))
+    (is (str/includes? entry "<Target Name=\"Projects\">"))
+    (is (str/includes? entry "<Output TaskParameter=\"TargetOutputs\" PropertyName=\"KevinProjects\" />"))
     (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"GetSolutionConfigurationContents\">")))
   (testing "MSBuild and XML special characters stay literal"
     (is (str/includes? (build/entry-project "C:/a&b;c$d@e%f'g/App.sln") "Projects=\"C:/a&amp;b%3Bc%24d%40e%25f%27g/App.sln\"")))
   (is (= ["App.sln" "-nologo" "-restore" "-p:Configuration=Debug" "-t:Build"] (build/msbuild-args "App.sln")))
-  (is (= ["tmp/msbuild/build.proj" "-nologo" "-p:Configuration=Debug" "-getTargetResult:Projects"]
+  (is (= ["tmp/msbuild/build.proj" "-nologo" "-p:Configuration=Debug" "-t:Projects" "-getProperty:KevinProjects"]
          (build/projects-args "tmp/msbuild/build.proj"))))
 
 (deftest any-failing-status-is-a-finding

@@ -138,8 +138,6 @@
        "<ProjectConfiguration Project=\"{2}\" AbsolutePath=\"C:\\s\\Tests.vcxproj\" BuildProjectInSolution=\"True\">Debug|x64</ProjectConfiguration>"
        "</SolutionConfiguration>"))
 
-(def msbuild-projects
-  (json/generate-string {"TargetResults" {"Projects" {"Result" "Success" "Items" [{"Identity" solution-contents}]}}}))
 
 (def test-evaluation
   "{\"Properties\":{\"ProjectSubType\":\"NativeUnitTestProject\",\"TargetPath\":\"C:\\\\s\\\\x64\\\\Debug\\\\Tests.dll\"}}")
@@ -149,7 +147,7 @@
     (str/includes? line "-format json") {:exit 0 :out vs-json}
     (str/includes? line "-find MSBuild") {:exit 0 :out "C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe\r\n"}
     (str/includes? line "-find **\\TestPlatform") {:exit 0 :out "C:\\VS\\vstest.console.exe\n"}
-    (str/includes? line "-getTargetResult:Projects") {:exit 0 :out msbuild-projects}
+    (str/includes? line "-getProperty:KevinProjects") {:exit 0 :out solution-contents}
     (str/includes? line "Tests.vcxproj -nologo") {:exit 0 :out test-evaluation}
     (str/includes? line "Lib.vcxproj -nologo") {:exit 0 :out "{\"Properties\":{\"ProjectSubType\":\"\",\"TargetPath\":\"C:\\\\s\\\\Lib.lib\"}}"}
     :else 0))
@@ -166,7 +164,7 @@
         msbuild "C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe"]
     (is (= 0 status))
     (is (some #{(str msbuild " App.sln -nologo -restore -p:Configuration=Debug -t:Build")} calls))
-    (is (some #{(str msbuild " tmp/msbuild/build.proj -nologo -p:Configuration=Debug -getTargetResult:Projects")} calls))
+    (is (some #{(str msbuild " tmp/msbuild/build.proj -nologo -p:Configuration=Debug -t:Projects -getProperty:KevinProjects")} calls))
     (is (str/includes? (slurp (project-file "tmp/msbuild/build.proj"))
                        (str "<MSBuild Projects=\"" *project* "/App.sln\" Targets=\"GetSolutionConfigurationContents\">")))
     (is (some #{(str msbuild " C:\\s\\Tests.vcxproj -nologo -p:Configuration=Debug -p:Platform=x64 -p:SolutionDir=" *project* "/ "
@@ -178,14 +176,14 @@
   (write! "Tests.vcxproj" "")
   (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "test")]
     (is (= 0 status))
-    (is (not-any? #(str/includes? % "getTargetResult") calls))
+    (is (not-any? #(str/includes? % "KevinProjects") calls))
     (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe Tests.vcxproj -nologo -p:Configuration=Debug -getProperty:ProjectSubType -getProperty:TargetPath"} calls))))
 
 (deftest msbuild-refusals
   (solution-project!)
   (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "Tests.vcxproj -nologo") {:exit 0 :out "{}"} (msbuild-tool %))) "test")
                      "no test found: App.sln builds no NativeUnitTestProject (CppUnitTestFramework)"))
-  (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-getTargetResult") {:exit 1 :out "error MSB4057: no target\n"} (msbuild-tool %))) "test")
+  (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-getProperty:KevinProjects") {:exit 1 :out "error MSB4057: no target\n"} (msbuild-tool %))) "test")
                      "MSBuild listed no project in App.sln: error MSB4057: no target"))
   (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-format json") {:exit 0 :out "[{\"installationVersion\":\"16.11.1\"}]"} (msbuild-tool %))) "test")
                      "Visual Studio 16.11.1 is older than 2022"))

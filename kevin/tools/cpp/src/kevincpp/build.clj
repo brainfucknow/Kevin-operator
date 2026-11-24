@@ -140,14 +140,15 @@
   (boolean (seq (solutions [project]))))
 
 (defn entry-project
-  "An MSBuild project whose Projects target asks the solution at `path` for
-  its configuration contents. MSBuild refuses -getTargetResult on a
-  solution, but not on this project."
+  "An MSBuild project whose Projects target puts the configuration contents
+  of the solution at `path` in the KevinProjects property. MSBuild refuses
+  -getProperty on a solution, but not on this project; an item would fail,
+  since the contents are no path."
   [path]
   (str "<Project>\n"
-       "  <Target Name=\"Projects\" Returns=\"@(KevinProjects)\">\n"
+       "  <Target Name=\"Projects\">\n"
        "    <MSBuild Projects=\"" (msbuild-literal path) "\" Targets=\"GetSolutionConfigurationContents\">\n"
-       "      <Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinProjects\" />\n"
+       "      <Output TaskParameter=\"TargetOutputs\" PropertyName=\"KevinProjects\" />\n"
        "    </MSBuild>\n"
        "  </Target>\n"
        "</Project>\n"))
@@ -160,16 +161,14 @@
 (defn projects-args
   "MSBuild arguments that run `entry`, an `entry-project`."
   [entry]
-  [entry "-nologo" (str "-p:Configuration=" config) "-getTargetResult:Projects"])
+  [entry "-nologo" (str "-p:Configuration=" config) "-t:Projects" "-getProperty:KevinProjects"])
 
 (defn solution-projects
   "The projects a solution builds, each {:path :configuration :platform},
-  from MSBuild's -getTargetResult:Projects answer: its items carry the
-  solution's SolutionConfigurationContents."
+  from MSBuild's -getProperty:KevinProjects answer: the solution's
+  SolutionConfigurationContents."
   [text]
-  (let [parsed (try (json/parse-string text) (catch Exception _ nil))
-        contents (str/join ";" (map #(get % "Identity") (get-in parsed ["TargetResults" "Projects" "Items"])))
-        doc (try (xml/parse-str contents) (catch Exception _ nil))]
+  (let [doc (try (xml/parse-str (str/trim (or text ""))) (catch Exception _ nil))]
     (vec (for [node (tree-seq map? :content doc)
                :when (and (map? node) (= :ProjectConfiguration (:tag node))
                           (not= "false" (str/lower-case (get-in node [:attrs :BuildProjectInSolution] "true"))))
