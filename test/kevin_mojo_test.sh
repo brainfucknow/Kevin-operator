@@ -86,6 +86,7 @@ cat > bin/jscpd <<'TOOL'
 set -eu
 test -f src/one.mojo
 test ! -e src/ignored.mojo
+test ! -L src/dangling.mojo
 test ! -e build/generated.mojo
 while [[ "$1" != --output ]]; do shift; done
 mkdir -p "$2"
@@ -104,6 +105,7 @@ git add .gitignore src/one.mojo src/two.mojo
 GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=Codex \
 GIT_CONFIG_KEY_1=user.email GIT_CONFIG_VALUE_1=codex@openai.com git commit -qm base
 test "$(git log -1 --format='%an <%ae>%n%cn <%ce>')" = $'Codex <codex@openai.com>\nCodex <codex@openai.com>'
+ln -s missing.mojo src/dangling.mojo
 check 0 mojo dry
 check 1 mojo dry --all
 grep -Fq 'src/two.mojo:1-5' output

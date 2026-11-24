@@ -35,13 +35,14 @@
     {:base (project/option-value option value)}
     :else (project/fail "dry takes [--all | --base REF]")))
 
-(defn- changed-lines [{:keys [all base]}]
+(defn- changed-lines [{:keys [all base]} files]
   (when-not all
     (let [ref (or base (git/first-existing [(System/getenv "KEVIN_BASE") "main" "master"]
                                            #(git/ref-exists? % nil)))]
       (when-not ref
         (project/fail "no base branch found; pass --base REF or set KEVIN_BASE"))
-      (git/collect-changed-lines {:base ref :pathspecs ["*.mojo"]}))))
+      (git/collect-changed-lines {:base ref :pathspecs ["*.mojo"]
+                                  :include-untracked? (set files)}))))
 
 (defn- copy-inputs [root snapshot files]
   (doseq [file files
@@ -85,7 +86,7 @@
     (project/require-tool "jscpd")
     (binding [shell/*dir* (str root)]
       (let [files (eligible-files root)
-            changed (when-let [lines (changed-lines opts)]
+            changed (when-let [lines (changed-lines opts files)]
                       (merge (zipmap files (repeat #{})) lines))
             output (project/output-dir root "jscpd")
             work (project/scratch output "mojo-")
