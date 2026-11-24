@@ -127,7 +127,8 @@ and sharing rules.
 | Claude Code | `/kevin:swarm` | plugin agents `kevin:<role>` from `agents/<role>.md` |
 | Copilot CLI | `/swarm` | plugin agents from `.github/plugin/agents/<role>.agent.md` |
 | Codex CLI | `$swarm` | project agents only; other roles run through `kevin dispatch` |
-| Kilo, Mistral Vibe | ask the session to follow the orchestrator in `kevin home` | none; roles run through `kevin dispatch` |
+| Mistral Vibe with the plugin | ask the session to follow the orchestrator in `kevin home` | plugin agents `kevin:<role>` from `ai.mistral.vibe/agents/<role>.toml` for runtime roles; added roles run through `kevin dispatch` |
+| Kilo, Mistral Vibe without the plugin | ask the session to follow the orchestrator in `kevin home` | none; roles run through `kevin dispatch` |
 
 `kevin adapters`, run in this source checkout, generates the plugin agents
 from `kevin/roles.conf` and `kevin/tiers.conf`. Each agent reads the
@@ -139,7 +140,9 @@ agent runs the role. When only a Claude Code model changes to `sonnet`,
 `opus`, `haiku` or `fable`, the orchestrator passes it on the delegation
 call. Any other change, and every role the project adds, needs a project
 agent: `.claude/agents/kevin-<role>.md`, `.github/agents/<role>.agent.md`
-or `.codex/agents/<role>.toml`. `kevin init` and `kevin adapters` write
+or `.codex/agents/<role>.toml`. Mistral Vibe has no project agents: it
+always uses the plugin agent of a runtime role, and runs an added role
+through `kevin dispatch`. `kevin init` and `kevin adapters` write
 these files, list them in `.git/info/exclude`, and remove those no longer
 needed. Run `kevin adapters` again in each clone and after each change to
 the configuration. Such a project sets `Minimum Kevin version: 0.3.0`.

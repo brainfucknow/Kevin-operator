@@ -114,23 +114,47 @@
                                   :when (and path (not (wanted path)) (not (fs/exists? (fs/path root path))))]
                               line)))))
 
+(def ^:private agent-harnesses
+  "The harnesses that kevin agent takes: those with project agents, and vibe,
+  whose plugin agents exist only for runtime roles."
+  (conj agents/harnesses "vibe"))
+
+(defn- print-subagent
+  "Prints AGENT, then MODEL when the delegation call takes the model, then a
+  WARNING when the project agent is missing or stale."
+  [role harness]
+  (let [{:keys [agent model path text]} (resolve-agent harness role (context))
+        file (some->> path (fs/path (shell/repo-root)))]
+    (println (str "AGENT: " agent))
+    (when model (println (str "MODEL: " model)))
+    (cond
+      (nil? file) nil
+      (not (fs/regular-file? file)) (println (str "WARNING: " path " is missing; run kevin adapters"))
+      (not= text (slurp (str file))) (println (str "WARNING: " path " is stale; run kevin adapters")))))
+
+(defn- vibe-agent
+  "The Vibe plugin agent of a runtime subagent role, else none."
+  [role]
+  (if (some #{role} (agents/subagents (config/runtime-rows "roles.conf")))
+    (str "kevin:" role)
+    "none"))
+
 (defn agent-command
   "kevin agent <role> <harness>: how the orchestrator runs the role in the
-  harness. Prints AGENT, then MODEL when the delegation call takes the model,
-  then a WARNING when the project agent is missing or stale. Writes nothing."
+  harness. A session role prints AGENT: session and the PROMPT path to read.
+  In vibe a subagent role prints its plugin agent or none. Otherwise see
+  print-subagent. Writes nothing."
   [[role harness]]
   (binding [config/*root* nil]
-    (when-not (some #{harness} agents/harnesses)
-      (shell/die "unknown harness '" harness "' (" (str/join ", " agents/harnesses) ")"))
+    (when-not (some #{harness} agent-harnesses)
+      (shell/die "unknown harness '" harness "' (" (str/join ", " agent-harnesses) ")"))
     (shell/quietly config/check)
     (config/require-agent role)
-    (if (not= "subagent" (config/role-field role 3))
-      (println "AGENT: session")
-      (let [{:keys [agent model path text]} (resolve-agent harness role (context))
-            file (some->> path (fs/path (shell/repo-root)))]
-        (println (str "AGENT: " agent))
-        (when model (println (str "MODEL: " model)))
-        (cond
-          (nil? file) nil
-          (not (fs/regular-file? file)) (println (str "WARNING: " path " is missing; run kevin adapters"))
-          (not= text (slurp (str file))) (println (str "WARNING: " path " is stale; run kevin adapters")))))))
+    (cond
+      (not= "subagent" (config/role-field role 3))
+      (do (println "AGENT: session")
+          (println (str "PROMPT: " (fs/absolutize (config/prompt-file role)))))
+
+      (= "vibe" harness) (println (str "AGENT: " (vibe-agent role)))
+
+      :else (print-subagent role harness))))

@@ -95,10 +95,14 @@ checkout, `kevin adapters` also regenerates the plugin agents:
 for Copilot CLI.
 
 `kevin agent <role> <harness>` prints how the orchestrator runs a role in
-`claude`, `copilot` or `codex`: `AGENT: <name>`, then `MODEL: <alias>` when
-the delegation call takes the model, then a `WARNING:` when the project agent
-is missing or stale. `AGENT: none` means `kevin dispatch`; `AGENT: session`
-means the orchestrator plays the role. A project that relies on project
+`claude`, `copilot`, `codex` or `vibe`: `AGENT: <name>`, then `MODEL: <alias>`
+when the delegation call takes the model, then a `WARNING:` when the project
+agent is missing or stale. `AGENT: none` means `kevin dispatch`.
+`AGENT: session` means the orchestrator plays the role; the next line,
+`PROMPT: <path>`, names the prompt to read: the runtime's for a runtime role,
+the main checkout's `kevin/roles/<role>.md` for an added role. In `vibe` a
+runtime role prints its plugin agent `kevin:<role>` and an added role prints
+`AGENT: none`; Vibe has no project agents. A project that relies on project
 agents or adds a role sets `Minimum Kevin version: 0.3.0`.
 
 `kevin check` validates the configuration files and the role prompts, and

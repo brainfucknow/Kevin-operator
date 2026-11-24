@@ -71,9 +71,10 @@ Catalogue commands
                                   roles.conf need, untracked, and remove those it no longer
                                   needs; in the Kevin source checkout also regenerate the
                                   plugin agents, Vibe's in ai.mistral.vibe/agents
-  agent <role> <harness>          print the agent that runs the role in claude, copilot or
-                                  codex (AGENT), the model to pass (MODEL) and a WARNING when
-                                  its project agent is missing or stale
+  agent <role> <harness>          print the agent that runs the role in claude, copilot,
+                                  codex or vibe (AGENT), the model to pass (MODEL) and a
+                                  WARNING when its project agent is missing or stale; for a
+                                  session role, the prompt to read (PROMPT)
   tool require|ensure|list|bin    install constitution tools project-locally (kevin tool --help)
   check                           validate roles.conf, tiers.conf, routes.conf, tools.conf, role prompts
 
