@@ -15,7 +15,7 @@
             [kevincs.cobertura :as cob]
             [kevincs.coverage :as coverage]
             [kevincs.measurement :as measurement]
-                        [kevincs.project :as project]))
+            [kevincs.project :as project]))
 
 (def tmp "tmp")
 (def coverage-dir (str (fs/path tmp "coverage")))

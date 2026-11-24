@@ -1,7 +1,12 @@
-{:paths ["src" "test" "../core/src" "../core/test"]
+{:paths ["src" "test" "property" "../core/src" "../core/test" "../core/property"]
  :tasks
  {test {:doc "Run the kevin-cpp unit tests and the shared core tests"
         :task (let [namespaces '[kevincore.core-test kevincpp.source-test kevincpp.cobertura-test kevincpp.crap-test kevincpp.build-test kevincpp.backends-test kevincpp.cli-test]]
                 (apply require 'clojure.test namespaces)
                 (let [{:keys [fail error]} (apply clojure.test/run-tests namespaces)]
-                  (System/exit (+ fail error))))}}}
+                  (System/exit (+ fail error))))}
+  property {:doc "Run the kevin-cpp property tests"
+            :task (let [namespaces '[kevincpp.kevincpp-property]]
+                    (apply require 'clojure.test namespaces)
+                    (let [{:keys [fail error]} (apply clojure.test/run-tests namespaces)]
+                      (System/exit (+ fail error))))}}}
