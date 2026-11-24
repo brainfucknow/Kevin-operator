@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+command -v bb >/dev/null || { echo "kevin mojo: Babashka (bb) is required" >&2; exit 2; }
+exec bb --config "$(cd "$(dirname "$0")/../tools/mojo" && pwd)/bb.edn" -m kevinmojo.cli "$@"
