@@ -1,0 +1,68 @@
+name: cpp
+on:
+  push:
+  pull_request:
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Babashka
+        shell: pwsh
+        env:
+          BB_VERSION: 1.13.229
+          BB_SHA256: eda55ef005e99503f6be97966f9a956f348f29affc7b2df9142d3fc6d239c855
+        run: |
+          $bin = Join-Path $env:USERPROFILE "bin"
+          New-Item -ItemType Directory -Force -Path $bin | Out-Null
+          $zip = Join-Path $env:RUNNER_TEMP "bb.zip"
+          Invoke-WebRequest -Uri "https://github.com/babashka/babashka/releases/download/v$env:BB_VERSION/babashka-$env:BB_VERSION-windows-amd64.zip" -OutFile $zip
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() -ne $env:BB_SHA256) { throw "bb checksum mismatch" }
+          Expand-Archive $zip -DestinationPath $bin -Force
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+      - name: Install OpenCppCoverage
+        shell: pwsh
+        run: |
+          choco install opencppcoverage --no-progress -y
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\Program Files\OpenCppCoverage"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: End-to-end kevin-cpp on Windows
+        shell: bash
+        env:
+          KEVIN_CPP_E2E: windows
+          DOTNET_COVERAGE_VERSION: 18.12.0
+        run: bash test/kevin_cpp_e2e_test.sh
+  mull:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Babashka
+        env:
+          BB_VERSION: 1.13.229
+          BB_SHA256: a98c90a0530943dfa9a0b03bcccbc2030777a6ce094af303d5bb47d77e193299
+        run: |
+          mkdir -p "$HOME/bin"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+          curl -fsSL --retry 5 --retry-all-errors -o bb.tar.gz \
+            "https://github.com/babashka/babashka/releases/download/v$BB_VERSION/babashka-$BB_VERSION-linux-amd64.tar.gz"
+          echo "$BB_SHA256  bb.tar.gz" | sha256sum --check
+          tar -xzf bb.tar.gz -C "$HOME/bin"
+          rm bb.tar.gz
+      - name: Install clang 18 and Mull 0.39.1
+        env:
+          MULL_SHA256: e321b42d481c4b5e0652416dde78b5c02bf34751e5bb2719c8fc00a2b7e68928
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang cmake
+          curl -fsSL --retry 5 --retry-all-errors -o mull.deb \
+            "https://github.com/mull-project/mull/releases/download/0.39.1/Mull-18-0.39.1-LLVM-18.1.3-ubuntu-amd64-24.04.deb"
+          echo "$MULL_SHA256  mull.deb" | sha256sum --check
+          sudo apt-get install -y ./mull.deb
+          rm mull.deb
+          clang --version
+          mull-runner-18 --version
+      - name: Mutate with kevin-cpp and Mull
+        env:
+          KEVIN_CPP_E2E: mull
+        run: bash test/kevin_cpp_e2e_test.sh

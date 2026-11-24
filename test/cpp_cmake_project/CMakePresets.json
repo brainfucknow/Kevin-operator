@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "configurePresets": [
+    { "name": "dev", "binaryDir": "${sourceDir}/build/dev" }
+  ]
+}

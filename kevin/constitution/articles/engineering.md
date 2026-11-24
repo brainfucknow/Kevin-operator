@@ -15,6 +15,7 @@
   | VB.NET | Unsupported (exit 2) | dotnet-coverage compiled methods | jscpd | [`kevin vb tools`](../../languages/vbnet.md) |
   | JavaScript/TypeScript | StrykerJS | oxlint or ESLint + Istanbul | jscpd | [`kevin js tools`](../../languages/javascript.md) |
   | Ruby | mutant (optional: needs the project's mutant usage) | RuboCop or flog + SimpleCov | jscpd or flay | [`kevin rb`](../../languages/ruby.md) |
+  | C/C++ | Mull (clang + CMake only; otherwise exit 2) | lizard + gcov, dotnet-coverage or OpenCppCoverage | jscpd | [`kevin cpp`](../../languages/cpp.md) |
 
 - A tool that is not installed is no reason to skip a check. Run `kevin tool ensure <tool>`, then the check. A `Not-tested` trailer may skip a check only for one of these reasons:
   - The check has no applicable target in the task.
@@ -30,7 +31,7 @@
 - For Clojure projects, prefer Babashka where possible.
 - For Clojure or Babashka projects, write Speclj specs, not `clojure.test`.
 - For Java projects, avoid using Maven to run tests; build dedicated test runners and run those instead.
-- For C#, F#, VB.NET, JavaScript/TypeScript, and Ruby, use the linked language wrappers and property-test conventions above.
+- For C#, F#, VB.NET, JavaScript/TypeScript, Ruby, and C/C++, use the linked language wrappers and property-test conventions above.
 
 ## Design And Testability
 - Work in small, reviewable increments.
