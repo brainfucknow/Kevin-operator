@@ -2,6 +2,8 @@
 
 Run `kevin rust` in a Cargo package or workspace inside a Git worktree.
 Run `kevin init` to exclude `tmp/` from Git.
+Use a worktree and toolchain you trust. Cargo builds and tests can run code
+from the project and its dependencies with your user permissions.
 
 ## Setup
 
@@ -21,6 +23,7 @@ kevin rust tools
 
 `tools` shows the active Cargo and rustc versions and the available analysis
 tools. It returns 2 if Cargo or rustc is unavailable.
+`tools` and `dry` use npm to find or download and run jscpd.
 
 ## Select packages and tests
 
