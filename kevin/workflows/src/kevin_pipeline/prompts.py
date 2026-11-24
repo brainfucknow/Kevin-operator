@@ -17,18 +17,18 @@ def role_file(main: str, home: str, role: str) -> str:
     return os.path.abspath(kevinkit.conf_file(main, home, os.path.join("roles", f"{role}.md")))
 
 
-def role_prompt(role: str, task_id: str, home: str, role_file: str) -> str:
+def role_prompt(role: str, task_id: str, home: str, prompt_file: str) -> str:
     """home is the runtime's kevin/ directory, as kevin home prints it."""
     return (
         f"You are the Kevin '{role}' role. Read {home}/constitution.md and "
-        f"follow its reading instructions, then read {role_file}, then "
+        f"follow its reading instructions, then read {prompt_file}, then "
         f"do your role's work for task {task_id}. Start with: kevin start {task_id}"
     )
 
 
-def gate_prompt(role: str, task_id: str, role_file: str) -> str:
+def gate_prompt(role: str, task_id: str, prompt_file: str) -> str:
     return (
-        f"You are the Kevin '{role}' gate. Read {role_file}, then "
+        f"You are the Kevin '{role}' gate. Read {prompt_file}, then "
         f"audit the specification of task {task_id} that waits for approval. Start with: "
         f"kevin show {task_id}. Change nothing: no edits, no commits, no kevin "
         f"command that records. End with your report."
@@ -46,13 +46,13 @@ def judge_prompt(task_id: str, gate_reports: list[GateReport]) -> str:
 
 
 def agent_instructions(
-    role: Role, home: str, role_file: str, tiers: dict[str, dict[str, str]], writable: bool
+    role: Role, home: str, prompt_file: str, tiers: dict[str, dict[str, str]], writable: bool
 ) -> str:
     """The standing instructions of one role agent: the constitution of the
-    runtime at home, the text of role_file, and how its tools map onto the
+    runtime at home, the text of prompt_file, and how its tools map onto the
     task worktree."""
     model = mistral_model(tiers, role.tier)
-    role_text = open(role_file, encoding="utf-8").read() if os.path.isfile(role_file) else ""
+    role_text = open(prompt_file, encoding="utf-8").read() if os.path.isfile(prompt_file) else ""
     tools = (
         "run_shell runs a shell command in the task worktree; read_file and write_file "
         "work on paths relative to the worktree root."
