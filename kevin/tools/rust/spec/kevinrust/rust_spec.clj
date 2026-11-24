@@ -5,6 +5,7 @@
             [kevincore.git :as git]
             [kevincore.shell :as shell]
             [kevinrust.cli :as cli]
+            [kevinrust.libtest :as libtest]
             [kevinrust.options :as options]
             [kevinrust.project :as project]
             [kevinrust.reports :as reports]
@@ -74,7 +75,7 @@
 (describe "Libtest argument policy"
   (it "puts the property skip before any user separator"
     (should= ["--" "--skip" "property_" "--ignored" "--" "name"]
-             (testing/ordinary-args ["--ignored" "--" "name"] [])))
+             (libtest/ordinary-args ["--ignored" "--" "name"])))
   (it "adds full property names when libtest uses exact matching"
     (should= {:args ["--" "--skip" "property_" "--skip" "tests::property_x" "--exact" "--ignored"]}
              (testing/exclude-properties
@@ -226,6 +227,8 @@
       (fn [_ _ operation flags]
         (should= "mutants" operation)
         (should-contain "+pub fn a() {}" (slurp (flag-value "--in-diff" flags)))
+        (should= ["--" "--" "--skip" "property_"]
+                 (vec (drop-while #(not= "--" %) flags)))
         (let [report-dir (fs/path (flag-value "--output" flags) "mutants.out")]
           (fs/create-dirs report-dir)
           (spit (str (fs/path report-dir "outcomes.json"))

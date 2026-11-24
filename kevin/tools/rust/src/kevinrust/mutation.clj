@@ -4,9 +4,9 @@
             [clojure.string :as str]
             [kevincore.outcome :as outcome]
             [kevinrust.artifacts :as artifacts]
+            [kevinrust.libtest :as libtest]
             [kevinrust.project :as project]
             [kevinrust.snapshot :as snapshot]
-            [kevinrust.testing :as testing]
             [kevinrust.tools :as tools]))
 
 (defn- mutation-args [{:keys [manifest selected features locked list]} dir diff]
@@ -20,7 +20,7 @@
                   (concat ["--output" (str dir) "--baseline" "run"]
                           (mapcat #(vector "--test-package" %) selected)
                           ["--"]
-                          (testing/ordinary-args [] []))))))
+                          (libtest/ordinary-args []))))))
 
 (defn- reported-outcomes [path exit]
   (let [{:strs [caught missed timeout unviable]} (artifacts/json-report "cargo mutants" path)]
