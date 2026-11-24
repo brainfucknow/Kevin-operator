@@ -34,7 +34,7 @@
       (is (= ["--gcov-executable" "llvm-cov-18 gcov"] (take 2 (drop-while #(not= "--gcov-executable" %) args)))))))
 
 (deftest opencppcoverage-covers-children-and-the-repository-only
-  (is (= ["--sources" "C:\\repo" "--excluded_sources" "C:\\repo\\tmp" "--excluded_sources" "\\test\\"
+  (is (= ["--modules" "C:\\repo" "--sources" "C:\\repo" "--excluded_sources" "C:\\repo\\tmp" "--excluded_sources" "\\test\\"
           "--excluded_sources" "\\tests\\" "--cover_children" "--export_type" "cobertura:C:\\repo\\tmp\\coverage\\coverage.cobertura.xml"
           "--" "ctest" "-C" "Debug"]
          (coverage/opencppcoverage-args {:root "C:/repo" :out "C:/repo/tmp/coverage/coverage.cobertura.xml"

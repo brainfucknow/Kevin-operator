@@ -53,7 +53,7 @@ directories. A failing test run exits 1 and still writes the report.
   `uvx gcovr@8.4`. A clang build reads its data with `llvm-cov gcov`. CMake
   only.
 - opencppcoverage (Windows): `OpenCppCoverage` on PATH, covering child
-  processes. A report without data exits 2.
+  processes and only the modules under the repository. A report without data exits 2.
 
 dotnet-coverage is not a backend: it collects no native C++ coverage.
 

@@ -243,7 +243,7 @@
         {:keys [status calls]} (run-kevin-cpp (-> windows (assoc :tool tool) (assoc-in [:which "OpenCppCoverage"] "C:\\occ.exe"))
                                               "coverage" "--tool" "opencppcoverage")]
     (is (= 0 status))
-    (is (str/starts-with? (last calls) "OpenCppCoverage --sources "))
+    (is (str/starts-with? (last calls) "OpenCppCoverage --modules "))
     (is (str/includes? (last calls) "--cover_children --export_type cobertura:"))
     (is (str/ends-with? (last calls) "-- C:\\VS\\vstest.console.exe C:\\s\\x64\\Debug\\Tests.dll")))
   (is (str/includes? (refusal (assoc windows :tool msbuild-tool) "coverage" "--tool" "opencppcoverage")

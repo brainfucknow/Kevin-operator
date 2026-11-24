@@ -108,7 +108,7 @@ windows() {
   assert_status "test with ctest" "$status" 0
   run "$KEVIN_CPP" coverage
   assert_status "coverage with the default OpenCppCoverage (CMake)" "$status" 0
-  assert_match "the Windows default is OpenCppCoverage" "$out" "OpenCppCoverage --sources"
+  assert_match "the Windows default is OpenCppCoverage" "$out" "OpenCppCoverage --modules"
   run "$KEVIN_CPP" crap --all --no-executable-code src/sign.hpp
   assert_status "crap from OpenCppCoverage (CMake)" "$status" 0
   assert_match "crap scores sign from OpenCppCoverage" "$out" "cc   3  cov +[0-9]+%  src/sign.cpp:3 sign"

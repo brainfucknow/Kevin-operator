@@ -45,10 +45,12 @@
 
 (defn opencppcoverage-args
   "OpenCppCoverage arguments that run `command` and its children and write
-  Cobertura to `out` for sources under `root`."
+  Cobertura to `out` for modules and sources under `root`. Limiting the
+  modules keeps OpenCppCoverage off the test runner's own DLLs, such as an
+  ARM DiaSymReader that vstest.console loads and OpenCppCoverage cannot read."
   [{:keys [root out command include-tests?]}]
   (let [root (str/replace (backslashes root) #"\\+$" "")]
-    (-> ["--sources" root "--excluded_sources" (str root "\\tmp")]
+    (-> ["--modules" root "--sources" root "--excluded_sources" (str root "\\tmp")]
         (into (when-not include-tests? ["--excluded_sources" "\\test\\" "--excluded_sources" "\\tests\\"]))
         (into ["--cover_children" "--export_type" (str "cobertura:" (backslashes out)) "--"])
         (into command))))
