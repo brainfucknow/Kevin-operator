@@ -56,7 +56,7 @@
     (should= (installed/home) (:out (kevin "home"))))
 
   (it "lists the runtime commands in the usage"
-    (doseq [entry ["  version " "  home " "  init [--convert] " "  cs|fs|vb|js|rb|java|mistral "]]
+    (doseq [entry ["  version " "  home " "  init [--convert] " "  cs|fs|vb|js|rb|java|mojo|mistral "]]
       (should-contain entry (:out (kevin "help")))))
 
   (it "runs kevin init, or kevin init --convert, and refuses other arguments"

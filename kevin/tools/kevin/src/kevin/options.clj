@@ -75,7 +75,7 @@ Catalogue commands
 Runtime commands
   version                         print the Kevin runtime version
   home                            print the runtime's kevin/ directory: role prompts, constitution
-  cs|fs|vb|js|rb|java|mistral <args>
+  cs|fs|vb|js|rb|java|mojo|mistral <args>
                                   run the runtime's language or Mistral command with args
 
 Hook commands
