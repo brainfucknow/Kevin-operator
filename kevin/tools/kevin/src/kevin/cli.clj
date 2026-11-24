@@ -21,7 +21,7 @@
 
 (def ^:private subcommands
   "The runtime's other commands, run as kevin <name>: kevin/bin/kevin-<name>."
-  #{"cs" "fs" "vb" "js" "rb" "java" "rust" "mistral"})
+  #{"cs" "fs" "vb" "js" "rb" "java" "mojo" "rust" "mistral"})
 
 (defn- run-subcommand
   "Runs the runtime's kevin-<name> from the current directory with the
