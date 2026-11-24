@@ -7,7 +7,6 @@
             [cheshire.core :as json]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing use-fixtures]]
-            [kevincore.dotnet :as dotnet]
             [kevincore.shell :as shell]
             [kevincpp.cli :as cli]))
 
@@ -158,7 +157,8 @@
   (solution-project!)
   (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "test" "--" "/Tests:Sign")]
     (is (= 0 status))
-    (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe App.sln -nologo -restore -p:Configuration=Debug -t:Build -getTargetResult:Build"} calls))
+    (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe tmp/msbuild/build.proj -nologo -restore -p:Configuration=Debug -getTargetResult:Build"} calls))
+    (is (str/includes? (slurp (project-file "tmp/msbuild/build.proj")) (str "<MSBuild Projects=\"" *project* "/App.sln\" Targets=\"Build\">")))
     (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe C:\\s\\Tests.vcxproj -nologo -p:Configuration=Debug -getProperty:ProjectSubType -getProperty:TargetPath"} calls))
     (is (= "C:\\VS\\vstest.console.exe C:\\o\\Tests.dll /Tests:Sign" (last calls)))))
 
@@ -216,21 +216,6 @@
     (let [tool #(cond (str/includes? % "--build") 2 (str/includes? % "gcovr") 1 :else (cmake-tool %))]
       (is (= 1 (:status (run-kevin-cpp {:tool tool} "coverage")))))))
 
-(deftest dotnet-coverage-wraps-the-test-command-and-needs-native-data
-  (with-redefs [dotnet/require-pinned-tool (fn [tool wrapper] (swap! *calls* conj (str "pin " (:package tool) " " wrapper)))]
-    (let [tool #(if (str/includes? % "-format json") (msbuild-tool %) (writes-report %))
-          {:keys [status calls]} (run-kevin-cpp (assoc windows :tool tool) "coverage")]
-      (is (= 0 status))
-      (is (some #{"pin dotnet-coverage kevin-cpp"} calls))
-      (is (some #{(str "dotnet dotnet-coverage collect -s tmp/dotnet-coverage-cpp.xml -f cobertura -o tmp/coverage/coverage.cobertura.xml -- "
-                       "ctest --test-dir tmp/build/coverage -C Debug --output-on-failure")} calls))
-      (is (str/includes? (slurp (project-file "tmp/dotnet-coverage-cpp.xml")) "EnableDynamicNativeInstrumentation")))
-    (let [tool #(if (str/includes? % "-format json") (msbuild-tool %) (cmake-tool %))
-          empty-report #(if (str/includes? % "dotnet-coverage collect")
-                          (do (write! "tmp/coverage/coverage.cobertura.xml" "<coverage><packages/></coverage>") 0)
-                          (tool %))]
-      (is (str/includes? (refusal (assoc windows :tool empty-report) "coverage") "dotnet-coverage collected no coverage data")))))
-
 (deftest opencppcoverage-wraps-vstest-for-a-solution
   (solution-project!)
   (let [tool #(if (str/starts-with? % "OpenCppCoverage") (writes-report %) (msbuild-tool %))
@@ -244,8 +229,18 @@
                      "OpenCppCoverage is not on PATH"))
   (is (str/includes? (refusal (assoc windows :tool msbuild-tool) "coverage" "--tool" "gcov") "gcov needs a CMake project")))
 
+(deftest opencppcoverage-is-the-windows-default
+  (let [tool #(cond (str/includes? % "-format json") (msbuild-tool %)
+                    (str/starts-with? % "OpenCppCoverage") (writes-report %)
+                    :else (cmake-tool %))
+        {:keys [status calls]} (run-kevin-cpp (-> windows (assoc :tool tool) (assoc-in [:which "OpenCppCoverage"] "C:\\occ.exe"))
+                                              "coverage")]
+    (is (= 0 status))
+    (is (str/ends-with? (last calls) "-- ctest --test-dir tmp/build/coverage -C Debug --output-on-failure"))))
+
 (deftest coverage-backends-off-windows-are-refused-before-any-run
-  (is (str/includes? (refusal {:tool cmake-tool} "coverage" "--tool" "dotnet-coverage") "Windows only"))
+  (is (str/includes? (refusal {:tool cmake-tool} "coverage" "--tool" "opencppcoverage") "Windows only"))
+  (is (str/includes? (refusal {:tool cmake-tool} "coverage" "--tool" "dotnet-coverage") "unknown --tool 'dotnet-coverage'"))
   (is (= [] @*calls*)))
 
 ;; crap
@@ -383,8 +378,10 @@
   (let [{:keys [status out]} (run-kevin-cpp {:tool cmake-tool} "tools")]
     (is (= 2 status))
     (is (str/includes? out "build system: none")))
-  (let [{:keys [calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "tools")]
-    (is (not-any? #(str/starts-with? % "dotnet tool restore") calls)))
-  (write! ".config/dotnet-tools.json" "{}")
-  (let [{:keys [calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "tools")]
-    (is (some #{"dotnet tool restore"} calls))))
+  (write! "App.sln" "")
+  (let [{:keys [status out]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "tools")]
+    (is (= 0 status))
+    (is (str/includes? out "build system: msbuild App.sln"))
+    (is (str/includes? out "visual studio: "))
+    (is (str/includes? out "OpenCppCoverage: not available (not on PATH)"))
+    (is (not (str/includes? out "dotnet")))))

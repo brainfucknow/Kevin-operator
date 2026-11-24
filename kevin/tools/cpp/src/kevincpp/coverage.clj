@@ -4,22 +4,20 @@
   (:require [clojure.string :as str]
             [kevincore.outcome :as outcome]))
 
-(def backends #{"dotnet-coverage" "opencppcoverage" "gcov"})
+(def backends #{"opencppcoverage" "gcov"})
 
 (defn backend
   "The backend `requested` names, else the host's default; stops when it
   cannot run here."
   [requested {:keys [windows? kind]}]
-  (let [chosen (or requested (if windows? "dotnet-coverage" "gcov"))]
+  (let [chosen (or requested (if windows? "opencppcoverage" "gcov"))]
     (cond
       (not (backends chosen))
-      (throw (outcome/usage-error (str "unknown --tool '" chosen "'; use dotnet-coverage, opencppcoverage or gcov")))
-      (and (= "dotnet-coverage" chosen) (not windows?))
-      (throw (outcome/usage-error "--tool dotnet-coverage: dotnet-coverage collects native coverage on Windows only; use --tool gcov"))
+      (throw (outcome/usage-error (str "unknown --tool '" chosen "'; use opencppcoverage or gcov")))
       (and (= "opencppcoverage" chosen) (not windows?))
       (throw (outcome/usage-error "--tool opencppcoverage: OpenCppCoverage runs on Windows only; use --tool gcov"))
       (and (= "gcov" chosen) (= :msbuild kind))
-      (throw (outcome/usage-error "--tool gcov: gcov needs a CMake project; use dotnet-coverage or opencppcoverage"))
+      (throw (outcome/usage-error "--tool gcov: gcov needs a CMake project; use opencppcoverage"))
       :else chosen)))
 
 (def gcov-defines
@@ -54,29 +52,3 @@
         (into (when-not include-tests? ["--excluded_sources" "\\test\\" "--excluded_sources" "\\tests\\"]))
         (into ["--cover_children" "--export_type" (str "cobertura:" (backslashes out)) "--"])
         (into command))))
-
-(def ^:private separator "[\\\\/]")
-
-(defn- escape [segment]
-  (str/replace segment #"[\\*+?|{}\[\]()^$.# ]" #(str "\\" %)))
-
-(defn- under [root & segments]
-  (str "^" (str/join separator (map escape (concat (str/split root #"[\\/]+") segments))) separator ".*"))
-
-(defn dotnet-settings
-  "dotnet-coverage settings: dynamic native instrumentation of sources under
-  `root`, outside tmp/ and, unless `include-tests?`, test directories."
-  [root include-tests?]
-  (let [source #(str "\n        <Source>" (-> % (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;")) "</Source>")]
-    (str "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<Configuration>\n  <CodeCoverage>"
-         "\n    <EnableStaticNativeInstrumentation>False</EnableStaticNativeInstrumentation>"
-         "\n    <EnableDynamicNativeInstrumentation>True</EnableDynamicNativeInstrumentation>"
-         "\n    <Sources>\n      <Include>" (source (under root))
-         "\n      </Include>\n      <Exclude>" (source (under root "tmp"))
-         (when-not include-tests? (source (str ".*" separator "[Tt]ests?" separator ".*")))
-         "\n      </Exclude>\n    </Sources>\n  </CodeCoverage>\n</Configuration>\n")))
-
-(defn dotnet-coverage-args
-  "`dotnet` arguments that collect Cobertura into `out` around `command`."
-  [{:keys [settings out command]}]
-  (into ["dotnet-coverage" "collect" "-s" settings "-f" "cobertura" "-o" out "--"] command))

@@ -6,11 +6,9 @@
             [clojure.string :as str]
             [kevincore.command :as command]
             [kevincore.crap :as crap]
-            [kevincore.dotnet :as dotnet]
             [kevincore.git :as git]
             [kevincore.jscpd :as jscpd]
             [kevincore.outcome :as outcome]
-            [kevincore.pin :as pin]
             [kevincore.shell :as shell]
             [kevincore.stryker :as stryker]
             [kevincpp.build :as build]
@@ -24,7 +22,7 @@
 (def wrapper "kevin-cpp")
 (def coverage-dir "tmp/coverage")
 (def coverage-report (str coverage-dir "/coverage.cobertura.xml"))
-(def dotnet-settings "tmp/dotnet-coverage-cpp.xml")
+(def msbuild-entry "tmp/msbuild/build.proj")
 (def jscpd-dir "tmp/jscpd")
 (def mull-dir "tmp/mull")
 (def build-dirs {:test "tmp/build/test" :coverage "tmp/build/coverage" :mutate "tmp/build/mutate"})
@@ -36,10 +34,9 @@
   test [--preset NAME] [-- args]
                               build, then ctest (CMake) or vstest.console (MSBuild)
   property                    unsupported; exit 2
-  coverage [--tool dotnet-coverage|opencppcoverage|gcov] [--include-tests]
-           [--preset NAME] [-- args]
+  coverage [--tool opencppcoverage|gcov] [--include-tests] [--preset NAME] [-- args]
                               tests under the backend; Cobertura in " coverage-report "
-                              (default dotnet-coverage on Windows, gcov elsewhere)
+                              (default opencppcoverage on Windows, gcov elsewhere)
   crap [--all] [--base REF] [--no-executable-code PATH ...]
                               CRAP per changed function: lizard complexity and the
                               coverage report; exit 1 over " crap/crap-limit ", exit 2 on unmeasured sources
@@ -73,6 +70,12 @@ trees go under tmp/."))
 
 (defn- first-line [text]
   (first (remove str/blank? (str/split-lines (or text "")))))
+
+(defn- repo-root []
+  (str/replace (git/repo-root) "\\" "/"))
+
+(defn- absolute [path]
+  (str/replace (str (fs/absolutize (shell/in-dir path))) "\\" "/"))
 
 ;; Visual Studio
 
@@ -148,7 +151,8 @@ trees go under tmp/."))
   [{:keys [project extra wrap]}]
   (let [msbuild (vs-find "MSBuild\\**\\Bin\\MSBuild.exe" "MSBuild.exe")
         vstest (vs-find "**\\TestPlatform\\vstest.console.exe" "vstest.console.exe")
-        {:keys [exit out]} (shell/capture msbuild (build/msbuild-args project))]
+        {:keys [exit out]} (do (shell/write-file msbuild-entry (build/entry-project (absolute project)))
+                               (shell/capture msbuild (build/msbuild-args msbuild-entry)))]
     (if-not (zero? exit)
       (do (println out) (build/status exit))
       (let [targets (msbuild-test-targets msbuild project (build/build-outputs out project))]
@@ -168,24 +172,6 @@ trees go under tmp/."))
   (throw (outcome/usage-error "property tests are not supported yet for C and C++")))
 
 ;; coverage
-
-(defn- repo-root []
-  (str/replace (git/repo-root) "\\" "/"))
-
-(defn- absolute [path]
-  (str/replace (str (fs/absolutize (shell/in-dir path))) "\\" "/"))
-
-(defn- restore-dotnet-tools
-  "Restores the local dotnet tools when the repository root has a manifest."
-  [root]
-  (when (some #(fs/exists? (fs/path root %)) pin/root-manifests)
-    (shell/run "dotnet" ["tool" "restore"])))
-
-(defn- dotnet-coverage-run [{:keys [root include-tests?]}]
-  (restore-dotnet-tools root)
-  (dotnet/require-pinned-tool pin/dotnet-coverage wrapper)
-  (shell/write-file dotnet-settings (coverage/dotnet-settings root include-tests?))
-  {:wrap #(into ["dotnet"] (coverage/dotnet-coverage-args {:settings dotnet-settings :out coverage-report :command %}))})
 
 (defn- opencppcoverage-run [{:keys [root include-tests?]}]
   (when-not (shell/available? "OpenCppCoverage")
@@ -225,7 +211,6 @@ trees go under tmp/."))
     (fs/create-dirs (shell/in-dir coverage-dir))
     (let [status (case backend
                    "gcov" (cmake-tests (assoc base :defines coverage/gcov-defines))
-                   "dotnet-coverage" (run-tests system (merge base (dotnet-coverage-run context)))
                    "opencppcoverage" (run-tests system (merge base (opencppcoverage-run context))))]
       (try
         (when (= "gcov" backend) (run-gcovr context))
@@ -350,9 +335,7 @@ trees go under tmp/."))
       nil)))
 
 (defn- report-windows-tools []
-  (restore-dotnet-tools (repo-root))
   (report-tool "visual studio" (or (some-> (fs/which "vswhere") str) "vswhere") (into build/vswhere-args ["-property" "installationVersion"]))
-  (report-tool "dotnet-coverage" "dotnet" ["dotnet-coverage" "--version"])
   (println "OpenCppCoverage:" (if (shell/available? "OpenCppCoverage") "available" "not available (not on PATH)")))
 
 (defn- report-unix-tools []

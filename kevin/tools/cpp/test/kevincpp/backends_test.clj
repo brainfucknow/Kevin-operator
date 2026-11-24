@@ -8,11 +8,11 @@
   (try (f) nil (catch Exception e (ex-message e))))
 
 (deftest the-default-backend-depends-on-the-host
-  (is (= "dotnet-coverage" (coverage/backend nil {:windows? true :kind :cmake})))
+  (is (= "opencppcoverage" (coverage/backend nil {:windows? true :kind :cmake})))
   (is (= "gcov" (coverage/backend nil {:windows? false :kind :cmake})))
   (is (= "opencppcoverage" (coverage/backend "opencppcoverage" {:windows? true :kind :msbuild})))
-  (is (re-find #"dotnet-coverage collects native coverage on Windows only"
-               (refusal #(coverage/backend "dotnet-coverage" {:windows? false :kind :cmake}))))
+  (is (re-find #"unknown --tool 'dotnet-coverage'; use opencppcoverage or gcov"
+               (refusal #(coverage/backend "dotnet-coverage" {:windows? true :kind :cmake}))))
   (is (re-find #"OpenCppCoverage runs on Windows only"
                (refusal #(coverage/backend "opencppcoverage" {:windows? false :kind :cmake}))))
   (is (re-find #"gcov needs a CMake project" (refusal #(coverage/backend "gcov" {:windows? true :kind :msbuild}))))
@@ -40,18 +40,6 @@
          (coverage/opencppcoverage-args {:root "C:/repo" :out "C:/repo/tmp/coverage/coverage.cobertura.xml"
                                          :command ["ctest" "-C" "Debug"]})))
   (is (not (some #{"\\test\\"} (coverage/opencppcoverage-args {:root "C:/r" :out "o" :command ["x"] :include-tests? true})))))
-
-(deftest dotnet-coverage-settings-instrument-native-code-under-the-root
-  (let [xml (coverage/dotnet-settings "C:/my repo" false)]
-    (is (str/includes? xml "<EnableDynamicNativeInstrumentation>True</EnableDynamicNativeInstrumentation>"))
-    (is (str/includes? xml "<Source>^C:[\\\\/]my\\ repo[\\\\/].*</Source>"))
-    (is (str/includes? xml "<Source>^C:[\\\\/]my\\ repo[\\\\/]tmp[\\\\/].*</Source>"))
-    (is (str/includes? xml "<Source>.*[\\\\/][Tt]ests?[\\\\/].*</Source>")))
-  (is (not (str/includes? (coverage/dotnet-settings "C:/r" true) "ests?"))))
-
-(deftest dotnet-coverage-collects-around-the-test-command
-  (is (= ["dotnet-coverage" "collect" "-s" "tmp/s.xml" "-f" "cobertura" "-o" "tmp/coverage/coverage.cobertura.xml" "--" "ctest" "x"]
-         (coverage/dotnet-coverage-args {:settings "tmp/s.xml" :out "tmp/coverage/coverage.cobertura.xml" :command ["ctest" "x"]}))))
 
 (deftest mull-runs-only-with-clang-a-matching-runner-and-cmake
   (is (nil? (mull/unsupported {:kind :cmake :windows? false :clang 18 :runner "/usr/bin/mull-runner-18" :plugin? true})))

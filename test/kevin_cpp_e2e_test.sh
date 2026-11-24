@@ -2,8 +2,8 @@
 # End-to-end check of kevin-cpp with the real tools on the CMake project in
 # test/cpp_cmake_project. Needs cmake 3.21+, a C++ compiler, Babashka, uv
 # and Node. KEVIN_CPP_E2E selects the host part: linux (default: gcov,
-# lizard, jscpd and every refusal), windows (MSVC, MSBuild, both Windows
-# coverage backends, /analyze) or mull (clang and Mull).
+# lizard, jscpd and every refusal), windows (MSVC, MSBuild, OpenCppCoverage,
+# /analyze) or mull (clang and Mull).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
@@ -101,45 +101,39 @@ linux() {
 
 windows() {
   new_project cmake cpp_cmake_project
-  dotnet new tool-manifest >/dev/null
-  dotnet tool install dotnet-coverage --version "${DOTNET_COVERAGE_VERSION:?}" >/dev/null
-  git add -A && git commit -q -m "pin dotnet-coverage"
 
   run "$KEVIN_CPP" tools
   assert_status "tools (CMake + MSVC)" "$status" 0
   run "$KEVIN_CPP" test --preset dev
   assert_status "test with ctest" "$status" 0
-  for tool in dotnet-coverage opencppcoverage; do
-    run "$KEVIN_CPP" coverage --tool "$tool"
-    assert_status "coverage --tool $tool (CMake)" "$status" 0
-    run "$KEVIN_CPP" crap --all --no-executable-code src/sign.hpp
-    assert_status "crap from $tool (CMake)" "$status" 0
-    assert_match "crap scores sign from $tool" "$out" "cc   3  cov +[0-9]+%  src/sign.cpp:3 sign"
-  done
+  run "$KEVIN_CPP" coverage
+  assert_status "coverage with the default OpenCppCoverage (CMake)" "$status" 0
+  assert_match "the Windows default is OpenCppCoverage" "$out" "OpenCppCoverage --sources"
+  run "$KEVIN_CPP" crap --all --no-executable-code src/sign.hpp
+  assert_status "crap from OpenCppCoverage (CMake)" "$status" 0
+  assert_match "crap scores sign from OpenCppCoverage" "$out" "cc   3  cov +[0-9]+%  src/sign.cpp:3 sign"
+  run "$KEVIN_CPP" coverage --tool dotnet-coverage
+  assert_status "coverage --tool dotnet-coverage is refused" "$status" 2
   run "$KEVIN_CPP" dry --all
   assert_status "dry" "$status" 0
   run "$KEVIN_CPP" mutate
   assert_status "mutate on MSVC" "$status" 2
-  run cmake -S . -B tmp/build/analyze "-DCMAKE_CXX_FLAGS=/analyze /W4 /WX"
+  # cl takes -opt for /opt; Git Bash rewrites /analyze into a path.
+  run cmake -S . -B tmp/build/analyze "-DCMAKE_CXX_FLAGS=-EHsc -analyze -W4 -WX"
   run cmake --build tmp/build/analyze --config Debug
   assert_status "MSVC /analyze build" "$status" 0
 
   new_project msbuild cpp_msbuild_project
-  dotnet new tool-manifest >/dev/null
-  dotnet tool install dotnet-coverage --version "$DOTNET_COVERAGE_VERSION" >/dev/null
-  git add -A && git commit -q -m "pin dotnet-coverage"
 
   run "$KEVIN_CPP" tools
   assert_match "tools picks the solution" "$out" "build system: msbuild Sign.sln"
   run "$KEVIN_CPP" test
   assert_status "test with vstest.console" "$status" 0
-  for tool in dotnet-coverage opencppcoverage; do
-    run "$KEVIN_CPP" coverage --tool "$tool"
-    assert_status "coverage --tool $tool (MSBuild)" "$status" 0
-    run "$KEVIN_CPP" crap --all --no-executable-code Sign/src/sign.hpp
-    assert_status "crap from $tool (MSBuild)" "$status" 0
-    assert_match "crap scores sign from $tool (MSBuild)" "$out" "Sign/src/sign.cpp:3 sign"
-  done
+  run "$KEVIN_CPP" coverage --tool opencppcoverage
+  assert_status "coverage --tool opencppcoverage (MSBuild)" "$status" 0
+  run "$KEVIN_CPP" crap --all --no-executable-code Sign/src/sign.hpp
+  assert_status "crap from OpenCppCoverage (MSBuild)" "$status" 0
+  assert_match "crap scores sign from OpenCppCoverage (MSBuild)" "$out" "Sign/src/sign.cpp:3 sign"
   run "$KEVIN_CPP" mutate
   assert_status "mutate on MSBuild" "$status" 2
 }

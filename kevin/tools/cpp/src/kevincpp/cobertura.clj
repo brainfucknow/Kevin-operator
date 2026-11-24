@@ -1,6 +1,6 @@
 (ns kevincpp.cobertura
   "Line hits per source file from a Cobertura report, whichever backend wrote
-  it: gcovr, dotnet-coverage or OpenCppCoverage."
+  it: gcovr or OpenCppCoverage."
   (:require [clojure.data.xml :as xml]
             [clojure.string :as str]
             [kevincore.outcome :as outcome]))
@@ -33,8 +33,7 @@
      :classes (mapv class-entry (elements :class doc))}))
 
 (defn packages?
-  "Whether the report holds any package; dotnet-coverage writes none when it
-  collected no native data."
+  "Whether the report holds any package: a report without one measured nothing."
   [report]
   (pos? (:packages report)))
 

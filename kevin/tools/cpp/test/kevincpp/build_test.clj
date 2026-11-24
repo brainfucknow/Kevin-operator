@@ -1,5 +1,6 @@
 (ns kevincpp.build-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
             [kevincpp.build :as build]))
 
 (defn- refusal [f]
@@ -88,6 +89,16 @@
   (is (build/native-test-project? "{\"Properties\":{\"ProjectSubType\":\"NativeUnitTestProject\",\"TargetPath\":\"x\"}}"))
   (is (not (build/native-test-project? "{\"Properties\":{\"ProjectSubType\":\"\",\"TargetPath\":\"x\"}}")))
   (is (not (build/native-test-project? "oops"))))
+
+(deftest msbuild-builds-a-solution-through-an-entry-project
+  (let [entry (build/entry-project "C:/My Repo/App.sln")]
+    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"Restore\" />"))
+    (is (str/includes? entry "<Target Name=\"Build\" Returns=\"@(KevinBuilt)\">"))
+    (is (str/includes? entry "<Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinBuilt\" />")))
+  (testing "MSBuild and XML special characters stay literal"
+    (is (str/includes? (build/entry-project "C:/a&b;c$d@e%f'g/App.sln") "Projects=\"C:/a&amp;b%3Bc%24d%40e%25f%27g/App.sln\"")))
+  (is (= ["tmp/msbuild/build.proj" "-nologo" "-restore" "-p:Configuration=Debug" "-getTargetResult:Build"]
+         (build/msbuild-args "tmp/msbuild/build.proj"))))
 
 (deftest any-failing-status-is-a-finding
   (is (= 0 (build/status 0)))

@@ -125,10 +125,36 @@
   [banner]
   (some-> (re-find #"clang version (\d+)" banner) second parse-long))
 
+(defn- msbuild-literal
+  "`path` as a literal in an MSBuild project file: MSBuild's special
+  characters %-escaped, then XML-escaped."
+  [path]
+  (-> path
+      (str/replace #"[%$@';?*]" #(format "%%%02X" (int (first %))))
+      (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
+
+(defn entry-project
+  "An MSBuild project that restores and builds the solution or project at
+  `path` and returns every built output. MSBuild refuses -getTargetResult on
+  a solution, but not on this project."
+  [path]
+  (let [target (msbuild-literal path)]
+    (str "<Project>\n"
+         "  <Target Name=\"Restore\">\n"
+         "    <MSBuild Projects=\"" target "\" Targets=\"Restore\" />\n"
+         "  </Target>\n"
+         "  <Target Name=\"Build\" Returns=\"@(KevinBuilt)\">\n"
+         "    <MSBuild Projects=\"" target "\" Targets=\"Build\">\n"
+         "      <Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinBuilt\" />\n"
+         "    </MSBuild>\n"
+         "  </Target>\n"
+         "</Project>\n")))
+
 (defn msbuild-args
-  "MSBuild arguments that build `project` and print each project's output."
-  [project]
-  [project "-nologo" "-restore" (str "-p:Configuration=" config) "-t:Build" "-getTargetResult:Build"])
+  "MSBuild arguments that run `entry`, an `entry-project`, and print each
+  project's output."
+  [entry]
+  [entry "-nologo" "-restore" (str "-p:Configuration=" config) "-getTargetResult:Build"])
 
 (defn evaluate-args [project]
   [project "-nologo" (str "-p:Configuration=" config) "-getProperty:ProjectSubType" "-getProperty:TargetPath"])
