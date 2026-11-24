@@ -5,8 +5,11 @@
  {:init (def here (str (babashka.fs/parent (babashka.fs/absolutize (System/getProperty "babashka.config")))))
   spec {:doc "Run the kevin unit specs"
         :task (apply (requiring-resolve 'speclj.main/-main) ["-c" (str (babashka.fs/path here "spec"))])}
-  hardening {:doc "Run kevin mutation-derived checks separately"
-             :task (apply (requiring-resolve 'speclj.main/-main) ["-c" (str (babashka.fs/path here "hardening"))])}
+  hardening {:doc "Run kevin and Mojo mutation-derived checks separately"
+             :extra-paths ["../mojo/src" "../core/src"]
+             :task (apply (requiring-resolve 'speclj.main/-main)
+                          ["-c" (str (babashka.fs/path here "hardening"))
+                           (str (babashka.fs/path here "../mojo/hardening"))])}
   property {:doc "Run the kevin property tests (test.check)"
             :extra-paths ["../mojo/src" "../core/src"]
             :task (apply (requiring-resolve 'speclj.main/-main) ["-c" (str (babashka.fs/path here "property"))])}}}
