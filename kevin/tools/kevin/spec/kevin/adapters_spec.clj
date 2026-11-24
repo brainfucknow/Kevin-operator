@@ -1,10 +1,10 @@
 (ns kevin.adapters-spec
   (:require [babashka.fs :as fs]
+            [cheshire.core :as json]
             [clojure.string :as str]
             [speclj.core :refer :all]
             [kevin.adapters :as adapters]
             [kevin.config :as config]
-            [cheshire.core :as json]
             [kevin.installed :as installed]
             [kevin.repo-support :refer [*dir* with-repo write-conf! captured]]
             [kevin.shell :as shell]))
