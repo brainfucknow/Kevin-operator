@@ -1,8 +1,8 @@
 # Mojo
 
 Kevin uses the `mojo` executable on `PATH`. The tested baseline is Mojo 1.2.0
-on Linux aarch64. Use the `.mojo` extension. Run `kevin mojo tools` to see
-the SDK version and whether `jscpd` and `kcov` are available.
+on Linux aarch64. Run `kevin mojo tools` to check the SDK version and
+availability of `jscpd` and `kcov`.
 
 ## Set up a project SDK
 
@@ -65,9 +65,10 @@ kevin mojo coverage -I src --source src test/test_math.mojo -- --skip test_slow
 ```
 
 Kevin prints the Cobertura paths for each run under `tmp/coverage/mojo-*/`.
-Coverage counts source lines the compiler maps into the executable's debug
-line tables. A branch can compile to a single mapped line. Unsupported hosts,
-missing reports, and runs with zero measured source lines return 2.
+Coverage counts only source lines in the executable's debug line tables.
+The compiler can map a branch to one line.
+Unsupported hosts, missing reports, and runs with zero measured source lines
+return 2.
 
 ## Find duplicate blocks
 
@@ -84,11 +85,13 @@ of at least five lines and 30 tokens. The scanner writes its full JSON report
 to `tmp/jscpd/jscpd-report.json`. The command returns 1 for clones in scope,
 0 for a clean scan, and 2 for scanner or report errors.
 
-## Audit dependencies
+## Check tool support
 
 `kevin mojo crap` and `kevin mojo mutate` return 2 because Kevin has no
 verified Mojo complexity or mutation tool. There is no verified Mojo source
 security scanner.
+
+## Audit dependencies
 
 - For a uv project, run `uv audit --locked`. See the
   [uv audit reference](https://docs.astral.sh/uv/reference/cli/#uv-audit).

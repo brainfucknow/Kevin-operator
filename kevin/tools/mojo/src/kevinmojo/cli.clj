@@ -28,20 +28,23 @@ Use one explicit suite to forward arguments after --.")
       (println (str tool ": " (if (shell/available? tool) "available" "missing"))))
     status))
 
+(defn- run-command [command args]
+  (case command
+    "tools" (tools args)
+    "test" (suite/run-tests (suite/selection (project/root) :test args))
+    "property" (suite/run-tests (suite/selection (project/root) :property args))
+    "coverage" (let [root (project/root)]
+                 (coverage/run-coverage root (suite/selection root :coverage args)))
+    "dry" (dry/run-dry (project/root) args)
+    "crap" (project/fail "Mojo CRAP is unsupported")
+    "mutate" (project/fail "Mojo mutation testing is unsupported")
+    (project/fail (str "unknown command " command "; see kevin mojo --help"))))
+
 (defn main [[command & args]]
   (if (or (contains? #{nil "-h" "--help" "help"} command)
           (contains? #{["-h"] ["--help"]} (vec args)))
     (do (println usage) 0)
-    (case command
-      "tools" (tools args)
-      "test" (suite/run-tests (suite/selection (project/root) :test args))
-      "property" (suite/run-tests (suite/selection (project/root) :property args))
-      "coverage" (let [root (project/root)]
-                   (coverage/run-coverage root (suite/selection root :coverage args)))
-      "dry" (dry/run-dry (project/root) args)
-      "crap" (project/fail "Mojo CRAP is unsupported")
-      "mutate" (project/fail "Mojo mutation testing is unsupported")
-      (project/fail (str "unknown command " command "; see kevin mojo --help")))))
+    (run-command command args)))
 
 (defn -main [& args]
   (shell/run-main "kevin mojo" main args))

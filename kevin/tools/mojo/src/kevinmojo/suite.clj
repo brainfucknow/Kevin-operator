@@ -49,15 +49,11 @@
 (defn import-args [includes]
   (mapcat #(vector "-I" (str %)) includes))
 
-(defn run-until-failed [run-suite suites]
-  (or (some (fn [suite]
-              (let [status (run-suite suite)]
-                (when-not (zero? status) status)))
-            suites)
-      0))
-
 (defn run-tests [{:keys [includes suites suite-args]}]
   (project/require-tool "mojo")
-  (run-until-failed
-   #(shell/run "mojo" (concat ["run" "-j" "4"] (import-args includes) [(str %)] suite-args))
-   suites))
+  (let [options (concat ["run" "-j" "4"] (import-args includes))]
+    (or (some (fn [file]
+                (let [status (shell/run "mojo" (concat options [(str file)] suite-args))]
+                  (when-not (zero? status) status)))
+              suites)
+        0)))

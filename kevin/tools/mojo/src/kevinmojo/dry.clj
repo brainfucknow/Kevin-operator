@@ -27,15 +27,13 @@
          distinct
          sort)))
 
-(defn- flags [args]
-  (case (count args)
-    0 {}
-    1 (if (= ["--all"] (vec args)) {:all true}
-          (project/fail "dry takes [--all | --base REF]"))
-    2 (if (= "--base" (first args))
-        {:base (project/option-value "--base" (second args))}
-        (project/fail "dry takes [--all | --base REF]"))
-    (project/fail "dry takes [--all | --base REF]")))
+(defn- parse-options [[option value :as args]]
+  (cond
+    (empty? args) {}
+    (= ["--all"] (vec args)) {:all true}
+    (and (= "--base" option) (= 2 (count args)))
+    {:base (project/option-value option value)}
+    :else (project/fail "dry takes [--all | --base REF]")))
 
 (defn- changed-lines [{:keys [all base]}]
   (when-not all
@@ -83,7 +81,7 @@
     clones))
 
 (defn run-dry [root args]
-  (let [opts (flags args)]
+  (let [opts (parse-options args)]
     (project/require-tool "jscpd")
     (binding [shell/*dir* (str root)]
       (let [files (eligible-files root)
