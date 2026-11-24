@@ -29,5 +29,8 @@ project agent" is the `description` that a YAML parser reads from the
 front matter of a Markdown agent, or a TOML parser from a `.toml` agent.
 "A claude on PATH that records its arguments" is a script named `claude`
 that writes its arguments to a file and exits 0; "the recorded prompt" is
-its last argument. Placeholder conventions
+its last argument. "The output is <text> and the absolute path of <path>
+in the repository" (or "in the runtime") means that the output, with each
+run of white space as one space, is the text and then the absolute path of
+that file under the main checkout (or under the runtime). Placeholder conventions
 follow the [task-store guide](../task_store/README.md).

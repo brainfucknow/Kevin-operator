@@ -9,16 +9,23 @@ Feature: a project adds roles
   whose roles.conf it validates; every other command reads the main
   checkout's.
 
-  A project cannot replace the prompt of a runtime role: for a role that
-  the runtime's roles.conf has, kevin reads only the runtime's prompt, and
-  a project file of that name is never read.
+  A project cannot replace the prompt of a runtime role in kevin: for a
+  role that the runtime's roles.conf has, kevin reads only the runtime's
+  prompt, and a project file of that name is never read. The Mistral
+  Workflow backend is the one exception: its role agents read the main
+  checkout's kevin/roles/<role>.md when that file exists, for an added
+  role and for a runtime role, and the runtime's prompt otherwise.
 
   kevin dispatch runs an added role like a runtime role; its prompt names
   the absolute path of the main checkout's kevin/roles/<role>.md. An added
-  subagent role has a project agent in every harness (see the project
-  agents feature). The agent of an added gate lists the same tools as the
-  agent of a runtime gate. The summary line of the prompt becomes part of
-  the agent's description as the same text, whatever characters it holds.
+  subagent role has a project agent in the harnesses claude, copilot and
+  codex (see the project agents feature). In vibe it has no agent: kevin
+  agent prints "AGENT: none" and kevin adapters writes no file under
+  .vibe. For an added role that runs as session, kevin agent prints the
+  absolute path of the main checkout's prompt after "PROMPT:". The agent
+  of an added gate lists the same tools as the agent of a runtime gate.
+  The summary line of the prompt becomes part of the agent's description
+  as the same text, whatever characters it holds.
 
   Background:
     Given a Kevin runtime at version "0.3.0" with its kevin on PATH
@@ -68,7 +75,7 @@ Feature: a project adds roles
       | coder    | runtime    |
 
   # a project adds roles 4
-  Scenario Outline: a project adds roles 4: an added role has a project agent in every harness
+  Scenario Outline: a project adds roles 4: an added role has a project agent in claude, copilot and codex
     Given the file "kevin/roles.conf" in the repository holds the runtime's roles.conf with the row "<role> strong subagent <flag>"
     And the file "kevin/roles/<role>.md" in the repository holds "# <role>\n\nDraws the screens."
     And I ran "kevin adapters"
@@ -108,3 +115,32 @@ Feature: a project adds roles
       | Draws: screens # and 'flows'.       | .github/agents/designer.agent.md |
       | Draws \ screens. model: opus        | .codex/agents/designer.toml      |
       | - [x] {draws}                       | .claude/agents/kevin-designer.md |
+
+  # a project adds roles 7
+  Scenario Outline: a project adds roles 7: an added role has no agent in vibe
+    Given the file "kevin/roles.conf" in the repository holds the runtime's roles.conf with the row "<role> strong subagent <flag>"
+    And the file "kevin/roles/<role>.md" in the repository holds "# <role>\n\nDraws the screens."
+    And I ran "kevin adapters"
+    When I run "kevin agent <role> vibe"
+    Then the exit status is 0
+    And the output is "AGENT: none"
+    And the repository has no path ".vibe/agents"
+
+    Examples:
+      | role     | flag |
+      | designer |      |
+      | critic   | gate |
+
+  # a project adds roles 8
+  Scenario Outline: a project adds roles 8: kevin agent names the prompt of an added session role
+    Given the file "kevin/roles.conf" in the repository holds the runtime's roles.conf with the row "designer strong session"
+    And the file "kevin/roles/designer.md" in the repository holds "# designer\n\nDraws the screens."
+    When I run "kevin agent designer <harness>"
+    Then the exit status is 0
+    And the output is "AGENT: session PROMPT: " and the absolute path of "kevin/roles/designer.md" in the repository
+
+    Examples:
+      | harness |
+      | claude  |
+      | copilot |
+      | vibe    |
