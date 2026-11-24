@@ -1,5 +1,6 @@
 (ns kevincpp.build-test
-  (:require [clojure.string :as str]
+  (:require [cheshire.core :as json]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [kevincpp.build :as build]))
 
@@ -75,32 +76,39 @@
   (is (= 17 (build/clang-major "Apple clang version 17.0.0 (clang-1700.0.13.3)")))
   (is (nil? (build/clang-major "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"))))
 
-(deftest msbuild-names-the-native-test-outputs
-  (let [built (str "{\"TargetResults\":{\"Build\":{\"Result\":\"Success\",\"Items\":["
-                   "{\"Identity\":\"C:\\\\o\\\\Lib.lib\",\"MSBuildSourceProjectFile\":\"C:\\\\s\\\\Lib\\\\Lib.vcxproj\"},"
-                   "{\"Identity\":\"C:\\\\o\\\\Tests.dll\",\"MSBuildSourceProjectFile\":\"C:\\\\s\\\\Tests\\\\Tests.vcxproj\"}]}}}")]
-    (is (= [{:project "C:\\s\\Lib\\Lib.vcxproj" :target "C:\\o\\Lib.lib"}
-            {:project "C:\\s\\Tests\\Tests.vcxproj" :target "C:\\o\\Tests.dll"}]
-           (build/build-outputs built "App.sln"))))
-  (testing "a lone project's output has no source metadata"
-    (is (= [{:project "x.vcxproj" :target "C:\\o\\x.dll"}]
-           (build/build-outputs "{\"TargetResults\":{\"Build\":{\"Items\":[{\"Identity\":\"C:\\\\o\\\\x.dll\"}]}}}" "x.vcxproj"))))
-  (is (= [] (build/build-outputs "garbage" "x.vcxproj")))
-  (is (build/native-test-project? "{\"Properties\":{\"ProjectSubType\":\"NativeUnitTestProject\",\"TargetPath\":\"x\"}}"))
-  (is (not (build/native-test-project? "{\"Properties\":{\"ProjectSubType\":\"\",\"TargetPath\":\"x\"}}")))
-  (is (not (build/native-test-project? "oops"))))
+(deftest msbuild-lists-a-solutions-projects-and-their-test-outputs
+  (let [contents (str "<SolutionConfiguration>"
+                      "<ProjectConfiguration Project=\"{1}\" AbsolutePath=\"C:\\s\\Lib\\Lib.vcxproj\" BuildProjectInSolution=\"True\">Debug|x64</ProjectConfiguration>"
+                      "<ProjectConfiguration Project=\"{2}\" AbsolutePath=\"C:\\s\\Tests.vcxproj\" BuildProjectInSolution=\"True\">Debug|Win32</ProjectConfiguration>"
+                      "<ProjectConfiguration Project=\"{3}\" AbsolutePath=\"C:\\s\\Off.vcxproj\" BuildProjectInSolution=\"False\">Debug|x64</ProjectConfiguration>"
+                      "</SolutionConfiguration>")
+        answer (json/generate-string {"TargetResults" {"Projects" {"Result" "Success" "Items" [{"Identity" contents}]}}})]
+    (is (= [{:path "C:\\s\\Lib\\Lib.vcxproj" :configuration "Debug" :platform "x64"}
+            {:path "C:\\s\\Tests.vcxproj" :configuration "Debug" :platform "Win32"}]
+           (build/solution-projects answer))))
+  (is (= [] (build/solution-projects "garbage")))
+  (is (= [] (build/solution-projects "{\"TargetResults\":{\"Projects\":{\"Items\":[]}}}")))
+  (is (= ["C:/s/T.vcxproj" "-nologo" "-p:Configuration=Debug" "-p:Platform=x64" "-p:SolutionDir=C:/s/"
+          "-getProperty:ProjectSubType" "-getProperty:TargetPath"]
+         (build/evaluate-args {:path "C:/s/T.vcxproj" :configuration "Debug" :platform "x64" :solution-dir "C:/s/"})))
+  (is (= ["T.vcxproj" "-nologo" "-p:Configuration=Debug" "-getProperty:ProjectSubType" "-getProperty:TargetPath"]
+         (build/evaluate-args {:path "T.vcxproj"})))
+  (is (= "C:\\o\\T.dll" (build/test-target "{\"Properties\":{\"ProjectSubType\":\"NativeUnitTestProject\",\"TargetPath\":\"C:\\\\o\\\\T.dll\"}}")))
+  (is (nil? (build/test-target "{\"Properties\":{\"ProjectSubType\":\"\",\"TargetPath\":\"x\"}}")))
+  (is (nil? (build/test-target "oops")))
+  (is (build/solution? "App.SLN"))
+  (is (build/solution? "App.slnx"))
+  (is (not (build/solution? "App.vcxproj"))))
 
-(deftest msbuild-builds-a-solution-through-an-entry-project
+(deftest msbuild-builds-a-solution-and-asks-it-for-its-projects
   (let [entry (build/entry-project "C:/My Repo/App.sln")]
-    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"Restore\" />"))
-    (is (str/includes? entry "<Target Name=\"Build\" Returns=\"@(KevinBuilt)\">"))
-    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"Build\" />"))
-    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"GetTargetPath\">"))
-    (is (str/includes? entry "<Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinBuilt\" />")))
+    (is (str/includes? entry "<Target Name=\"Projects\" Returns=\"@(KevinProjects)\">"))
+    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"GetSolutionConfigurationContents\">")))
   (testing "MSBuild and XML special characters stay literal"
     (is (str/includes? (build/entry-project "C:/a&b;c$d@e%f'g/App.sln") "Projects=\"C:/a&amp;b%3Bc%24d%40e%25f%27g/App.sln\"")))
-  (is (= ["tmp/msbuild/build.proj" "-nologo" "-restore" "-p:Configuration=Debug" "-getTargetResult:Build"]
-         (build/msbuild-args "tmp/msbuild/build.proj"))))
+  (is (= ["App.sln" "-nologo" "-restore" "-p:Configuration=Debug" "-t:Build"] (build/msbuild-args "App.sln")))
+  (is (= ["tmp/msbuild/build.proj" "-nologo" "-p:Configuration=Debug" "-getTargetResult:Projects"]
+         (build/projects-args "tmp/msbuild/build.proj"))))
 
 (deftest any-failing-status-is-a-finding
   (is (= 0 (build/status 0)))

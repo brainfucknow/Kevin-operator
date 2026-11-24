@@ -132,19 +132,26 @@
 
 (def vs-json "[{\"installationVersion\":\"17.10.35004.147\",\"installationPath\":\"C:\\\\VS\"}]")
 
-(def msbuild-result
-  (json/generate-string {"TargetResults" {"Build" {"Result" "Success"
-                                                   "Items" [{"Identity" "C:\\o\\Lib.lib" "MSBuildSourceProjectFile" "C:\\s\\Lib.vcxproj"}
-                                                            {"Identity" "C:\\o\\Tests.dll" "MSBuildSourceProjectFile" "C:\\s\\Tests.vcxproj"}]}}}))
+(def solution-contents
+  (str "<SolutionConfiguration>"
+       "<ProjectConfiguration Project=\"{1}\" AbsolutePath=\"C:\\s\\Lib.vcxproj\" BuildProjectInSolution=\"True\">Debug|x64</ProjectConfiguration>"
+       "<ProjectConfiguration Project=\"{2}\" AbsolutePath=\"C:\\s\\Tests.vcxproj\" BuildProjectInSolution=\"True\">Debug|x64</ProjectConfiguration>"
+       "</SolutionConfiguration>"))
+
+(def msbuild-projects
+  (json/generate-string {"TargetResults" {"Projects" {"Result" "Success" "Items" [{"Identity" solution-contents}]}}}))
+
+(def test-evaluation
+  "{\"Properties\":{\"ProjectSubType\":\"NativeUnitTestProject\",\"TargetPath\":\"C:\\\\s\\\\x64\\\\Debug\\\\Tests.dll\"}}")
 
 (defn- msbuild-tool [line]
   (cond
     (str/includes? line "-format json") {:exit 0 :out vs-json}
     (str/includes? line "-find MSBuild") {:exit 0 :out "C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe\r\n"}
     (str/includes? line "-find **\\TestPlatform") {:exit 0 :out "C:\\VS\\vstest.console.exe\n"}
-    (str/includes? line "-getTargetResult:Build") {:exit 0 :out msbuild-result}
-    (str/includes? line "Tests.vcxproj -nologo") {:exit 0 :out "{\"Properties\":{\"ProjectSubType\":\"NativeUnitTestProject\"}}"}
-    (str/includes? line "Lib.vcxproj -nologo") {:exit 0 :out "{\"Properties\":{\"ProjectSubType\":\"\"}}"}
+    (str/includes? line "-getTargetResult:Projects") {:exit 0 :out msbuild-projects}
+    (str/includes? line "Tests.vcxproj -nologo") {:exit 0 :out test-evaluation}
+    (str/includes? line "Lib.vcxproj -nologo") {:exit 0 :out "{\"Properties\":{\"ProjectSubType\":\"\",\"TargetPath\":\"C:\\\\s\\\\Lib.lib\"}}"}
     :else 0))
 
 (defn- solution-project! []
@@ -155,22 +162,36 @@
 
 (deftest msbuild-runs-vstest-on-the-native-test-outputs
   (solution-project!)
-  (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "test" "--" "/Tests:Sign")]
+  (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "test" "--" "/Tests:Sign")
+        msbuild "C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe"]
     (is (= 0 status))
-    (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe tmp/msbuild/build.proj -nologo -restore -p:Configuration=Debug -getTargetResult:Build"} calls))
-    (is (str/includes? (slurp (project-file "tmp/msbuild/build.proj")) (str "<MSBuild Projects=\"" *project* "/App.sln\" Targets=\"GetTargetPath\">")))
-    (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe C:\\s\\Tests.vcxproj -nologo -p:Configuration=Debug -getProperty:ProjectSubType -getProperty:TargetPath"} calls))
-    (is (= "C:\\VS\\vstest.console.exe C:\\o\\Tests.dll /Tests:Sign" (last calls)))))
+    (is (some #{(str msbuild " App.sln -nologo -restore -p:Configuration=Debug -t:Build")} calls))
+    (is (some #{(str msbuild " tmp/msbuild/build.proj -nologo -p:Configuration=Debug -getTargetResult:Projects")} calls))
+    (is (str/includes? (slurp (project-file "tmp/msbuild/build.proj"))
+                       (str "<MSBuild Projects=\"" *project* "/App.sln\" Targets=\"GetSolutionConfigurationContents\">")))
+    (is (some #{(str msbuild " C:\\s\\Tests.vcxproj -nologo -p:Configuration=Debug -p:Platform=x64 -p:SolutionDir=" *project* "/ "
+                     "-getProperty:ProjectSubType -getProperty:TargetPath")} calls))
+    (is (= "C:\\VS\\vstest.console.exe C:\\s\\x64\\Debug\\Tests.dll /Tests:Sign" (last calls)))))
+
+(deftest msbuild-evaluates-a-lone-project-as-built
+  (fs/delete (project-file "CMakeLists.txt"))
+  (write! "Tests.vcxproj" "")
+  (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "test")]
+    (is (= 0 status))
+    (is (not-any? #(str/includes? % "getTargetResult") calls))
+    (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe Tests.vcxproj -nologo -p:Configuration=Debug -getProperty:ProjectSubType -getProperty:TargetPath"} calls))))
 
 (deftest msbuild-refusals
   (solution-project!)
   (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "Tests.vcxproj -nologo") {:exit 0 :out "{}"} (msbuild-tool %))) "test")
-                     "no test found: App.sln builds no NativeUnitTestProject (CppUnitTestFramework); built C:\\s\\Lib.vcxproj, C:\\s\\Tests.vcxproj"))
-  (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-getTargetResult") {:exit 0 :out "Restore done.\n{}"} (msbuild-tool %))) "test")
-                     "MSBuild returned no build output: Restore done."))
+                     "no test found: App.sln builds no NativeUnitTestProject (CppUnitTestFramework)"))
+  (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-getTargetResult") {:exit 1 :out "error MSB4057: no target\n"} (msbuild-tool %))) "test")
+                     "MSBuild listed no project in App.sln: error MSB4057: no target"))
   (is (str/includes? (refusal (assoc windows :tool #(if (str/includes? % "-format json") {:exit 0 :out "[{\"installationVersion\":\"16.11.1\"}]"} (msbuild-tool %))) "test")
                      "Visual Studio 16.11.1 is older than 2022"))
-  (is (= 1 (:status (run-kevin-cpp (assoc windows :tool #(if (str/includes? % "-getTargetResult") {:exit 1 :out "error C2065"} (msbuild-tool %))) "test")))))
+  (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool #(if (str/includes? % "-t:Build") 1 (msbuild-tool %))) "test")]
+    (is (= 1 status))
+    (is (not-any? #(str/includes? % "vstest") (rest (drop-while #(not (str/includes? % "-t:Build")) calls))))))
 
 (deftest cmake-on-windows-needs-visual-studio-2022
   (is (str/includes? (refusal {:windows? true :which {} :tool cmake-tool} "test") "vswhere"))
@@ -226,7 +247,7 @@
     (is (= 0 status))
     (is (str/starts-with? (last calls) "OpenCppCoverage --sources "))
     (is (str/includes? (last calls) "--cover_children --export_type cobertura:"))
-    (is (str/ends-with? (last calls) "-- C:\\VS\\vstest.console.exe C:\\o\\Tests.dll")))
+    (is (str/ends-with? (last calls) "-- C:\\VS\\vstest.console.exe C:\\s\\x64\\Debug\\Tests.dll")))
   (is (str/includes? (refusal (assoc windows :tool msbuild-tool) "coverage" "--tool" "opencppcoverage")
                      "OpenCppCoverage is not on PATH"))
   (is (str/includes? (refusal (assoc windows :tool msbuild-tool) "coverage" "--tool" "gcov") "gcov needs a CMake project")))

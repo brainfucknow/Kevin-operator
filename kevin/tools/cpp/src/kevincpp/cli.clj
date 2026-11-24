@@ -137,23 +137,20 @@ trees go under tmp/."))
       (do (ctest-tests build-dir)
           (run-command wrap (into ["ctest"] (build/ctest-args build-dir extra))))))
 
-(defn- msbuild-test-targets
-  "The CppUnitTestFramework outputs MSBuild built for `project`."
-  [msbuild project outputs]
-  (vec (for [[built targets] (group-by :project outputs)
-             :when (build/native-test-project? (:out (shell/capture msbuild (build/evaluate-args built))))
-             target targets]
-         (:target target))))
-
-(defn- no-msbuild-tests
-  "Why MSBuild's answer `out` names no test output for `project`."
-  [project out]
-  (let [built (distinct (map :project (build/build-outputs out project)))]
-    (str "no test found: " project " builds no NativeUnitTestProject (CppUnitTestFramework); "
-         (if (seq built)
-           (str "built " (str/join ", " built))
-           (str "MSBuild returned no build output: " (let [text (str/trim (str/replace (or out "") #"\s+" " "))]
-                                                        (if (str/blank? text) "nothing" (subs text 0 (min 600 (count text))))))))))
+(defn- msbuild-projects
+  "The projects `project` builds: a solution's from its configuration
+  contents, which MSBuild reports through an entry project."
+  [msbuild project]
+  (if (build/solution? project)
+    (let [path (absolute project)
+          _ (shell/write-file msbuild-entry (build/entry-project path))
+          {:keys [exit out]} (shell/capture msbuild (build/projects-args msbuild-entry))
+          projects (when (zero? exit) (build/solution-projects out))]
+      (when (empty? projects)
+        (throw (outcome/usage-error (str "MSBuild listed no project in " project ": "
+                                         (or (first-line out) (str "exit " exit))))))
+      (mapv #(assoc % :solution-dir (str (fs/parent path) "/")) projects))
+    [{:path project}]))
 
 (defn- msbuild-tests
   "Builds the solution or project with MSBuild and runs vstest.console on
@@ -161,13 +158,13 @@ trees go under tmp/."))
   [{:keys [project extra wrap]}]
   (let [msbuild (vs-find "MSBuild\\**\\Bin\\MSBuild.exe" "MSBuild.exe")
         vstest (vs-find "**\\TestPlatform\\vstest.console.exe" "vstest.console.exe")
-        {:keys [exit out]} (do (shell/write-file msbuild-entry (build/entry-project (absolute project)))
-                               (shell/capture msbuild (build/msbuild-args msbuild-entry)))]
-    (if-not (zero? exit)
-      (do (println out) (build/status exit))
-      (let [targets (msbuild-test-targets msbuild project (build/build-outputs out project))]
+        built (shell/run msbuild (build/msbuild-args project))]
+    (if-not (zero? built)
+      (build/status built)
+      (let [targets (vec (keep #(build/test-target (:out (shell/capture msbuild (build/evaluate-args %))))
+                               (msbuild-projects msbuild project)))]
         (when (empty? targets)
-          (throw (outcome/usage-error (no-msbuild-tests project out))))
+          (throw (outcome/usage-error (str "no test found: " project " builds no NativeUnitTestProject (CppUnitTestFramework)"))))
         (run-command wrap (-> [vstest] (into targets) (into extra)))))))
 
 (defn- run-tests [system run]

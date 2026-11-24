@@ -28,7 +28,7 @@ uses the `Debug` configuration.
 | Command | Behavior |
 |---|---|
 | `tools` | Prints the build system and the version or absence of cmake or Visual Studio, the compiler, uv, npx, gcov, gcovr, OpenCppCoverage, lizard, jscpd and Mull. Exits 2 only when the build system is missing. |
-| `test [--preset NAME] [-- args]` | CMake: configures (`cmake --preset NAME -B tmp/build/test`, or `cmake -S . -B tmp/build/test`), builds, then runs `ctest --output-on-failure` with the args. MSBuild: builds through an entry project in `tmp/msbuild/`, asks MSBuild for each built project's `ProjectSubType`, and runs `vstest.console` on the `NativeUnitTestProject` outputs with the args. |
+| `test [--preset NAME] [-- args]` | CMake: configures (`cmake --preset NAME -B tmp/build/test`, or `cmake -S . -B tmp/build/test`), builds, then runs `ctest --output-on-failure` with the args. MSBuild: builds, asks the solution for its projects through an entry project in `tmp/msbuild/`, asks MSBuild for each project's `ProjectSubType` and `TargetPath`, and runs `vstest.console` on the `NativeUnitTestProject` outputs with the args. |
 | `property` | Unsupported; exits 2. |
 | `coverage [--tool opencppcoverage\|gcov] [--include-tests] [--preset NAME] [-- args]` | Runs `test` under the backend and writes `tmp/coverage/coverage.cobertura.xml`. The default backend is OpenCppCoverage on Windows and gcov elsewhere. |
 | `crap [--all] [--base REF] [--no-executable-code PATH ...]` | CRAP per changed function: `comp² × (1 − cov)³ + comp`. Fails above 10. |

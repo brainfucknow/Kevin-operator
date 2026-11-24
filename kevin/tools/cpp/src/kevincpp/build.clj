@@ -2,6 +2,7 @@
   "Which build system a directory uses, what kevin-cpp asks CMake, ctest,
   MSBuild and vswhere, and how it reads their answers."
   (:require [cheshire.core :as json]
+            [clojure.data.xml :as xml]
             [clojure.string :as str]
             [kevincore.outcome :as outcome]))
 
@@ -133,50 +134,64 @@
       (str/replace #"[%$@';?*]" #(format "%%%02X" (int (first %))))
       (str/replace "&" "&amp;") (str/replace "<" "&lt;") (str/replace ">" "&gt;") (str/replace "\"" "&quot;")))
 
+(defn solution?
+  "Whether `project` is a solution rather than a project file."
+  [project]
+  (boolean (seq (solutions [project]))))
+
 (defn entry-project
-  "An MSBuild project that restores and builds the solution or project at
-  `path`, then returns each project's GetTargetPath output. MSBuild refuses
-  -getTargetResult on a solution, but not on this project, and a C++
-  project's Build target returns no native output."
+  "An MSBuild project whose Projects target asks the solution at `path` for
+  its configuration contents. MSBuild refuses -getTargetResult on a
+  solution, but not on this project."
   [path]
-  (let [target (msbuild-literal path)]
-    (str "<Project>\n"
-         "  <Target Name=\"Restore\">\n"
-         "    <MSBuild Projects=\"" target "\" Targets=\"Restore\" />\n"
-         "  </Target>\n"
-         "  <Target Name=\"Build\" Returns=\"@(KevinBuilt)\">\n"
-         "    <MSBuild Projects=\"" target "\" Targets=\"Build\" />\n"
-         "    <MSBuild Projects=\"" target "\" Targets=\"GetTargetPath\">\n"
-         "      <Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinBuilt\" />\n"
-         "    </MSBuild>\n"
-         "  </Target>\n"
-         "</Project>\n")))
+  (str "<Project>\n"
+       "  <Target Name=\"Projects\" Returns=\"@(KevinProjects)\">\n"
+       "    <MSBuild Projects=\"" (msbuild-literal path) "\" Targets=\"GetSolutionConfigurationContents\">\n"
+       "      <Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinProjects\" />\n"
+       "    </MSBuild>\n"
+       "  </Target>\n"
+       "</Project>\n"))
 
 (defn msbuild-args
-  "MSBuild arguments that run `entry`, an `entry-project`, and print each
-  project's output."
+  "MSBuild arguments that restore and build `project`."
+  [project]
+  [project "-nologo" "-restore" (str "-p:Configuration=" config) "-t:Build"])
+
+(defn projects-args
+  "MSBuild arguments that run `entry`, an `entry-project`."
   [entry]
-  [entry "-nologo" "-restore" (str "-p:Configuration=" config) "-getTargetResult:Build"])
+  [entry "-nologo" (str "-p:Configuration=" config) "-getTargetResult:Projects"])
 
-(defn evaluate-args [project]
-  [project "-nologo" (str "-p:Configuration=" config) "-getProperty:ProjectSubType" "-getProperty:TargetPath"])
-
-(defn build-outputs
-  "Each built project and its output, from MSBuild's -getTargetResult:Build;
-  an output without source metadata belongs to `project`."
-  [text project]
-  (let [parsed (try (json/parse-string text) (catch Exception _ nil))]
-    (mapv (fn [item]
-            {:project (or (get item "MSBuildSourceProjectFile") project)
-             :target (get item "Identity")})
-          (get-in parsed ["TargetResults" "Build" "Items"]))))
-
-(defn native-test-project?
-  "Whether an evaluation's ProjectSubType is NativeUnitTestProject: a
-  CppUnitTestFramework project."
+(defn solution-projects
+  "The projects a solution builds, each {:path :configuration :platform},
+  from MSBuild's -getTargetResult:Projects answer: its items carry the
+  solution's SolutionConfigurationContents."
   [text]
-  (let [parsed (try (json/parse-string text) (catch Exception _ nil))]
-    (= "NativeUnitTestProject" (some-> (get-in parsed ["Properties" "ProjectSubType"]) str str/trim))))
+  (let [parsed (try (json/parse-string text) (catch Exception _ nil))
+        contents (str/join ";" (map #(get % "Identity") (get-in parsed ["TargetResults" "Projects" "Items"])))
+        doc (try (xml/parse-str contents) (catch Exception _ nil))]
+    (vec (for [node (tree-seq map? :content doc)
+               :when (and (map? node) (= :ProjectConfiguration (:tag node))
+                          (not= "false" (str/lower-case (get-in node [:attrs :BuildProjectInSolution] "true"))))
+               :let [[configuration platform] (str/split (str/join (filter string? (:content node))) #"\|" 2)]]
+           {:path (get-in node [:attrs :AbsolutePath]) :configuration configuration :platform platform}))))
+
+(defn evaluate-args
+  "MSBuild arguments that print `path`'s ProjectSubType and TargetPath as the
+  solution in `solution-dir` builds it."
+  [{:keys [path configuration platform solution-dir]}]
+  (cond-> [path "-nologo" (str "-p:Configuration=" (or configuration config))]
+    platform (conj (str "-p:Platform=" platform))
+    solution-dir (conj (str "-p:SolutionDir=" solution-dir))
+    :always (into ["-getProperty:ProjectSubType" "-getProperty:TargetPath"])))
+
+(defn test-target
+  "The TargetPath of an evaluation whose ProjectSubType is
+  NativeUnitTestProject (a CppUnitTestFramework project), else nil."
+  [text]
+  (let [properties (get (try (json/parse-string text) (catch Exception _ nil)) "Properties")]
+    (when (= "NativeUnitTestProject" (some-> (get properties "ProjectSubType") str str/trim))
+      (some-> (get properties "TargetPath") str str/trim not-empty))))
 
 (defn status
   "A build or test status as kevin-cpp reports it: any failure is 1."
