@@ -36,14 +36,18 @@
 
 (defn- run-suite [options run-dir {:keys [suite-args] :as selection} number file]
   (let [binary (fs/path run-dir (str "test-" number))
+        cache (fs/path run-dir (str "compiler-cache-" number))
         args (concat (suite/compiler-args "build" ["-g1" "-O" "0"] selection file)
                      ["-o" (str binary)])]
     (try
-      (let [status (shell/run "mojo" args)]
+      ;; Cached debug line tables can name a different worktree.
+      (let [status (shell/run "mojo" args {"MODULAR_CACHE_DIR" (str cache)})]
         (if (zero? status)
           (collect-report options run-dir number binary suite-args)
           {:status status}))
-      (finally (fs/delete-if-exists binary)))))
+      (finally
+        (fs/delete-if-exists binary)
+        (fs/delete-tree cache)))))
 
 (defn run-coverage [root {:keys [source suites] :as selection}]
   (when-not (= "Linux" (System/getProperty "os.name"))

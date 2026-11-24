@@ -14,6 +14,10 @@ export MOJO_STATUS=0
 cat > bin/mojo <<'TOOL'
 #!/usr/bin/env bash
 if [[ "$1" == --version ]]; then echo 'Mojo test SDK'; exit 0; fi
+if [[ "$1" == build ]]; then
+    [[ "${MODULAR_CACHE_DIR:-}" == "$PWD"/tmp/coverage/mojo-*/* ]] || exit 99
+    mkdir "$MODULAR_CACHE_DIR" || exit 99
+fi
 printf '[%s]' "$@" >> "$MOJO_CALLS"
 printf '\n' >> "$MOJO_CALLS"
 exit "$MOJO_STATUS"
@@ -72,6 +76,7 @@ TOOL
     chmod +x bin/kcov
     check 0 mojo coverage -I src test/test_z.mojo -- --skip flaky
     grep -q 'tmp/coverage/.*cobertura.xml' output
+    test -z "$(find tmp/coverage -type d -name 'compiler-cache-*' -print)"
     KCOV_LINES=0 check 2 mojo coverage test/test_z.mojo
     grep -q 'no measured' output
     KCOV_NO_REPORT=1 check 2 mojo coverage test/test_z.mojo

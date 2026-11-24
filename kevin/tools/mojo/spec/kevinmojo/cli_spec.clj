@@ -58,7 +58,7 @@
       (let [test-file (fixture "src/test_math.mojo" "")
             args ["coverage" "--source" (str (fs/path *project* "src")) test-file]]
         (doseq [[lines status expected] [[2 0 0] [2 17 17]]]
-          (with-redefs [shell/run (fn [tool options]
+          (with-redefs [shell/run (fn [tool options & _]
                                    (when (= "kcov" tool)
                                      (let [directory (first (drop-while #(re-find #"^--" %) options))
                                            report (fs/path directory "report/cobertura.xml")]

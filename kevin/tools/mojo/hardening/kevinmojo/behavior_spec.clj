@@ -15,7 +15,7 @@
     (str (fs/create-file path))))
 
 (defn- coverage-runner [report status excluded]
-  (fn [tool args]
+  (fn [tool args & _]
     (if (= "kcov" tool)
       (let [[options [directory]] (split-with #(.startsWith % "--") args)]
         (should= [excluded] (filter #(.startsWith % "--exclude-path=") options))
