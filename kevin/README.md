@@ -43,7 +43,7 @@ A project keeps its configuration in its own `kevin/`:
 |---|---|
 | `project.md` | Required. The project article that the constitution reads, and `Minimum Kevin version: <major>.<minor>.<patch>`. `kevin init` writes a starter. Every command but `help`, `version` and `home` refuses a runtime older than that version. |
 | `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may drop roles, change their tiers and flags, and add roles. |
-| `roles/<role>.md` | The prompt of each role that the project's `roles.conf` adds: a title line, then a summary line. An added role is a stage or a gate, not a spec-judge. |
+| `roles/<role>.md` | The prompt of each role that the project's `roles.conf` adds: a title line, then a summary line. An added role is a stage or a gate, not a spec-judge. The Mistral Workflow backend also reads a file here for a runtime role, in place of the runtime's prompt. |
 | `verify.conf` | Optional: one shell command per line that `kevin finish` runs on the merge before it merges, for example `make test`. Without it, `kevin finish` runs none. |
 
 The prompts of the runtime's roles, the constitution, the language guides
