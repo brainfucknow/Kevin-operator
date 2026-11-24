@@ -8,4 +8,5 @@
   hardening {:doc "Run kevin mutation-derived checks separately"
              :task (apply (requiring-resolve 'speclj.main/-main) ["-c" (str (babashka.fs/path here "hardening"))])}
   property {:doc "Run the kevin property tests (test.check)"
+            :extra-paths ["../mojo/src" "../core/src"]
             :task (apply (requiring-resolve 'speclj.main/-main) ["-c" (str (babashka.fs/path here "property"))])}}}

@@ -34,10 +34,10 @@
       (not (zero? status)) {:status status}
       :else {:lines (reduce + (map measured-lines reports))})))
 
-(defn- run-suite [options run-dir {:keys [includes suite-args]} number file]
+(defn- run-suite [options run-dir {:keys [suite-args] :as selection} number file]
   (let [binary (fs/path run-dir (str "test-" number))
-        args (concat ["build" "-j" "4" "-g1" "-O" "0"]
-                     (suite/import-args includes) [(str file) "-o" (str binary)])]
+        args (concat (suite/compiler-args "build" ["-g1" "-O" "0"] selection file)
+                     ["-o" (str binary)])]
     (try
       (let [status (shell/run "mojo" args)]
         (if (zero? status)

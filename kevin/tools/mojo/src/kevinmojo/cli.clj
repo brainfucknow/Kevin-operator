@@ -28,11 +28,20 @@ Use one explicit suite to forward arguments after --.")
       (println (str tool ": " (if (shell/available? tool) "available" "missing"))))
     status))
 
+(defn- run-tests [{:keys [suites suite-args] :as selection}]
+  (project/require-tool "mojo")
+  (or (some (fn [file]
+              (let [args (concat (suite/compiler-args "run" [] selection file) suite-args)
+                    status (shell/run "mojo" args)]
+                (when-not (zero? status) status)))
+            suites)
+      0))
+
 (defn- run-command [command args]
   (case command
     "tools" (tools args)
-    "test" (suite/run-tests (suite/selection (project/root) :test args))
-    "property" (suite/run-tests (suite/selection (project/root) :property args))
+    "test" (run-tests (suite/selection (project/root) :test args))
+    "property" (run-tests (suite/selection (project/root) :property args))
     "coverage" (let [root (project/root)]
                  (coverage/run-coverage root (suite/selection root :coverage args)))
     "dry" (dry/run-dry (project/root) args)

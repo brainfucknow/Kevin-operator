@@ -1,7 +1,6 @@
 (ns kevinmojo.suite
   (:require [babashka.fs :as fs]
-            [kevinmojo.project :as project]
-            [kevincore.shell :as shell]))
+            [kevinmojo.project :as project]))
 
 (defn- suite-name? [kind path]
   (re-matches (case kind :property #"property_.*\.mojo" #"test_.*\.mojo")
@@ -46,14 +45,7 @@
      :suite-args suite-args
      :source source}))
 
-(defn import-args [includes]
-  (mapcat #(vector "-I" (str %)) includes))
-
-(defn run-tests [{:keys [includes suites suite-args]}]
-  (project/require-tool "mojo")
-  (let [options (concat ["run" "-j" "4"] (import-args includes))]
-    (or (some (fn [file]
-                (let [status (shell/run "mojo" (concat options [(str file)] suite-args))]
-                  (when-not (zero? status) status)))
-              suites)
-        0)))
+(defn compiler-args [command options {:keys [includes]} file]
+  (concat [command "-j" "4"] options
+          (mapcat #(vector "-I" (str %)) includes)
+          [(str file)]))
