@@ -152,7 +152,8 @@ trees go under tmp/."))
     (str "no test found: " project " builds no NativeUnitTestProject (CppUnitTestFramework); "
          (if (seq built)
            (str "built " (str/join ", " built))
-           (str "MSBuild returned no build output: " (or (first-line out) "nothing"))))))
+           (str "MSBuild returned no build output: " (let [text (str/trim (str/replace (or out "") #"\s+" " "))]
+                                                        (if (str/blank? text) "nothing" (subs text 0 (min 600 (count text))))))))))
 
 (defn- msbuild-tests
   "Builds the solution or project with MSBuild and runs vstest.console on
