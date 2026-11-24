@@ -94,6 +94,8 @@
   (let [entry (build/entry-project "C:/My Repo/App.sln")]
     (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"Restore\" />"))
     (is (str/includes? entry "<Target Name=\"Build\" Returns=\"@(KevinBuilt)\">"))
+    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"Build\" />"))
+    (is (str/includes? entry "<MSBuild Projects=\"C:/My Repo/App.sln\" Targets=\"GetTargetPath\">"))
     (is (str/includes? entry "<Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinBuilt\" />")))
   (testing "MSBuild and XML special characters stay literal"
     (is (str/includes? (build/entry-project "C:/a&b;c$d@e%f'g/App.sln") "Projects=\"C:/a&amp;b%3Bc%24d%40e%25f%27g/App.sln\"")))

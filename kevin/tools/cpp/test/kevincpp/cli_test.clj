@@ -158,7 +158,7 @@
   (let [{:keys [status calls]} (run-kevin-cpp (assoc windows :tool msbuild-tool) "test" "--" "/Tests:Sign")]
     (is (= 0 status))
     (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe tmp/msbuild/build.proj -nologo -restore -p:Configuration=Debug -getTargetResult:Build"} calls))
-    (is (str/includes? (slurp (project-file "tmp/msbuild/build.proj")) (str "<MSBuild Projects=\"" *project* "/App.sln\" Targets=\"Build\">")))
+    (is (str/includes? (slurp (project-file "tmp/msbuild/build.proj")) (str "<MSBuild Projects=\"" *project* "/App.sln\" Targets=\"GetTargetPath\">")))
     (is (some #{"C:\\VS\\MSBuild\\Current\\Bin\\MSBuild.exe C:\\s\\Tests.vcxproj -nologo -p:Configuration=Debug -getProperty:ProjectSubType -getProperty:TargetPath"} calls))
     (is (= "C:\\VS\\vstest.console.exe C:\\o\\Tests.dll /Tests:Sign" (last calls)))))
 

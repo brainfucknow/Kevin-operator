@@ -135,8 +135,9 @@
 
 (defn entry-project
   "An MSBuild project that restores and builds the solution or project at
-  `path` and returns every built output. MSBuild refuses -getTargetResult on
-  a solution, but not on this project."
+  `path`, then returns each project's GetTargetPath output. MSBuild refuses
+  -getTargetResult on a solution, but not on this project, and a C++
+  project's Build target returns no native output."
   [path]
   (let [target (msbuild-literal path)]
     (str "<Project>\n"
@@ -144,7 +145,8 @@
          "    <MSBuild Projects=\"" target "\" Targets=\"Restore\" />\n"
          "  </Target>\n"
          "  <Target Name=\"Build\" Returns=\"@(KevinBuilt)\">\n"
-         "    <MSBuild Projects=\"" target "\" Targets=\"Build\">\n"
+         "    <MSBuild Projects=\"" target "\" Targets=\"Build\" />\n"
+         "    <MSBuild Projects=\"" target "\" Targets=\"GetTargetPath\">\n"
          "      <Output TaskParameter=\"TargetOutputs\" ItemName=\"KevinBuilt\" />\n"
          "    </MSBuild>\n"
          "  </Target>\n"
