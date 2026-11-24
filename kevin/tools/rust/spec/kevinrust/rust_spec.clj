@@ -138,6 +138,32 @@
           (should= {file #{2}} (snapshot/changed-lines project #{file})))))))
 
 (describe "Rust clone scope"
+  (it "keeps excluded nested crate sources out of the selected package"
+    (with-repo
+      (fn [dir]
+        (let [source "src/lib.rs"
+              excluded "tools/src/lib.rs"
+              member "member/src/lib.rs"
+              metadata {"workspace_members" ["alpha-id" "beta-id"]
+                        "packages" [{"id" "alpha-id" "name" "alpha"
+                                     "manifest_path" (str (fs/path dir "Cargo.toml"))}
+                                    {"id" "beta-id" "name" "beta"
+                                     "manifest_path" (str (fs/path dir "member/Cargo.toml"))}]}
+              project {:root (str dir) :metadata metadata}]
+          (doseq [file [source excluded member]]
+            (let [path (fs/path dir file)]
+              (fs/create-dirs (fs/parent path))
+              (spit (str path) "pub fn shared() {}\n")))
+          (spit (str (fs/path dir "Cargo.toml"))
+                "[package]\nname = \"alpha\"\nversion = \"0.1.0\"\n[workspace]\nmembers = [\"member\"]\nexclude = [\"tools\"]\n")
+          (spit (str (fs/path dir "tools/Cargo.toml"))
+                "[package]\nname = \"tools\"\nversion = \"0.1.0\"\n")
+          (spit (str (fs/path dir "member/Cargo.toml"))
+                "[package]\nname = \"beta\"\nversion = \"0.1.0\"\n")
+          (git/git ["add" "--" source excluded] :dir dir)
+          (should= #{source} (project/source-files (assoc project :selected ["alpha"])))
+          (should= #{member} (project/source-files (assoc project :selected ["beta"])))
+          (should= #{source member} (project/source-files (assoc project :selected ["alpha" "beta"])))))))
   (it "matches the complete path when two files share a suffix"
     (let [report {"duplicates" [{"tokens" 50
                                  "firstFile" {"name" "/repo/other/foo.rs" "start" 1 "end" 5}
