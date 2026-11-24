@@ -9,8 +9,9 @@
 
 (defn git
   "Runs git with the given arguments and returns its stdout; throws on failure."
-  [args & {:keys [dir]}]
-  (let [result (apply p/shell {:out :string :err :string :dir (or dir shell/*dir*) :continue true}
+  [args & {:keys [dir env]}]
+  (let [result (apply p/shell {:out :string :err :string :dir (or dir shell/*dir*)
+                               :continue true :extra-env env}
                       "git" "-c" "core.quotePath=false" args)]
     (when-not (zero? (:exit result))
       (throw (ex-info (str "git " (str/join " " args) ": " (str/trim (:err result))) {})))

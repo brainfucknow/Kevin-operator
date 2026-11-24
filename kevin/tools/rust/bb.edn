@@ -1,0 +1,6 @@
+{:paths ["src" "../core/src" "spec"]
+ :deps {speclj/speclj {:mvn/version "3.12.2"}}
+ :tasks
+ {spec {:doc "Run the Rust wrapper specs"
+        :task (apply (requiring-resolve 'speclj.main/-main)
+                     ["-c" (str (babashka.fs/parent (System/getProperty "babashka.config")) "/spec")])}}}

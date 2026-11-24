@@ -15,7 +15,7 @@ this repository.
 | `constitution.md`, `constitution/articles/` | Rules every role obeys. |
 | `constitution/existing-code.md` | Refactoring policy read only when the project opts into `Existing code: ask before refactoring`. |
 | `roles/*.md` | What each role owns, verifies, and hands off. `orchestrator.md` is the session's own role. |
-| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. Only `kevin` goes on PATH; `kevin cs`, `kevin fs`, `kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral` run the other `bin/kevin-*` commands. |
+| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. Only `kevin` goes on PATH; `kevin cs`, `kevin fs`, `kevin vb`, `kevin js`, `kevin rb`, `kevin java`, `kevin rust` and `kevin mistral` run the other `bin/kevin-*` commands. |
 | `bin/kevin-mistral`, `workflows/` | The mistral backend: runs tasks and roles on Mistral Workflows when no backend CLI is on PATH. See [workflows/README.md](workflows/README.md). |
 | `bin/kevin-cs`, `languages/csharp.md` | C# tool wrapper: tests, coverage, CRAP, DRY, mutation, each scoped to the task's changes. |
 | `bin/kevin-fs`, `languages/fsharp.md` | F# .NET tests, coverage, compiled-method CRAP and DRY; mutation unsupported. |
@@ -24,6 +24,7 @@ this repository.
 | `bin/kevin-js`, `languages/javascript.md` | JavaScript and TypeScript tool wrapper: the same commands for Vitest or Jest, oxlint or ESLint complexity with Istanbul coverage, jscpd, and StrykerJS. |
 | `bin/kevin-rb`, `languages/ruby.md` | Ruby tool wrapper: SimpleCov coverage, CRAP from RuboCop or flog, DRY from jscpd or flay, and optional mutant. |
 | `bin/kevin-java`, `languages/java.md` | Maven Java 17+ / JUnit 5 tests, JaCoCo coverage, pinned Java CRAP, DRY and differential mutation. |
+| `bin/kevin-rust`, [Rust tools](languages/rust.md) | Cargo tests, property tests, coverage, CRAP, DRY, and differential mutation. |
 | `languages/semgrep.md` | Shared scanner setup used by language guides, which define the scan scope and required/optional status. |
 | `tools/core/` | Report readers shared by the language tool wrappers: changed lines, CRAP, jscpd, Stryker. |
 | `handoff-protocol.md` | The task branch, record commits, and lifecycle. |

@@ -129,6 +129,8 @@ jobs:
         run: |
           kevin/bin/kevin tool ensure gherkin-parser
           bb --config kevin/tools/javascript/bb.edn acceptance
+      - name: Unit specs for kevin-rust
+        run: bb --config kevin/tools/rust/bb.edn spec
       - name: Unit specs for kevin-java
         run: bb --config kevin/tools/java/bb.edn spec
       - name: Hardening checks for kevin-java
