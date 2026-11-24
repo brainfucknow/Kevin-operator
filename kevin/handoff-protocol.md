@@ -22,8 +22,8 @@ while a reviewed specification awaits a decision. `kevin show <id>` prints the
 records; use it rather than reconstructing them from trailers.
 
 Records change no files. `finished` is the `--no-ff` merge commit of
-`kevin finish` on a branch that is not protected. kevin reads only local `swarm/*` branches; a remote one never lists or
-reopens a task. A task made before task files were dropped keeps its request
+`kevin finish` on a branch that is not protected. kevin reads only local
+`swarm/*` branches; a remote one never lists or reopens a task. A task made before task files were dropped keeps its request
 in the file its `created` commit adds, and its handoff to `done` deletes it.
 kevin also reads the records of a task begun under the old name SwarmForge:
 each `SwarmForge-<name>` trailer reads as `Kevin-<name>`. The hook rejects
@@ -199,8 +199,8 @@ the main checkout does not count. If verification fails, commit the fix and
 retry. On a branch that is not protected, when HEAD contains the branch tip
 without the finished record (a merge committed with another message, or a
 host's merge, with or without commits after it), `kevin finish` commits the
-finished record on top of HEAD as a merge of the tip. It never rewrites a commit HEAD already has. Nobody
-writes the finished-record trailers manually.
+finished record on top of HEAD as a merge of the tip. It never rewrites a
+commit HEAD already has. Nobody writes the finished-record trailers manually.
 
 ## Spec revisions
 
@@ -260,9 +260,9 @@ changes `swarmforge/metrics`.
 `kevin harvest` takes no arguments and prints one JSON line per task for
 mining role failure patterns: finished tasks first, ordered by the author
 date of the record that closes them (the finish merge or the done record),
-oldest first, then open tasks by id, then unclosed histories by id. It reads only:
-no ref, worktree, or file changes, and any role may run it. A `swarm/*` branch with no record is
-skipped with a `kevin: ` line on stderr.
+oldest first, then open tasks by id, then unclosed histories by id. It reads
+only: no ref, worktree, or file changes, and any role may run it. A `swarm/*`
+branch with no record is skipped with a `kevin: ` line on stderr.
 
 Each line has `id`, `title`, `request`, `status` (`open`, `finished`, or `unclosed`),
 `truncated`, `stage`, `needs`, `route` and `gates` (arrays; `gates` is empty for `none`) from the newest record,
