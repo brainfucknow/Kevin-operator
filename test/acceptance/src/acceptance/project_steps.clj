@@ -343,11 +343,16 @@
       (has-check has (has-line? (:err world) line) (str "error output was " (pr-str (:err world))))
       world)]
 
-   [#"the base branch has the commit of task \"(\w)\""
-    (fn [world name]
+   [#"the main checkout was put on the new branch \"([^\"]+)\""
+    (fn [world branch]
+      (git world "checkout" "-q" "-b" branch)
+      world)]
+
+   [#"the branch \"([^\"]+)\" has the commit of task \"(\w)\""
+    (fn [world branch name]
       (let [commit (get-in world [:commits name])]
-        (check (zero? (:exit (run world (:repo world) ["git" "merge-base" "--is-ancestor" commit "main"])))
-               (str commit " is not on main"))
+        (check (zero? (:exit (run world (:repo world) ["git" "merge-base" "--is-ancestor" commit branch])))
+               (str commit " is not on " branch))
         world))]
 
    [#"git add -A in the repository stages exactly \"([^\"]+)\""

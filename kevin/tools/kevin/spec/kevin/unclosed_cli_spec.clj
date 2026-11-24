@@ -8,12 +8,19 @@
 (defn- kevin [& args]
   (support/captured #(cli/main (vec args))))
 
-(defn- recover! []
+(defn- recover-at!
+  "A task merged by a host and its branch deleted: at done when done? is
+  true, else at its first stage."
+  [done?]
   (let [id (:out (kevin "new" "Hosted work" "--route" "coder"))]
-    (should= 0 (:status (kevin "handoff" id)))
+    (when done? (should= 0 (:status (kevin "handoff" id))))
     (git *dir* "merge" "-q" "--no-ff" "-m" "Host merge" (str "swarm/" id))
     (git *dir* "branch" "-D" (str "swarm/" id))
     id))
+
+(defn- recover! [] (recover-at! true))
+
+(defn- recover-unclosed! [] (recover-at! false))
 
 (describe "Public CLI for unclosed histories"
   (around [example]
@@ -82,15 +89,15 @@
       (should= {:out "done" :err "" :status 0} (dissoc (kevin "stage" id) :result))
       (should= {:out "coder" :err "" :status 0} (dissoc (kevin "route" id) :result))))
 
-  (it "refuses run even when recovered history last reached done"
-    (let [id (recover!)
+  (it "refuses run when recovered history did not reach done"
+    (let [id (recover-unclosed!)
           {:keys [status err]} (kevin "run" id "claude")]
       (should= 1 status)
       (should-contain id err)
       (should-contain "unclosed" err)))
 
   (it "refuses finish before verification or merge changes"
-    (let [id (recover!)
+    (let [id (recover-unclosed!)
           head (git *dir* "rev-parse" "HEAD")
           {:keys [status err]} (kevin "finish" id)]
       (should= 1 status)
@@ -100,7 +107,7 @@
       (should= "" (git *dir* "branch" "--list" (str "swarm/" id)))))
 
   (it "refuses dispatch before attempting to create a worktree"
-    (let [id (recover!)
+    (let [id (recover-unclosed!)
           {:keys [status err]} (kevin "dispatch" "coder" id "claude")]
       (should= 1 status)
       (should-contain id err)

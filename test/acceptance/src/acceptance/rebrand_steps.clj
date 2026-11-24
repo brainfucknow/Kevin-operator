@@ -252,13 +252,7 @@
    [#"the commit-msg hook does not mention \"(.*)\""
     (fn [world text]
       (check (not (str/includes? (hook-text world) text)) (str "the hook mentions " text))
-      world)]
-
-   [#"the branch \"([^\"]+)\" did not move"
-    (fn [world branch]
-      (let [ref (str "refs/heads/" branch)]
-        (check (= (get-in world [:before ref]) (get (store/tips world) ref)) (str branch " moved"))
-        world))]])
+      world)]])
 
 (def ^:private replaced-steps
   "Step texts of the inherited handlers that a rebrand handler takes over."

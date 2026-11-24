@@ -33,7 +33,9 @@ Operator commands
                                   send-backs or growth of more than half over the baseline
   finish <id> [--into BRANCH]     refuse uncommitted work in the worktree, run kevin/verify.conf
                                   on the merge, then merge the task branch into BRANCH
-                                  (default: current) and remove it
+                                  (default: current) and remove it; on a protected branch
+                                  (main, master, develop, release, default) only clean up
+                                  after a pull request's merge commit, never commit
 
 Role commands
   next <role>                     print ids of tasks waiting at stage <role>, or NO_TASK

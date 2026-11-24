@@ -237,20 +237,45 @@
 
 (describe "what kevin finish does with a done task"
   (it "merges a branch that HEAD neither contains nor has the finished record of"
-    (should= :merge (flow/finish-action false "t1" false)))
+    (should= :merge (flow/finish-action false "t1" false false)))
 
   (it "keeps HEAD when HEAD's history has the finished record and the branch tip"
-    (should= :keep (flow/finish-action true "t1" true)))
+    (should= :keep (flow/finish-action true "t1" true false))
+    (should= :keep (flow/finish-action true "t1" true true)))
 
   (it "stops when the branch moved after the recorded merge"
-    (should= :unmerged (flow/finish-action true "t1" false)))
+    (should= :unmerged (flow/finish-action true "t1" false false)))
 
   (it "records the finished merge on HEAD when HEAD contains the branch tip without the record"
-    (should= :record (flow/finish-action false "t1" true)))
+    (should= :record (flow/finish-action false "t1" true false)))
+
+  (it "refuses a protected branch that does not contain the branch tip"
+    (should= :protected (flow/finish-action false "t1" false true))
+    (should= :protected (flow/finish-action true "t1" false true)))
+
+  (it "only cleans up on a protected branch that contains the branch tip without the record"
+    (should= :clean (flow/finish-action false "t1" true true)))
 
   (it "refuses a task without a branch"
-    (should-be-nil (flow/finish-action true nil false))
-    (should-be-nil (flow/finish-action false nil true))))
+    (should-be-nil (flow/finish-action true nil false false))
+    (should-be-nil (flow/finish-action false nil true true))))
+
+(describe "protected branches"
+  (it "are main, master, develop and release"
+    (doseq [branch ["main" "master" "develop" "release"]]
+      (should (flow/protected-branch? branch "trunk"))))
+
+  (it "include the default branch"
+    (should (flow/protected-branch? "trunk" "trunk")))
+
+  (it "exclude other names, also those that only start like a protected one"
+    (doseq [branch ["work" "release/1.0" "main2" "swarm/t-1"]]
+      (should-not (flow/protected-branch? branch "trunk"))))
+
+  (it "are refused with the pull-request path"
+    (should= (str "refusing to merge swarm/t-1 into main: main is a protected branch; push swarm/t-1, "
+                  "open a pull request into main, merge it with a merge commit, pull main, then run: kevin finish t-1")
+             (flow/protected-refusal "t-1" "main"))))
 
 (describe "operator commands"
   (it "are refused to a dispatched role or gate"
