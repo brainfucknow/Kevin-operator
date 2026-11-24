@@ -75,10 +75,17 @@
                              (map #(get % "src_path")))
                    (get package "targets"))})
 
+(defn- nested-manifest? [path package-dir]
+  (let [package-dir (fs/path package-dir)
+        parents (take-while #(and % (not= package-dir %))
+                            (iterate fs/parent (fs/parent path)))]
+    (some #(fs/regular-file? (fs/path % "Cargo.toml")) parents)))
+
 (defn- production-source? [path {:keys [dir separate]}]
   (let [relative (fs/relativize dir path)]
     (and (not (excluded-dirs (str (first (iterator-seq (.iterator relative))))))
-         (not (separate path)))))
+         (not (separate path))
+         (not (nested-manifest? path dir)))))
 
 (defn production-files [root metadata selected candidates]
   (let [scopes (sort-by (comp - count :dir) (map package-scope (workspace-packages metadata)))
