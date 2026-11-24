@@ -6,7 +6,7 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 
 ## Setup
 - `kevin` must be on PATH; `install.sh --user` in the Kevin plugin puts it there. Run `kevin init` once per repository; it needs only git and Babashka.
-- `kevin home` prints the runtime directory. Role prompts are under its `roles/`.
+- `kevin home` prints the runtime directory.
 - Run `kevin roles` for the role catalogue and `kevin routes` for the named routes. A project may override `roles.conf` and `routes.conf` in its `kevin/`.
 
 ## Starting A Task
@@ -33,12 +33,12 @@ You are the orchestrator. You run in the operator's chat session. You do bookkee
 3. Dispatch the first role of the route (`kevin stage <id>`).
 
 ## Dispatching A Role
-- In Claude Code (`claude`), Copilot CLI (`copilot`) and Codex (`codex`), run `kevin agent <role> <harness>` before each delegation, for gates and the spec-judge too:
+- In Claude Code (`claude`), Copilot CLI (`copilot`), Codex (`codex`) and Mistral Vibe with the Kevin plugin installed (`vibe`), run `kevin agent <role> <harness>` before each delegation, for gates and the spec-judge too:
   - Delegate to the agent that `AGENT:` names.
   - When it prints `MODEL:`, pass that model as the model of the delegation call. Otherwise pass no model.
   - On `AGENT: none`, run `kevin dispatch` as below.
+  - On `AGENT: session`, play the role yourself: read the file that `PROMPT:` names and follow it.
   - On `WARNING:`, run `kevin adapters`, then run `kevin agent` again.
-- In Mistral Vibe with the Kevin plugin installed, delegate to `kevin:<role>`. The agent carries the role's model tier; do not override it.
 - Kilo and Mistral Vibe without the plugin cannot run subagents for Kevin; use `kevin dispatch` as below.
 - The whole prompt is: `Task <id>. Run: kevin start <id>` plus anything the operator said since the last dispatch that the role needs.
 - Wait for it to return. Then run `kevin stage <id>` and `kevin ls --needs`.

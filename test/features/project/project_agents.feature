@@ -3,12 +3,15 @@ Feature: a project changes the models of its role agents
   kevin/roles.conf and kevin/tiers.conf of the main checkout stay the
   source of truth, read at run time. "kevin agent <role> <harness>" is the
   single resolver: it tells the orchestrator how to run a role in the
-  harness claude, copilot or codex. It prints "AGENT: <name>", then
+  harness claude, copilot, codex or vibe. It prints "AGENT: <name>", then
   "MODEL: <alias>" when the orchestrator must pass that model on the
   delegation call, then one "WARNING:" line when the project agent it
   names is missing or stale. It exits 0 with a warning. "AGENT: none"
   means no agent: run the role through kevin dispatch. "AGENT: session"
-  means a role that runs as session. An unknown harness or role is
+  means a role that runs as session; the next line is "PROMPT: <path>",
+  the absolute path of the prompt that the orchestrator reads: the
+  runtime's roles/<role>.md for a runtime role, the main checkout's
+  kevin/roles/<role>.md for an added role. An unknown harness or role is
   refused with exit 1.
 
   A role has a project agent for a harness when the agent that kevin
@@ -24,6 +27,9 @@ Feature: a project changes the models of its role agents
              .github/agents/<role>.agent.md
     codex    no plugin agent (none); project agent <role> in
              .codex/agents/<role>.toml
+    vibe     plugin agent kevin:<role> for a runtime role, whatever the
+             project's rows say; no project agent, no MODEL and no
+             WARNING
 
   "kevin adapters" and "kevin init" write the project agents into the
   main checkout, from any worktree, and remove the project agents that
@@ -76,7 +82,6 @@ Feature: a project changes the models of its role agents
     Examples:
       | row                     | printed                          |
       | cleaner strong subagent | AGENT: kevin:cleaner MODEL: opus |
-      | cleaner fast session    | AGENT: session                   |
 
   # a project changes the models of its role agents 3
   Scenario Outline: a project changes the models of its role agents 3: kevin adapters writes only the needed project agents, untracked
@@ -182,9 +187,10 @@ Feature: a project changes the models of its role agents
     And the error output has the line "<refusal>"
 
     Examples:
-      | role    | harness | refusal                                                 |
-      | cleaner | vibe    | kevin: unknown harness 'vibe' (claude, copilot, codex)  |
-      | nobody  | claude  | kevin: unknown role 'nobody' (see kevin/roles.conf)     |
+      | role    | harness | refusal                                                      |
+      | cleaner | kilo    | kevin: unknown harness 'kilo' (claude, copilot, codex, vibe) |
+      | nobody  | claude  | kevin: unknown role 'nobody' (see kevin/roles.conf)          |
+      | nobody  | vibe    | kevin: unknown role 'nobody' (see kevin/roles.conf)          |
 
   # a project changes the models of its role agents 11
   Scenario Outline: a project changes the models of its role agents 11: kevin check refuses an unsafe tiers.conf value
@@ -199,3 +205,31 @@ Feature: a project changes the models of its role agents
       | sonnet low gpt;b                   | 1      | has           | gpt;b   |
       | sonnet low $(id)                   | 1      | has           | $(id)   |
       | opus[1m] low provider/gpt-b@1:0    | 0      | does not have | opus[1m] |
+
+  # a project changes the models of its role agents 12
+  Scenario Outline: a project changes the models of its role agents 12: kevin agent names the prompt of a session role
+    Given the project roles.conf holds the runtime's with the row of "cleaner" as "cleaner fast session"
+    And the file "kevin/roles/cleaner.md" in the repository holds "# cleaner\n\nProject text."
+    When I run "kevin agent cleaner <harness>"
+    Then the exit status is 0
+    And the output is "AGENT: session PROMPT: " and the absolute path of "kevin/roles/cleaner.md" in the runtime
+
+    Examples:
+      | harness |
+      | claude  |
+      | codex   |
+      | vibe    |
+
+  # a project changes the models of its role agents 13
+  Scenario Outline: a project changes the models of its role agents 13: kevin agent names the plugin agent of a runtime role in vibe
+    Given the file "kevin/tiers.conf" in the repository holds "frontier inherit high gpt-a\nstrong opus medium gpt-a\nfast <fast>"
+    And I ran "kevin adapters"
+    When I run "kevin agent cleaner vibe"
+    Then the exit status is 0
+    And the output is "AGENT: kevin:cleaner"
+    And the repository has no path ".vibe/agents"
+
+    Examples:
+      | fast                        |
+      | sonnet low gpt-b            |
+      | claude-haiku-5-5 high gpt-z |

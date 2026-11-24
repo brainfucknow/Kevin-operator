@@ -387,6 +387,14 @@
              (str "output was " (pr-str (:out world))))
       world)]
 
+   [#"the output is \"(.*)\" and the absolute path of \"([^\"]+)\" in the (repository|runtime)"
+    (fn [world text path place]
+      (let [squeeze #(str/replace (str/trim %) #"\s+" " ")
+            file (fs/path (if (= "runtime" place) (:runtime world) (:repo world)) path)]
+        (check (some #(= (squeeze (str text %)) (squeeze (:out world))) [file (fs/canonicalize file)])
+               (str "output was " (pr-str (:out world)))))
+      world)]
+
    [#"the output is \"(.*)\""
     (fn [world text]
       (let [squeeze #(str/replace (str/trim %) #"\s+" " ")]

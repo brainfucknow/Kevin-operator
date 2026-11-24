@@ -109,8 +109,24 @@
     (should= "AGENT: cleaner" (:out (agent-out "cleaner" "copilot")))
     (should= "AGENT: none" (:out (agent-out "cleaner" "codex"))))
 
-  (it "names a session role and refuses an unknown harness or role"
-    (write-conf! *dir* "roles.conf" "specifier frontier session\ncoder strong subagent audit\ncleaner fast subagent\n")
-    (should= "AGENT: session" (:out (agent-out "specifier" "claude")))
-    (should= {:status 1 :err "unknown harness 'vibe' (claude, copilot, codex)"} (select-keys (agent-out "cleaner" "vibe") [:status :err]))
-    (should= {:status 1 :err "unknown role 'nobody' (see kevin/roles.conf)"} (select-keys (agent-out "nobody" "claude") [:status :err]))))
+  (it "names a session role with the path of its prompt and refuses an unknown harness or role"
+    (write-conf! *dir* "roles.conf" "specifier frontier session\ncoder strong subagent audit\ncleaner fast subagent\ndesigner strong session\n")
+    (write! "kevin/roles/specifier.md" "# specifier\n\nProject text.\n")
+    (write! "kevin/roles/designer.md" "# designer\n\nDraws the screens.\n")
+    (should= (str "AGENT: session\nPROMPT: " (fs/path *runtime* "kevin" "roles" "specifier.md"))
+             (:out (agent-out "specifier" "claude")))
+    (should= (str "AGENT: session\nPROMPT: " (fs/path *dir* "kevin" "roles" "designer.md"))
+             (:out (agent-out "designer" "vibe")))
+    (should= {:status 1 :err "unknown harness 'kilo' (claude, copilot, codex, vibe)"} (select-keys (agent-out "cleaner" "kilo") [:status :err]))
+    (should= {:status 1 :err "unknown role 'nobody' (see kevin/roles.conf)"} (select-keys (agent-out "nobody" "claude") [:status :err])))
+
+  (it "names the plugin agent of a runtime role in vibe, whatever the project's rows, and no agent for an added role"
+    (fast! "claude-haiku-5-5 low gpt-mini")
+    (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncoder strong subagent audit\ncleaner fast subagent\ndesigner strong subagent\ncritic strong subagent gate\n")
+    (write! "kevin/roles/designer.md" "# designer\n\nDraws the screens.\n")
+    (write! "kevin/roles/critic.md" "# critic\n\nCriticizes.\n")
+    (captured #(adapters/adapters []))
+    (should= {:status 0 :out "AGENT: kevin:cleaner"} (select-keys (agent-out "cleaner" "vibe") [:status :out]))
+    (should= "AGENT: none" (:out (agent-out "designer" "vibe")))
+    (should= "AGENT: none" (:out (agent-out "critic" "vibe")))
+    (should-not (fs/exists? (fs/path *dir* ".vibe")))))

@@ -43,7 +43,7 @@ A project keeps its configuration in its own `kevin/`:
 |---|---|
 | `project.md` | Required. The project article that the constitution reads, and `Minimum Kevin version: <major>.<minor>.<patch>`. `kevin init` writes a starter. Every command but `help`, `version` and `home` refuses a runtime older than that version. |
 | `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may drop roles, change their tiers and flags, and add roles. |
-| `roles/<role>.md` | The prompt of each role that the project's `roles.conf` adds: a title line, then a summary line. An added role is a stage or a gate, not a spec-judge. |
+| `roles/<role>.md` | The prompt of each role that the project's `roles.conf` adds: a title line, then a summary line. An added role is a stage or a gate, not a spec-judge. The Mistral Workflow backend also reads a file here for a runtime role, in place of the runtime's prompt. |
 | `verify.conf` | Optional: one shell command per line that `kevin finish` runs on the merge before it merges, for example `make test`. Without it, `kevin finish` runs none. |
 
 The prompts of the runtime's roles, the constitution, the language guides
@@ -95,10 +95,14 @@ checkout, `kevin adapters` also regenerates the plugin agents:
 for Copilot CLI.
 
 `kevin agent <role> <harness>` prints how the orchestrator runs a role in
-`claude`, `copilot` or `codex`: `AGENT: <name>`, then `MODEL: <alias>` when
-the delegation call takes the model, then a `WARNING:` when the project agent
-is missing or stale. `AGENT: none` means `kevin dispatch`; `AGENT: session`
-means the orchestrator plays the role. A project that relies on project
+`claude`, `copilot`, `codex` or `vibe`: `AGENT: <name>`, then `MODEL: <alias>`
+when the delegation call takes the model, then a `WARNING:` when the project
+agent is missing or stale. `AGENT: none` means `kevin dispatch`.
+`AGENT: session` means the orchestrator plays the role; the next line,
+`PROMPT: <path>`, names the prompt to read: the runtime's for a runtime role,
+the main checkout's `kevin/roles/<role>.md` for an added role. In `vibe` a
+runtime role prints its plugin agent `kevin:<role>` and an added role prints
+`AGENT: none`; Vibe has no project agents. A project that relies on project
 agents or adds a role sets `Minimum Kevin version: 0.3.0`.
 
 `kevin check` validates the configuration files and the role prompts, and
