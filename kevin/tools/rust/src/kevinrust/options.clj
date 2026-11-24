@@ -34,6 +34,12 @@ Change scope:    --base REF (coverage, crap, dry, mutate)
     :features (update opts key (fnil into []) (cond-> [flag] value (conj value)))
     (assoc opts key (or value true))))
 
+(defn- option-value [flag inline remaining]
+  (let [value (or inline (first remaining))]
+    (when (or (str/blank? value) (str/starts-with? value "-"))
+      (throw (outcome/usage-error (str flag " requires a value"))))
+    value))
+
 (defn- parse-options [command args]
   (loop [opts {}, [arg & remaining] args]
     (if-not arg
@@ -43,10 +49,8 @@ Change scope:    --base REF (coverage, crap, dry, mutate)
         (when-not (contains? (allowed command) key)
           (throw (outcome/usage-error (str command " does not accept " arg))))
         (if (values flag)
-          (let [value (or inline (first remaining))]
-            (when (or (str/blank? value) (str/starts-with? value "-"))
-              (throw (outcome/usage-error (str flag " requires a value"))))
-            (recur (add-option opts key flag value) (if inline remaining (rest remaining))))
+          (recur (add-option opts key flag (option-value flag inline remaining))
+                 (if inline remaining (rest remaining)))
           (do
             (when inline (throw (outcome/usage-error (str flag " takes no value"))))
             (recur (add-option opts key flag nil) remaining)))))))

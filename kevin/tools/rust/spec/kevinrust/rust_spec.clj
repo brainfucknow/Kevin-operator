@@ -1,12 +1,12 @@
 (ns kevinrust.rust-spec
-  (:require [kevinrust.options :as options]
-            [babashka.fs :as fs]
+  (:require [babashka.fs :as fs]
             [babashka.process :as process]
             [kevincore.git :as git]
+            [kevinrust.options :as options]
             [kevinrust.project :as project]
             [kevinrust.reports :as reports]
             [kevinrust.snapshot :as snapshot]
-            [kevinrust.testing]
+            [kevinrust.testing :as testing]
             [speclj.core :refer [describe it should= should-throw]]))
 
 (describe "Rust command options"
@@ -17,6 +17,9 @@
       (should= ["--features" "beta/extra"] (:features opts))
       (should= ["--ignored" "matching"] (:libtest opts))
       (should= true (:locked opts))))
+  (it "reports an empty inline selector instead of consuming the next argument"
+    (should-throw clojure.lang.ExceptionInfo "--package requires a value"
+                  (options/parse "test" ["--package=" "alpha"])))
   (it "rejects excludes without workspace selection"
     (should-throw clojure.lang.ExceptionInfo "--exclude requires --workspace"
                   (options/parse "coverage" ["--exclude" "alpha"])))
@@ -68,10 +71,14 @@
 (describe "Libtest argument policy"
   (it "puts the property skip before any user separator"
     (should= ["--" "--skip" "property_" "--ignored" "--" "name"]
-             (kevinrust.testing/ordinary-args ["--ignored" "--" "name"] [])))
+             (testing/ordinary-args ["--ignored" "--" "name"] [])))
   (it "adds full property names when libtest uses exact matching"
-    (should= ["--" "--skip" "property_" "--skip" "tests::property_x" "--exact" "--ignored"]
-             (kevinrust.testing/ordinary-args ["--exact" "--ignored"] ["tests::property_x"]))))
+    (should= {:args ["--" "--skip" "property_" "--skip" "tests::property_x" "--exact" "--ignored"]}
+             (testing/exclude-properties
+              ["--exact" "--ignored"]
+              (fn [args]
+                (should= ["--" "--list" "--include-ignored"] args)
+                {:status 0 :out "tests::ordinary: test\ntests::property_x: test\n"})))))
 
 (describe "Commands without libtest arguments"
   (it "accepts an empty tools invocation"

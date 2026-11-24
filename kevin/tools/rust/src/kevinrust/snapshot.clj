@@ -41,7 +41,7 @@
             env {"GIT_INDEX_FILE" (str (fs/path scratch "index"))}
             relative #(str (fs/relativize dir (fs/path root %)))]
         (try
-          ;; Compare the merge base directly with the current files, even after a staged removal.
+          ;; Seed the temporary index from the merge base so staged removals do not hide edits.
           (git/git ["-c" "core.splitIndex=false" "read-tree" base] :dir root :env env)
           (let [indexed (indexed-files root env)]
             (apply str

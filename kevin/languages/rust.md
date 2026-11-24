@@ -1,15 +1,14 @@
 # Rust tools
 
 Run `kevin rust` in a Cargo package or workspace inside a Git worktree.
-Keep `tmp/` out of Git. `kevin init` adds it to the checkout's local excludes.
+Run `kevin init` to exclude `tmp/` from Git.
 
 ## Setup
 
 Use stable Rust, Cargo, Git, Bash, and Babashka. The examples use Rust and
 Cargo 1.100.0. Test and property use the project's Cargo dependencies.
 
-Install the tools for the analyses you use. These commands use the tested
-versions. DRY uses Node.js and npm to run jscpd 4.3.0.
+Install the tools for the analyses you use. DRY needs Node.js and npm.
 
 ```sh
 rustup component add llvm-tools
@@ -32,7 +31,7 @@ Kevin uses Cargo's default members for the manifest.
 
 Test, property, coverage, CRAP, and mutation accept `--locked`,
 `--features FEATURES`, `--all-features`, and `--no-default-features`.
-Cargo checks the lockfile. Test and coverage pass libtest arguments after `--`.
+Test and coverage pass libtest arguments after `--`.
 
 ```sh
 kevin rust test --locked
@@ -82,8 +81,7 @@ Each report run gets its own directory. Read the path printed by that run.
 Coverage writes `tmp/coverage/run-*/rust.lcov` on success. DRY writes
 `tmp/jscpd/run-*/jscpd-report.json`. Mutation writes
 `tmp/mutation/run-*/mutants.out/outcomes.json` when it tests mutants. Mutation
-reports caught, missed, timed out, and unviable counts. Mutation uses a fresh
-Git diff for selection.
+reports caught, missed, timed out, and unviable counts.
 
 Exit 0 means pass. Exit 1 means a test, build, or quality failure. Exit 2 means
 invalid usage, a missing prerequisite, or an analysis or report error.

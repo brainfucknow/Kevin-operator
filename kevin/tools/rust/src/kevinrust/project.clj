@@ -108,8 +108,5 @@
                       (concat tracked (untracked root)))]
     (production-files root metadata selected files)))
 
-(defn- git-base [{:keys [root base]}]
-  (or base (git/default-base root)))
-
-(defn merge-base [{:keys [root] :as project}]
-  (str/trim (git/git ["merge-base" (git-base project) "HEAD"] :dir root)))
+(defn merge-base [{:keys [root base]}]
+  (str/trim (git/git ["merge-base" (or base (git/default-base root)) "HEAD"] :dir root)))
