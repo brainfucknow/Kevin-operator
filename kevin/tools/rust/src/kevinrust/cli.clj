@@ -16,11 +16,11 @@
    "dry" analysis/dry
    "mutate" mutation/mutate})
 
-(def ^:private help-args #{"help" "--help" "-h" nil})
+(def ^:private help-args #{"help" "--help" "-h"})
 
 (defn main [[command & args]]
   (cond
-    (or (help-args command) (and (seq args) (help-args (first args))))
+    (or (nil? command) (help-args command) (help-args (first args)))
     (do (println options/usage) 0)
 
     (= "tools" command)

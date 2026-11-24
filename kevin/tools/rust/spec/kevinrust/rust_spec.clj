@@ -38,7 +38,7 @@
                 "manifest_path" "/repo/alpha/Cargo.toml"}
                {"id" "beta-id" "name" "beta"
                 "manifest_path" "/repo/alpha/beta/Cargo.toml"
-                "targets" [{"kind" ["test"] "src_path" "/repo/alpha/beta/src/check.rs"}]}]})
+                "targets" [{"kind" ["lib" "test"] "src_path" "/repo/alpha/beta/src/check.rs"}]}]})
 
 (describe "Cargo selection"
   (it "uses the default member Cargo reports for that manifest"
@@ -66,6 +66,12 @@
   (it "rejects incomplete coverage records"
     (should-throw clojure.lang.ExceptionInfo "invalid LCOV record"
                   (reports/selected-lcov "/repo" #{} "SF:/repo/f.rs\nDA:1,1\n")))
+  (it "rejects coverage records with an empty source or malformed hit count"
+    (doseq [record ["SF:\nDA:1,1" "SF:/repo/f.rs\nDA:1,x"
+                    "SF:/repo/f.rs\nSF:/repo/g.rs\nDA:1,1"]]
+      (should-throw clojure.lang.ExceptionInfo "invalid LCOV record"
+                    (reports/selected-lcov "/repo" #{"f.rs"}
+                                           (str record "\nend_of_record\n")))))
   (it "gates CRAP at above ten only for selected changed files"
     (let [rows [{"file" "/repo/a.rs" "function" "a" "line" 1 "cyclomatic" 4 "coverage" 100 "crap" 10}
                 {"file" "/repo/b.rs" "function" "b" "line" 2 "cyclomatic" 4 "coverage" 0 "crap" 20}]]
@@ -87,6 +93,12 @@
 (describe "Commands without libtest arguments"
   (it "accepts an empty tools invocation"
     (should= [] (:libtest (options/parse "tools" [])))))
+
+(describe "Rust command help"
+  (it "prints help without needing a Cargo project"
+    (doseq [args [[] ["help"] ["coverage" "--help"]]]
+      (should-contain "kevin rust"
+                      (with-out-str (should= 0 (cli/main args)))))))
 
 (defn- with-repo [run]
   (fs/create-dirs "tmp")
@@ -171,6 +183,28 @@
   (second (drop-while #(not= flag %) args)))
 
 (describe "Rust command adapters"
+  (it "rejects a missing manifest before asking Cargo for metadata"
+    (with-cargo-project
+      (fn [_ _ operation _]
+        (throw (ex-info "unexpected Cargo invocation" {:operation operation})))
+      (fn [dir]
+        (let [path (str (fs/path dir "absent.toml"))]
+          (should-throw clojure.lang.ExceptionInfo
+                        (str "Cargo manifest must be a file in the Git worktree: " path)
+                        (cli/main ["test" "--manifest-path" path]))))))
+  (it "skips analysis tools when there is no production source to score"
+    (with-cargo-project
+      (fn [_ _ operation flags]
+        (if (some #{"--version"} flags)
+          {:exit 0 :out "4.3.0"}
+          (throw (ex-info "unexpected analysis invocation" {:operation operation}))))
+      (fn [dir]
+        (fs/delete (fs/path dir "lib.rs"))
+        (should-contain "no production Rust files to score"
+                        (with-out-str (should= 0 (cli/main ["crap"]))))
+        (with-out-str (should= 0 (cli/main ["dry"])))
+        (let [[report] (fs/glob dir "tmp/jscpd/*/jscpd-report.json")]
+          (should= {"duplicates" []} (json/parse-string (slurp (str report))))))))
   (it "writes selected LCOV and reports coverage of changed lines"
     (with-cargo-project
       (fn [_ source operation flags]
@@ -200,8 +234,13 @@
           "crap" {:exit 0 :out (json/generate-string
                                 {"entries" [{"file" source "function" "a" "line" 1
                                              "cyclomatic" 4 "coverage" 0 "crap" 20}]})}))
-      (fn [_]
-        (should-contain "lib.rs:1" (with-out-str (should= 1 (cli/main ["crap"])))))))
+      (fn [dir]
+        (should-contain "lib.rs:1" (with-out-str (should= 1 (cli/main ["crap"]))))
+        (git/git ["add" "--" "lib.rs"] :dir dir)
+        (commit-fixture dir)
+        (with-out-str (should= 0 (cli/main ["crap"])))
+        (should-contain "lib.rs:1"
+                        (with-out-str (should= 1 (cli/main ["crap" "--all"])))))))
   (it "reports test failures without writing a coverage report"
     (with-cargo-project
       (fn [_ _ operation _]
@@ -210,6 +249,15 @@
       (fn [dir]
         (with-out-str (should= 1 (cli/main ["coverage"])))
         (should= [] (fs/glob dir "tmp/coverage/*/rust.lcov")))))
+  (it "reports zero measurable changed lines when coverage has no matching lines"
+    (with-cargo-project
+      (fn [_ source _ flags]
+        (spit (flag-value "--output-path" flags)
+              (str "SF:" source "\nDA:2,1\nend_of_record\n"))
+        {:exit 0})
+      (fn [_]
+        (should-contain "changed lines covered: 0/0 (no coverage data for changed lines)"
+                        (with-out-str (should= 0 (cli/main ["coverage"])))))))
   (it "keeps property invocations separate from ordinary tests"
     (with-cargo-project
       (fn [_ _ operation flags]
@@ -222,6 +270,23 @@
         (with-out-str
           (should= 0 (cli/main ["property"]))
           (should= 1 (cli/main ["test"]))))))
+  (it "uses the exact listing and stops when Cargo cannot list tests"
+    (doseq [listing-exit [0 101]]
+      (let [ran-tests? (atom false)]
+        (with-cargo-project
+          (fn [_ _ operation flags]
+            (should= "test" operation)
+            (if (some #{"--list"} flags)
+              {:exit listing-exit :out "tests::property_guard: test\n"}
+              (do
+                (reset! ran-tests? true)
+                (should= ["--" "--skip" "property_" "--skip" "tests::property_guard" "--exact"]
+                         (vec (drop-while #(not= "--" %) flags)))
+                {:exit 0})))
+          (fn [_]
+            (with-out-str
+              (should= (if (zero? listing-exit) 0 1) (cli/main ["test" "--" "--exact"])))
+            (should= (zero? listing-exit) @ran-tests?))))))
   (it "reports missed mutants from the tool's outcome report"
     (with-cargo-project
       (fn [_ _ operation flags]
@@ -256,6 +321,39 @@
       (fn [_]
         (should-contain "cargo mutants baseline failed"
                         (with-out-str (should= 1 (cli/main ["mutate"])))))))
+  (it "uses the report counts even when the mutation process exits zero"
+    (doseq [[counts status] [[{"caught" 3 "missed" 0 "timeout" 0 "unviable" 0} 0]
+                             [{"caught" 3 "missed" 1 "timeout" 0 "unviable" 0} 1]
+                             [{"caught" 3 "missed" 0 "timeout" 1 "unviable" 0} 1]]]
+      (with-cargo-project
+        (fn [_ _ operation flags]
+          (should= "mutants" operation)
+          (should-contain "--cargo-arg=--locked" flags)
+          (let [report-dir (fs/create-dirs (fs/path (flag-value "--output" flags) "mutants.out"))]
+            (spit (str (fs/path report-dir "outcomes.json")) (json/generate-string counts)))
+          {:exit 0})
+        (fn [_]
+          (with-out-str (should= status (cli/main ["mutate" "--locked"])))))))
+  (it "lists differential candidates without running a mutation baseline"
+    (with-cargo-project
+      (fn [_ _ operation flags]
+        (should= "mutants" operation)
+        (should-contain "--list" flags)
+        (should= nil (flag-value "--baseline" flags))
+        {:exit 0})
+      (fn [_]
+        (with-out-str (should= 0 (cli/main ["mutate" "--list"]))))))
+  (it "rejects an outcome report with a missing count"
+    (with-cargo-project
+      (fn [_ _ _ flags]
+        (let [report-dir (fs/create-dirs (fs/path (flag-value "--output" flags) "mutants.out"))]
+          (spit (str (fs/path report-dir "outcomes.json"))
+                "{\"caught\":3,\"missed\":0,\"timeout\":0}"))
+        {:exit 0})
+      (fn [_]
+        (with-out-str
+          (should-throw clojure.lang.ExceptionInfo
+                        (cli/main ["mutate"]))))))
   (it "reports unavailable optional tools while Cargo and rustc are installed"
     (with-cargo-project
       (fn [_ _ operation _]
@@ -272,9 +370,13 @@
           {:exit 0 :out "4.3.0"}
           (do
             (should= source (last flags))
+            (should= "jscpd@4.3.0" (first flags))
+            (should= (str (inc (fs/size source))) (flag-value "--max-lines" flags))
+            (should= (str (inc (fs/size source)) "b") (flag-value "--max-size" flags))
             (spit (str (fs/path (flag-value "--output" flags) "jscpd-report.json"))
                   "{\"duplicates\":[]}\n")
             {:exit 0})))
       (fn [_]
-        (should-contain "jscpd report written"
-                        (with-out-str (should= 0 (cli/main ["dry"]))))))))
+        (let [output (with-out-str (should= 0 (cli/main ["dry"])))]
+          (should-contain "$ npx --yes jscpd@4.3.0" output)
+          (should-contain "jscpd report written" output))))))
