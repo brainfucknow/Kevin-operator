@@ -21,8 +21,9 @@ Follow these steps to release Kevin vX.Y.Z.
 6. After the merge, tag the merge commit and publish the release:
    `gh release create vX.Y.Z --target <merge commit sha> --generate-notes`.
    Add `--title` when the operator gives one.
-7. Tell users to update each plugin install (Claude Code, Copilot CLI,
-   Mistral Vibe) and to rerun `install.sh --user` from the updated one.
+7. Tell users to update each plugin install (Claude Code, Codex CLI,
+   Copilot CLI, Mistral Vibe) and to rerun `install.sh --user` from the
+   updated one.
    `kevin version` then prints `X.Y.Z`.
 
 Kevin does not tell apart two copies with the same version. A behavior
