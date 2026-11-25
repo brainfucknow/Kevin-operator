@@ -307,6 +307,24 @@
   (is (str/includes? (refusal {:tool lizard} "crap" "--all" "--no-executable-code" "test/sign_test.cpp")
                      "expected an existing in-scope source file")))
 
+(deftest crap-discovers-mixed-case-sources-and-scopes-them-to-the-diff
+  (with-report!)
+  (write! "src/Foo.CPP" "int foo;\n")
+  (write! "src/Stable.Hh" "int stable;\n")
+  (commit! "mixed-case sources")
+  (git "branch" "mixed-base")
+  (write! "src/Foo.CPP" "int foo = 1;\n")
+  (write! "src/Header.HpP" "int bar;\n")
+  (write! "src/Other.Cs" "class Other {}\n")
+  (let [all (:out (run-kevin-cpp {:tool lizard} "crap" "--all"))
+        changed (:out (run-kevin-cpp {:tool lizard} "crap" "--base" "mixed-base"))]
+    (doseq [path ["src/Foo.CPP" "src/Header.HpP"]]
+      (is (str/includes? all (str "UNMEASURED source: " path)))
+      (is (str/includes? changed (str "UNMEASURED source: " path))))
+    (is (str/includes? all "UNMEASURED source: src/Stable.Hh"))
+    (is (not (str/includes? changed "src/Stable.Hh")))
+    (is (not (str/includes? all "src/Other.Cs")))))
+
 (deftest crap-needs-a-report-and-a-working-lizard
   (is (str/includes? (refusal {:tool lizard} "crap") "run kevin-cpp coverage first"))
   (with-report!)
@@ -344,8 +362,22 @@
   (let [prefix (str (fs/path *project* "mull"))]
     (fs/create-dirs (fs/path prefix "lib"))
     (spit (str (fs/path prefix "lib" "mull-ir-frontend-18")) "")
-    {:which {"clang" "/usr/bin/clang" "clang++" "/usr/bin/clang++" "mull-runner-18" (str prefix "/bin/mull-runner-18")}
+    {:which {"clang" "/usr/bin/clang" "clang++" "/usr/bin/clang++" "ctest" "/usr/bin/ctest"
+             "mull-runner-18" (str prefix "/bin/mull-runner-18")}
      :prefix prefix}))
+
+(deftest mutation-runs-only-enabled-tests-in-ctest
+  (let [{:keys [which]} (mull-host)
+        tests [{:name "disabled" :command ["/b/disabled"] :properties [{:name "DISABLED" :value true}]}
+               {:name "sign[positive]" :command ["/b/sign_test" "positive"]}]
+        tool #(cond
+                (str/starts-with? % "clang --version") {:exit 0 :out "clang version 18.1.3"}
+                (str/includes? % "--show-only=json-v1") {:exit 0 :out (json/generate-string {:tests tests})}
+                :else (cmake-tool %))
+        {:keys [calls]} (run-kevin-cpp {:tool tool :which which} "mutate" "--all")
+        runs (filter #(str/includes? % "/bin/mull-runner-18 ") calls)]
+    (is (= 1 (count runs)))
+    (is (some #(str/includes? % "--test-program /usr/bin/ctest /b/sign_test -- --test-dir tmp/build/mutate -C Debug --output-on-failure --no-tests=error -I 2,2") runs))))
 
 (def elements
   {"schemaVersion" "1"
@@ -372,7 +404,8 @@
                     (str/includes? % (str "-DCMAKE_CXX_FLAGS=-fpass-plugin=" prefix "/lib/mull-ir-frontend-18 -g -grecord-command-line")))
               calls))
     (is (some #{(str "MULL_CONFIG=" config " " prefix "/bin/mull-runner-18 --reporters IDE --reporters Elements "
-                     "--report-dir tmp/mull --report-name sign_positive /b/sign_test positive")} calls))
+                     "--report-dir tmp/mull --report-name sign_positive --test-program /usr/bin/ctest /b/sign_test "
+                     "-- --test-dir tmp/build/mutate -C Debug --output-on-failure --no-tests=error -I 1,1")} calls))
     (is (str/includes? (slurp config) "gitDiffRef: "))
     (is (str/includes? out "Survived   /r/src/sign.cpp:4  cxx_gt_to_ge"))
     (is (str/includes? out "mutation score 50.0%")))

@@ -59,8 +59,8 @@
          (build/ctest-args "tmp/build/test" ["-R" "x"])))
   (is (= ["--test-dir" "d" "-C" "Debug" "--show-only=json-v1"] (build/list-tests-args "d"))))
 
-(deftest ctest-lists-tests-with-their-commands
-  (is (= [{:name "sign_positive" :command ["/b/sign_test" "pos"]}]
+(deftest ctest-lists-tests-with-their-executables
+  (is (= [{:index 1 :name "sign_positive" :executable "/b/sign_test" :disabled? false}]
          (build/ctest-tests "{\"kind\":\"ctestInfo\",\"tests\":[{\"name\":\"sign_positive\",\"command\":[\"/b/sign_test\",\"pos\"]}]}")))
   (is (= [] (build/ctest-tests "{\"kind\":\"ctestInfo\",\"tests\":[]}")))
   (is (re-find #"ctest listed no tests" (refusal #(build/ctest-tests "nope")))))

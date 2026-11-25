@@ -303,10 +303,14 @@ trees go under tmp/."))
 (defn- run-mull
   "The mutants of one test run; mull-runner writes no report when it finds
   no mutant, and then exits 0."
-  [{:keys [runner]} env extra test]
+  [{:keys [runner ctest build-dir]} env extra {:keys [index executable] :as test}]
+  (when-not executable
+    (throw (outcome/usage-error (str "ctest listed no executable for " (:name test)))))
   (let [name (test-name test)
         report (mull/report-path mull-dir name)
-        status (shell/run runner (mull/runner-args {:report-dir mull-dir :name name :command (:command test) :extra extra}) env)]
+        args (mull/runner-args {:report-dir mull-dir :name name :extra extra :ctest ctest :executable executable
+                              :test-args (build/ctest-one-test-args build-dir index)})
+        status (shell/run runner args env)]
     (cond
       (shell/exists? report) (stryker/parse-mutants (shell/read-json report))
       (zero? status) []
@@ -327,7 +331,9 @@ trees go under tmp/."))
       (or (cmake-build {:build-dir build-dir :env env
                         :defines (mull/defines {:cc (str (fs/which "clang")) :cxx (str (fs/which "clang++"))
                                                 :plugin (:plugin setup)})})
-          (let [mutants (mull/merge-mutants (mapv (partial run-mull setup env extra) (ctest-tests build-dir)))]
+          (let [tests (remove :disabled? (ctest-tests build-dir))
+                launcher (assoc setup :build-dir build-dir :ctest (some-> (fs/which "ctest") str))
+                mutants (mull/merge-mutants (mapv (partial run-mull launcher env extra) tests))]
             (shell/emit (stryker/review mutants)))))))
 
 ;; tools

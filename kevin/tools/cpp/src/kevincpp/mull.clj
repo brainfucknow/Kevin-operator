@@ -39,12 +39,12 @@
          "excludePaths:\n  - '^" root-regex "/tmp/.*'\n  - '.*/tests?/.*'\n")))
 
 (defn runner-args
-  "mull-runner arguments for one test executable: `extra` mull options, then
-  the ctest command."
-  [{:keys [report-dir name command extra]}]
+  "Inspect the instrumented executable and let CTest run its test."
+  [{:keys [report-dir name ctest executable test-args extra]}]
   (-> ["--reporters" "IDE" "--reporters" "Elements" "--report-dir" report-dir "--report-name" name]
       (into extra)
-      (into command)))
+      (into ["--test-program" ctest executable "--"])
+      (into test-args)))
 
 (defn report-path [report-dir name]
   (str report-dir "/" name ".json"))
