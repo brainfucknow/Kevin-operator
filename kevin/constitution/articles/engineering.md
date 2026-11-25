@@ -16,6 +16,8 @@
   | JavaScript/TypeScript | StrykerJS | oxlint or ESLint + Istanbul | jscpd | [`kevin js tools`](../../languages/javascript.md) |
   | Ruby | mutant (optional: needs the project's mutant usage) | RuboCop or flog + SimpleCov | jscpd or flay | [`kevin rb`](../../languages/ruby.md) |
   | C/C++ | Mull (clang + CMake only; otherwise exit 2) | lizard + gcov or OpenCppCoverage | jscpd | [`kevin cpp`](../../languages/cpp.md) |
+  | Mojo | Unsupported (exit 2) | Unsupported (exit 2) | jscpd in text mode | [`kevin mojo`](../../languages/mojo.md) |
+  | Rust | cargo-mutants | cargo-crap with cargo-llvm-cov | jscpd | [`kevin rust`](../../languages/rust.md) |
 
 - A tool that is not installed is no reason to skip a check. Run `kevin tool ensure <tool>`, then the check. A `Not-tested` trailer may skip a check only for one of these reasons:
   - The check has no applicable target in the task.

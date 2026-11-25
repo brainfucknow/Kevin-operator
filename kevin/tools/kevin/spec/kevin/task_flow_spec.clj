@@ -60,12 +60,19 @@
   [id]
   [(git *dir* "rev-parse" "HEAD") (git *dir* "rev-parse" (str "swarm/" id)) (fs/exists? (worktree id))])
 
+(defn- on-work
+  "with-repo, with the main checkout on the branch work made from main: a
+  branch that is not protected, so kevin finish merges into it."
+  ([run-spec] (on-work {} run-spec))
+  ([conf run-spec]
+   (with-repo conf #(do (git *dir* "checkout" "-q" "-b" "work") (run-spec)))))
+
 (defn- resolve-conflicts []
   (doseq [file ["a" "b"]] (spit (str *dir* "/" file) "resolved"))
   (git *dir* "add" "a" "b"))
 
 (describe "a task through the pipeline"
-  (around [it] (with-repo it))
+  (around [it] (on-work it))
 
   (it "is created at the first stage of its route and listed"
     (let [id (new-id "Add login" "-m" "Users sign in")]
@@ -257,7 +264,7 @@
     (let [id (conflicting-task)
           dir (str *dir* "/.worktrees/" id)
           tip (git *dir* "rev-parse" (str "swarm/" id))]
-      (should= {:status 1 :err (str "merge of swarm/" id " into main stopped on conflicts: a b;"
+      (should= {:status 1 :err (str "merge of swarm/" id " into work stopped on conflicts: a b;"
                                     " resolve them, commit, then run: kevin finish " id)}
                (select-keys (captured #(task/finish [id])) [:status :err]))
       (should= tip (git *dir* "rev-parse" "MERGE_HEAD"))
@@ -268,11 +275,11 @@
       (should= tip (git *dir* "rev-parse" "MERGE_HEAD"))
       (git *dir* "commit" "-q" "--no-verify" "-m" "Resolve")
       (let [resolved (git *dir* "rev-parse" "HEAD")]
-        (should= (str "VERIFY: none configured\nFINISHED: " id " merged into main") (out task/finish [id]))
+        (should= (str "VERIFY: none configured\nFINISHED: " id " merged into work") (out task/finish [id]))
         (should= (str resolved " " tip) (git *dir* "log" "-1" "--format=%P"))
         (should= (git *dir* "rev-parse" (str resolved "^{tree}")) (git *dir* "rev-parse" "HEAD^{tree}")))
       (should= (str "kevin finished: " id) (git *dir* "log" "-1" "--format=%s"))
-      (should-contain "Kevin-Merged-Into: main" (git *dir* "log" "-1" "--format=%B"))
+      (should-contain "Kevin-Merged-Into: work" (git *dir* "log" "-1" "--format=%B"))
       (should-not (fs/exists? dir))
       (should= "" (git *dir* "branch" "--list" (str "swarm/" id)))
       (should-contain "STATUS: finished" (out task/show [id]))
@@ -284,7 +291,7 @@
       (resolve-conflicts)
       (git *dir* "commit" "-q" "--no-verify" "--no-edit")
       (let [merge (git *dir* "rev-parse" "HEAD")]
-        (should= (str "VERIFY: none configured\nFINISHED: " id " merged into main") (out task/finish [id]))
+        (should= (str "VERIFY: none configured\nFINISHED: " id " merged into work") (out task/finish [id]))
         (should= merge (git *dir* "rev-parse" "HEAD")))
       (should= "" (git *dir* "branch" "--list" (str "swarm/" id)))))
 
@@ -307,7 +314,7 @@
       (git *dir* "merge" "-q" "--squash" (str "swarm/" id))
       (git *dir* "commit" "-q" "--no-verify" "-m" "Squash")
       (should= (str id "\tdone\t\tcoder\tnone\tQuick") (out task/ls []))
-      (should= (str "VERIFY: none configured\nFINISHED: " id " merged into main") (out task/finish [id]))
+      (should= (str "VERIFY: none configured\nFINISHED: " id " merged into work") (out task/finish [id]))
       (should= tip (git *dir* "rev-parse" "HEAD^2"))
       (should= (str "kevin finished: " id) (git *dir* "log" "-1" "--format=%s"))
       (should-contain "STATUS: finished" (out task/show [id]))))
@@ -318,7 +325,7 @@
       (git *dir* "merge" "-q" "--no-ff" "--no-edit" (str "swarm/" id))
       (commit-on-main "later" "x")
       (let [head (git *dir* "rev-parse" "HEAD")]
-        (should= (str "VERIFY: none configured\nFINISHED: " id " merged into main") (out task/finish [id]))
+        (should= (str "VERIFY: none configured\nFINISHED: " id " merged into work") (out task/finish [id]))
         (should= (str head " " tip) (git *dir* "log" "-1" "--format=%P"))
         (should= (str "kevin finished: " id) (git *dir* "log" "-1" "--format=%s")))
       (should= "" (git *dir* "branch" "--list" (str "swarm/" id)))
@@ -345,7 +352,7 @@
           _ (commit-on-main "kevin/verify.conf" "true\ntest ! -e a\ntouch never\n")
           before (snapshot id)]
       (should= {:status 1 :out "VERIFY: passed: true"
-                :err (str "verification failed on the merge of swarm/" id " into main: test ! -e a exited 1")}
+                :err (str "verification failed on the merge of swarm/" id " into work: test ! -e a exited 1")}
                (select-keys (captured #(task/finish [id])) [:status :out :err]))
       (should= before (snapshot id))
       (should= "" (git dir "status" "--porcelain" "--ignored"))
@@ -363,7 +370,7 @@
       (git dir "commit" "-q" "--no-verify" "-m" "Verify")
       (task/handoff [id] {:reviewed? true})
       (should= (str "VERIFY: passed: touch made\nVERIFY: passed: test -e a\nVERIFY: passed: test -e c\n"
-                    "FINISHED: " id " merged into main")
+                    "FINISHED: " id " merged into work")
                (out task/finish [id]))
       (should (fs/exists? (str *dir* "/a")))
       (should-not (fs/exists? (str *dir* "/made")))
@@ -382,7 +389,7 @@
       (git dir "add" "a")
       (git dir "commit" "-q" "--no-verify" "-m" "Task")
       (task/handoff [id] {:reviewed? true})
-      (should= (str "VERIFY: passed: grep -qx main a\nFINISHED: " id " merged into main")
+      (should= (str "VERIFY: passed: grep -qx main a\nFINISHED: " id " merged into work")
                (out task/finish [id]))
       (should= "main\n" (slurp (str *dir* "/a")))))
 
@@ -400,7 +407,7 @@
   (it "finishes a task that has no worktree"
     (let [id (new-id "Quick" "--route" "coder")]
       (task/handoff [id "--to" "done"] {:reviewed? true})
-      (should= (str "VERIFY: none configured\nFINISHED: " id " merged into main") (out task/finish [id]))
+      (should= (str "VERIFY: none configured\nFINISHED: " id " merged into work") (out task/finish [id]))
       (should-not (fs/exists? (worktree id)))
       (should= "" (git *dir* "branch" "--list" (str "swarm/" id)))))
 
@@ -413,13 +420,13 @@
       (resolve-conflicts)
       (git *dir* "commit" "-q" "--no-verify" "-m" "Resolve")
       (let [before (snapshot id)]
-        (should= {:status 1 :err (str "verification failed on the merge of swarm/" id " into main: grep -qv resolved a exited 1")}
+        (should= {:status 1 :err (str "verification failed on the merge of swarm/" id " into work: grep -qv resolved a exited 1")}
                  (select-keys (captured #(task/finish [id])) [:status :err]))
         (should= before (snapshot id))
         (should (fs/exists? dir)))
       (spit (str *dir* "/a") "fixed\n")
       (git *dir* "commit" "-q" "--no-verify" "--amend" "-a" "-m" "Resolve")
-      (should= (str "VERIFY: passed: grep -qv resolved a\nFINISHED: " id " merged into main") (out task/finish [id]))
+      (should= (str "VERIFY: passed: grep -qv resolved a\nFINISHED: " id " merged into work") (out task/finish [id]))
       (should= (str "kevin finished: " id) (git *dir* "log" "-1" "--format=%s"))
       (should-not (fs/exists? dir))))
 
@@ -620,7 +627,7 @@
                              "|%(trailers:key=Kevin-Dispatched,valueonly,separator=)") commit))
 
 (describe "the backend on records"
-  (around [it] (with-repo it))
+  (around [it] (on-work it))
 
   (it "records nothing when kevin sees no harness, whatever the specs run in"
     (let [id (new-id "Add login")]

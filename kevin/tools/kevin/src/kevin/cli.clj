@@ -10,6 +10,7 @@
             [kevin.dispatch :as dispatch]
             [kevin.hook :as hook]
             [kevin.options :as options]
+            [kevin.project-agents :as project-agents]
             [kevin.runtime :as runtime]
             [kevin.installed :as installed]
             [kevin.shell :as shell]
@@ -21,7 +22,7 @@
 
 (def ^:private subcommands
   "The runtime's other commands, run as kevin <name>: kevin/bin/kevin-<name>."
-  #{"cs" "fs" "vb" "js" "rb" "java" "cpp" "mistral"})
+  #{"cs" "fs" "vb" "js" "rb" "java" "cpp" "mojo" "rust" "mistral"})
 
 (defn- run-subcommand
   "Runs the runtime's kevin-<name> from the current directory with the
@@ -69,6 +70,7 @@
    "dispatch" dispatch/dispatch
    "run" dispatch/run
    "adapters" (config/in-checkout adapters/adapters)
+   "agent" project-agents/agent-command
    "check" (config/in-checkout (fn [_] (config/check)))
    "commit-msg" hook/commit-msg})
 

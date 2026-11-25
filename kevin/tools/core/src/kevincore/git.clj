@@ -9,8 +9,9 @@
 
 (defn git
   "Runs git with the given arguments and returns its stdout; throws on failure."
-  [args & {:keys [dir]}]
-  (let [result (apply p/shell {:out :string :err :string :dir (or dir shell/*dir*) :continue true}
+  [args & {:keys [dir env]}]
+  (let [result (apply p/shell {:out :string :err :string :dir (or dir shell/*dir*)
+                               :continue true :extra-env env}
                       "git" "-c" "core.quotePath=false" args)]
     (when-not (zero? (:exit result))
       (throw (ex-info (str "git " (str/join " " args) ": " (str/trim (:err result))) {})))
@@ -54,17 +55,20 @@
 (defn collect-changed-lines
   "Changed source lines for the task: everything since the merge base with
   `base`, committed or not, plus whole untracked files. `pathspecs` are git
-  pathspecs naming the source files, such as *.cs. Paths are repo-relative."
-  [{:keys [base dir pathspecs]}]
+  pathspecs naming the source files, such as *.cs. `include-untracked?` can
+  restrict which untracked files are read. Paths are repo-relative."
+  [{:keys [base dir pathspecs include-untracked?] :or {include-untracked? (constantly true)}}]
   (let [root (repo-root :dir dir)
         merge-base (str/trim (git ["merge-base" base "HEAD"] :dir dir))
         committed (changes/changed-lines-from-diff
                    (git (into ["diff" "-U0" "--no-color" "--no-ext-diff"
                                "--src-prefix=a/" "--dst-prefix=b/" "--inter-hunk-context=0"
                                merge-base "--"] pathspecs) :dir root))
-        untracked (remove str/blank?
-                          (str/split-lines
-                           (git (into ["ls-files" "--others" "--exclude-standard" "--full-name" "--"] pathspecs) :dir root)))]
+        untracked (->> (str/split
+                        (git (into ["ls-files" "-z" "--others" "--exclude-standard" "--full-name" "--"] pathspecs) :dir root)
+                        #"\x00")
+                       (remove str/blank?)
+                       (filter include-untracked?))]
     (reduce (fn [changed file] (assoc changed file (whole-file-lines root file))) committed untracked)))
 
 (defn changed-since-base

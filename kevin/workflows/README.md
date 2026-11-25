@@ -56,9 +56,11 @@ Deploy it as a managed workflow deployment so executions run without a local
 worker (see the Mistral Workflows documentation). The `Dockerfile` builds the
 worker image: Python, git, Babashka, and this checkout's Kevin runtime with
 `kevin` on PATH. Build it from the repository root:
-`docker build -f kevin/workflows/Dockerfile .`. The worker reads the role
-prompts from `kevin home` and the catalogue from the project's `kevin/`,
-else from the runtime. A managed worker has
+`docker build -f kevin/workflows/Dockerfile .`. The worker reads the
+constitution from `kevin home`. It reads each role prompt and the catalogue
+from the project's `kevin/`, else from the runtime. A project's
+`kevin/roles/<role>.md` replaces a runtime role's prompt in this backend only;
+the role's prompt names that file. A managed worker has
 no `MISTRAL_API_KEY`; `completion.py` gives every role agent a completion config
 whose provider calls the model through the workflow worker's client
 (`get_mistral_client`), which authenticates each request with the deployment

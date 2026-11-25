@@ -10,7 +10,7 @@ write `Kevin-*` trailers by hand. There are no task files.
 |---|---|
 | `<id>` | Title slug plus seven random hex digits, e.g. `add-login-3f9a2c1`. Commands also accept the suffix or a unique prefix. |
 | `created` record | The branch's first commit: the title and the operator's request in its message. |
-| `finished` record | The `kevin finish` merge. A task is finished when the main checkout's HEAD reaches it through any parent. |
+| `finished` record | The `kevin finish` merge on a branch that is not protected. A task is finished when the main checkout's HEAD reaches it through any parent, or when the task has no local branch and its newest record that HEAD reaches is at `done` (a pull request's merge commit). |
 | `.worktrees/<id>` | Role checkout, created by `kevin start` and removed by `kevin finish`. |
 | `kevin/verify.conf` | Optional project verification commands, one per line; blank lines and `#` comments are ignored. |
 
@@ -21,9 +21,9 @@ Needs is `none`, `operator` while a question awaits an answer, or `approval`
 while a reviewed specification awaits a decision. `kevin show <id>` prints the
 records; use it rather than reconstructing them from trailers.
 
-Records change no files. `finished` is the base branch's `--no-ff` merge
-commit. kevin reads only local `swarm/*` branches; a remote one never lists or
-reopens a task. A task made before task files were dropped keeps its request
+Records change no files. `finished` is the `--no-ff` merge commit of
+`kevin finish` on a branch that is not protected. kevin reads only local
+`swarm/*` branches; a remote one never lists or reopens a task. A task made before task files were dropped keeps its request
 in the file its `created` commit adds, and its handoff to `done` deletes it.
 kevin also reads the records of a task begun under the old name SwarmForge:
 each `SwarmForge-<name>` trailer reads as `Kevin-<name>`. The hook rejects
@@ -81,10 +81,12 @@ LORE: 3e1f0a2 coder Rejected: byline as a trailer | breaks old commits
 Lines appear oldest commit first, then trailer order. Base-branch merges add
 no Lore lines. The SHA is abbreviated; the role is the commit's last
 `By <role>.` line, or `-`. Only Git-parsed trailer blocks count; folded values
-print on one line. After finishing, `kevin show` reads the merge's second parent.
-A task squash-merged before `kevin finish` stays open at `done` until `kevin finish`
-merges its branch. One squash-merged after `kevin finish` leaves no record in the
-base: `kevin` no longer knows it; its history stays on the pushed branch.
+print on one line. After finishing, `kevin show` reads the merge's second parent,
+or, for a task closed by a pull request's merge, the history of its done record.
+A task squash-merged or rebased stays open at `done`: its branch remains, and
+`kevin finish` on a protected branch refuses it. One squash-merged after
+`kevin finish` leaves no record in the base: `kevin` no longer knows it; its
+history stays on the pushed branch.
 
 ## What kevin start leaves out
 
@@ -179,15 +181,26 @@ On success, `kevin finish` merges with `--no-ff`, removes the worktree without
 force, then removes the branch. Rerun it to complete interrupted cleanup.
 Finished tasks refuse `kevin start` and further records.
 
+`kevin finish` never commits on a protected branch: main, master, develop,
+release, and the default branch. The default branch is the one that the
+first remote's HEAD names (`refs/remotes/<remote>/HEAD`), else a non-blank
+`init.defaultBranch`, else master. `--into` a protected branch is refused.
+When the checked-out branch is protected and HEAD lacks the task tip,
+`kevin finish` is refused with the pull-request path: push `swarm/<id>`, open
+a pull request, merge it with a merge commit, pull, then run `kevin finish
+<id>`. When HEAD contains the tip, `kevin finish` verifies HEAD, removes the
+worktree and the branch, and writes no commit. The task is then finished
+through its done record.
+
 If the merge conflicts, resolve and commit it in the main checkout, then
 rerun `kevin finish`. It verifies that committed merge in the task worktree,
 detached at HEAD, before recording and cleaning up, so an uncommitted fix in
 the main checkout does not count. If verification fails, commit the fix and
-retry. When HEAD contains the branch tip without the finished record (a
-merge committed with another message, or a host's merge, with or without
-commits after it), `kevin finish` commits the finished record on top of HEAD as
-a merge of the tip. It never rewrites a commit HEAD already has. Nobody
-writes the finished-record trailers manually.
+retry. On a branch that is not protected, when HEAD contains the branch tip
+without the finished record (a merge committed with another message, or a
+host's merge, with or without commits after it), `kevin finish` commits the
+finished record on top of HEAD as a merge of the tip. It never rewrites a
+commit HEAD already has. Nobody writes the finished-record trailers manually.
 
 ## Spec revisions
 
@@ -245,10 +258,11 @@ changes `swarmforge/metrics`.
 ## Harvest
 
 `kevin harvest` takes no arguments and prints one JSON line per task for
-mining role failure patterns: finished tasks first, oldest finish merge
-first, then open tasks by id, then unclosed histories by id. It reads only:
-no ref, worktree, or file changes, and any role may run it. A `swarm/*` branch with no record is
-skipped with a `kevin: ` line on stderr.
+mining role failure patterns: finished tasks first, ordered by the author
+date of the record that closes them (the finish merge or the done record),
+oldest first, then open tasks by id, then unclosed histories by id. It reads
+only: no ref, worktree, or file changes, and any role may run it. A `swarm/*`
+branch with no record is skipped with a `kevin: ` line on stderr.
 
 Each line has `id`, `title`, `request`, `status` (`open`, `finished`, or `unclosed`),
 `truncated`, `stage`, `needs`, `route` and `gates` (arrays; `gates` is empty for `none`) from the newest record,
@@ -282,7 +296,8 @@ starts with `#` is a pull request; any other is a task id.
   recorded that commit, so it is not a join key.
 
 An `unclosed` history has recognized records reachable from HEAD but no local
-task branch or `kevin finish` record. Recognition requires a nonblank task id and
+task branch or `kevin finish` record, and its newest recognized record is not
+at `done`. Recognition requires a nonblank task id and
 a known record type; incidental or unknown-type trailers do not establish a
 record. Its newest recognized record anchors the history; later unrecorded
 commits cannot be attributed to it. `kevin show` and `kevin harvest` expose that

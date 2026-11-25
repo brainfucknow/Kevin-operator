@@ -167,12 +167,6 @@
       (check (= (get-in world [:before branch]) (tip world)) "the metrics branch moved")
       world)]
 
-   [#"the main checkout is on the branch \"([^\"]+)\""
-    (fn [world name]
-      (let [actual (git world "branch" "--show-current")]
-        (check (= name actual) (str "on the branch " (pr-str actual)))
-        world))]
-
    [#"the only worktrees are the main checkout and the worktree of task \"(\w)\""
     (fn [world name]
       (let [actual (->> (str/split-lines (git world "worktree" "list" "--porcelain"))

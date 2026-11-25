@@ -3,7 +3,9 @@
   is the created record, which holds the title and the request, and every kevin
   action is a record commit whose trailers hold the state. A task is finished
   when the history of the main checkout's HEAD, any parent included, has its
-  finished record: the merge of kevin finish. git runs in the main checkout."
+  finished record: the merge of kevin finish; or when it has no branch and
+  the newest of its records that HEAD reaches is at done: a host merged it.
+  git runs in the main checkout."
   (:require [clojure.string :as str]
             [kevin.git :as git]
             [kevin.record :as record]
@@ -39,29 +41,15 @@
            (map record/parse)
            (filter #(and (= "finished" (:record %)) (or (nil? id) (= id (:task %)))))))))
 
-(defn finished-tasks
-  "The newest finished record of each task in HEAD's history, the task whose
-  record is the oldest first."
+(defn merged-ids
+  "The tasks whose finished record HEAD's history has."
   []
-  (let [newest-first (finished-records)]
-    (reverse (for [id (distinct (map :task newest-first))]
-               (first (filter #(= id (:task %)) newest-first))))))
-
-(defn finished-ids []
   (distinct (map :task (finished-records))))
 
 (defn finished-record
   "The finished record of the task in HEAD's history, or nil."
   [id]
   (first (finished-records id)))
-
-(defn finished? [id]
-  (some? (finished-record id)))
-
-(defn open-ids
-  "The ids of the task branches whose task is not finished, sorted."
-  []
-  (sort (remove (set (finished-ids)) (branch-ids))))
 
 (defn tip
   "The commit at the tip of the task branch, or nil."
@@ -71,11 +59,11 @@
 (defn has-branch? [id]
   (some? (tip id)))
 
-(defn unclosed-tasks
+(defn closures
   "The newest reachable record per task without a branch or finished record,
-  sorted by id. These histories have no lifecycle closure."
+  sorted by id: the histories of tasks merged without kevin finish's record."
   []
-  (let [known (set (concat (branch-ids) (finished-ids)))
+  (let [known (set (concat (branch-ids) (merged-ids)))
         records (->> (git/git "log" "-z" "--topo-order" "-E" (str "--grep=" (record/trailer-grep "Task" ""))
                              (str "--format=" log-format) "HEAD" "--")
                      read-commits
@@ -87,6 +75,59 @@
          (sort-by key)
          (map (comp first val)))))
 
+(defn- done? [rec]
+  (= "done" (:stage rec)))
+
+(defn- merge-closure
+  "The finished record with the rev whose first-parent history holds the
+  task's records: the merged task branch."
+  [rec]
+  (assoc rec :rev (str (:sha rec) "^2")))
+
+(defn- done-closure
+  "The done record of a branchless history with the rev of its records: the
+  record itself."
+  [rec]
+  (assoc rec :rev (:sha rec)))
+
+(defn finished-tasks
+  "The record that closes each finished task, with its :rev: the newest
+  finished record of each task in HEAD's history, and the done record of each
+  branchless history; the oldest first."
+  []
+  (let [newest-first (finished-records)
+        merged (for [id (reverse (distinct (map :task newest-first)))]
+                 (merge-closure (first (filter #(= id (:task %)) newest-first))))]
+    (sort-by :time (concat merged (map done-closure (filter done? (closures)))))))
+
+(defn finished-ids []
+  (map :task (finished-tasks)))
+
+(defn finished-entry
+  "The record that closes the finished task, with its :rev, or nil."
+  [id]
+  (if-let [rec (finished-record id)]
+    (merge-closure rec)
+    (when-not (has-branch? id)
+      (let [newest (first (filter #(= id (:task %)) (closures)))]
+        (when (done? newest) (done-closure newest))))))
+
+(defn finished? [id]
+  (some? (finished-entry id)))
+
+(defn open-ids
+  "The ids of the task branches whose task is not finished, sorted. A task
+  with a branch is finished only through its finished record."
+  []
+  (sort (remove (set (merged-ids)) (branch-ids))))
+
+(defn unclosed-tasks
+  "The newest reachable record per branchless task that is not at done and
+  has no finished record, sorted by id. These histories have no lifecycle
+  closure."
+  []
+  (remove done? (closures)))
+
 (defn unclosed-record [id]
   (first (filter #(= id (:task %)) (unclosed-tasks))))
 
@@ -97,11 +138,12 @@
     (shell/die "task " id " has no local branch; history is unclosed")))
 
 (defn resolve-id
-  "The task that arg names, among branches, finished tasks and reachable unclosed histories."
+  "The task that arg names, among branches, finished tasks and reachable
+  branchless histories."
   [arg]
   (when (str/blank? arg) (shell/die "task id required"))
-  (let [known (concat (branch-ids) (finished-ids))
-        ids (if (some #{arg} known) known (concat known (map :task (unclosed-tasks))))
+  (let [known (concat (branch-ids) (merged-ids))
+        ids (if (some #{arg} known) known (concat known (map :task (closures))))
         [status found] (record/resolve arg ids)]
     (case status
       :ok found
@@ -112,8 +154,20 @@
   "slug-hex, with a random hex part that no task has."
   [title]
   (record/new-id title
-                 (map record/hex-part (concat (branch-ids) (finished-ids) (map :task (unclosed-tasks))))
+                 (map record/hex-part (concat (branch-ids) (merged-ids) (map :task (closures))))
                  (repeatedly #(format "%07x" (rand-int 0x10000000)))))
+
+(defn default-branch
+  "The repository's default branch: the one the first remote's HEAD names,
+  else a non-blank init.defaultBranch, else master."
+  []
+  (let [remote (first (shell/lines (git/git "remote")))
+        prefix (str "refs/remotes/" remote "/")
+        head (when remote (git/run {} "symbolic-ref" "--quiet" (str prefix "HEAD")))
+        configured (str/trim (str (:out (git/run {} "config" "--get" "init.defaultBranch"))))]
+    (cond (and head (shell/ok? head)) (str/replace-first (shell/chomp (:out head)) prefix "")
+          (not (str/blank? configured)) configured
+          :else "master")))
 
 (defn records-at
   "The records of the task on the first-parent history of rev, oldest first."
@@ -169,9 +223,7 @@
 (defn spike?
   "Whether the task's recorded title starts with the spike prefix."
   [id]
-  (let [rev (if-let [finished (finished-record id)]
-              (str (:sha finished) "^2")
-              (ref-of id))
+  (let [rev (or (:rev (finished-entry id)) (ref-of id))
         {:keys [title]} (title-and-request (records-at rev id))]
     (str/starts-with? (or title "") "Spike:")))
 
@@ -181,11 +233,12 @@
   (or (not-empty (records-at (ref-of id) id)) (shell/die "swarm/" id " has no records")))
 
 (defn state
-  "The newest branch record, finished record, or reachable unclosed record."
+  "The newest branch record, finished record, or newest reachable record of a
+  branchless history."
   [id]
   (if (has-branch? id)
     (last (open-records id))
-    (or (finished-record id) (unclosed-record id))))
+    (or (finished-record id) (first (filter #(= id (:task %)) (closures))))))
 
 (defn recording-backend
   "The backend that a record kevin writes now carries, from the environment of

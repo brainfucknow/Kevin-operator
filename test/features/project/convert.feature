@@ -130,10 +130,11 @@ Feature: kevin init --convert turns a committed install into configuration
   Scenario: kevin init --convert turns a committed install into configuration 7: a task started before the conversion still finishes
     Given task "A" titled "Add login" was started on route "coder" before the conversion
     And task "A" has a new commit in its worktree that does not touch kevin/
+    And the main checkout was put on the new branch "work"
     When I run "kevin init --convert"
     And I commit every change in the main checkout
     And I run "kevin handoff $A -m done"
     And I run "kevin finish $A"
     Then the exit status is 0
-    And the base branch has the commit of task "A"
+    And the branch "work" has the commit of task "A"
     And the index has no path under "kevin/bin"

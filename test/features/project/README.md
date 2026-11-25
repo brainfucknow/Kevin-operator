@@ -6,6 +6,8 @@ Contracts for a project that uses the Kevin runtime from the plugin:
 |---|---|
 | `init.feature` | `kevin init`: `kevin/project.md`, the shared exclude lines, the hook. |
 | `config.feature` | Project configuration against runtime defaults; `kevin home`. |
+| `project_agents.feature` | `kevin agent`, and the project agents that `kevin adapters` and `kevin init` write. |
+| `project_roles.feature` | Roles that a project adds: `kevin check`, routes, gates, `kevin dispatch`, agents. |
 | `runtime_version.feature` | `kevin version` and the minimum version in `kevin/project.md`. |
 | `subcommands.feature` | `kevin cs`, `fs`, `vb`, `js`, `rb`, `java` and `mistral`. |
 | `convert.feature` | `kevin init --convert` on a committed install. |
@@ -19,5 +21,16 @@ the removed `install.sh <project>` committed: the runtime under `kevin/`,
 agents, the swarm skills and command, the `kevin/.gitignore` lines, and
 `SWARM` (the old swarm line) in `AGENTS.md` with `@AGENTS.md` in `CLAUDE.md`
 and the Copilot line. "The shared exclude file" is the file
-`git rev-parse --git-path info/exclude` names. Placeholder conventions
+`git rev-parse --git-path info/exclude` names. "The project agents" are
+the files under `.claude/agents`, `.github/agents` and `.codex/agents` of
+the main checkout that hold the `kevin-generated:` line, or `none`. "Shows no project agent" means that
+`git status --porcelain` lists none of them. "The description of the
+project agent" is the `description` that a YAML parser reads from the
+front matter of a Markdown agent, or a TOML parser from a `.toml` agent.
+"A claude on PATH that records its arguments" is a script named `claude`
+that writes its arguments to a file and exits 0; "the recorded prompt" is
+its last argument. "The output is <text> and the absolute path of <path>
+in the repository" (or "in the runtime") means that the output, with each
+run of white space as one space, is the text and then the absolute path of
+that file under the main checkout (or under the runtime). Placeholder conventions
 follow the [task-store guide](../task_store/README.md).

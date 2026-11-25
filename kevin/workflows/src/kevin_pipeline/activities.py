@@ -128,13 +128,15 @@ async def run_stage_role(params: StageRunInput) -> RoleOutcome:
         return RoleOutcome(status="blocked", stage=before.stage, needs=before.needs)
     if before.stage != params.role:
         return RoleOutcome(status="advanced", stage=before.stage, needs=before.needs)
+    home = kevinkit.kevin_home()
+    role_file = prompts.role_file(params.co.main, home, role.name)
     agent = runner.build_agent(
         role,
         catalogue.mistral_model(tiers, role.tier),
-        prompts.agent_instructions(role, kevinkit.kevin_home(), tiers, writable=True),
+        prompts.agent_instructions(role, home, role_file, tiers, writable=True),
         writable=True,
     )
-    report = await runner.run_role_agent(agent, role.name, prompts.role_prompt(role.name, params.task_id, kevinkit.kevin_home()), params.co.worktree)
+    report = await runner.run_role_agent(agent, role.name, prompts.role_prompt(role.name, params.task_id, home, role_file), params.co.worktree)
     after = kevinkit.read_state(params.co.main, params.task_id)
     if after.needs in ("operator", "approval"):
         return RoleOutcome(status="blocked", stage=after.stage, needs=after.needs, report=report)
@@ -152,13 +154,15 @@ async def run_gate(params: GateRunInput) -> GateReport:
     if gate is None or not gate.is_gate:
         raise ValueError(f"'{params.gate}' is not a gate role")
     before = kevinkit.snapshot(params.co.main, params.task_id)
+    home = kevinkit.kevin_home()
+    role_file = prompts.role_file(params.co.main, home, gate.name)
     agent = runner.build_agent(
         gate,
         catalogue.mistral_model(tiers, gate.tier),
-        prompts.agent_instructions(gate, kevinkit.kevin_home(), tiers, writable=False),
+        prompts.agent_instructions(gate, home, role_file, tiers, writable=False),
         writable=False,
     )
-    report = await runner.run_role_agent(agent, gate.name, prompts.gate_prompt(gate.name, params.task_id, kevinkit.kevin_home()), params.co.worktree)
+    report = await runner.run_role_agent(agent, gate.name, prompts.gate_prompt(gate.name, params.task_id, role_file), params.co.worktree)
     after = kevinkit.snapshot(params.co.main, params.task_id)
     if before != after:
         raise workflows.WorkflowError(
@@ -183,10 +187,11 @@ async def run_spec_judge(params: JudgeRunInput) -> JudgeVerdict:
     if judge is None:
         raise ValueError("roles.conf has no spec-judge")
     before = kevinkit.snapshot(params.co.main, params.task_id)
+    home = kevinkit.kevin_home()
     agent = runner.build_agent(
         judge,
         catalogue.mistral_model(tiers, judge.tier),
-        prompts.agent_instructions(judge, kevinkit.kevin_home(), tiers, writable=False),
+        prompts.agent_instructions(judge, home, prompts.role_file(params.co.main, home, judge.name), tiers, writable=False),
         writable=False,
     )
     report = await runner.run_role_agent(

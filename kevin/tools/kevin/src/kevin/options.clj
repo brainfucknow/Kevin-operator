@@ -33,7 +33,9 @@ Operator commands
                                   send-backs or growth of more than half over the baseline
   finish <id> [--into BRANCH]     refuse uncommitted work in the worktree, run kevin/verify.conf
                                   on the merge, then merge the task branch into BRANCH
-                                  (default: current) and remove it
+                                  (default: current) and remove it; on a protected branch
+                                  (main, master, develop, release, default) only clean up
+                                  after a pull request's merge commit, never commit
 
 Role commands
   next <role>                     print ids of tasks waiting at stage <role>, or NO_TASK
@@ -67,15 +69,21 @@ Catalogue commands
                                   task's gates when the specification it dispatched waits for approval;
                                   with mistral one kevin-pipeline workflow execution per
                                   call runs the loop on the Mistral platform (kevin/workflows/)
-  adapters                        regenerate the plugin agents (Kevin source checkout only);
-                                  Vibe's land in ai.mistral.vibe/agents
+  adapters                        write the project agents that the project's tiers.conf and
+                                  roles.conf need, untracked, and remove those it no longer
+                                  needs; in the Kevin source checkout also regenerate the
+                                  plugin agents, Vibe's in ai.mistral.vibe/agents
+  agent <role> <harness>          print the agent that runs the role in claude, copilot,
+                                  codex or vibe (AGENT), the model to pass (MODEL) and a
+                                  WARNING when its project agent is missing or stale; for a
+                                  session role, the prompt to read (PROMPT)
   tool require|ensure|list|bin    install constitution tools project-locally (kevin tool --help)
   check                           validate roles.conf, tiers.conf, routes.conf, tools.conf, role prompts
 
 Runtime commands
   version                         print the Kevin runtime version
   home                            print the runtime's kevin/ directory: role prompts, constitution
-  cs|fs|vb|js|rb|java|cpp|mistral <args>
+  cs|fs|vb|js|rb|java|cpp|mojo|rust|mistral <args>
                                   run the runtime's language or Mistral command with args
 
 Hook commands

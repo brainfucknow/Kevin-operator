@@ -2,7 +2,7 @@
 
 ## Task Worktrees
 - Every task has one branch, `swarm/<task-id>`, and one worktree, `.worktrees/<task-id>`. `kevin start <id>` creates or finds it and prints `DIR:`. Work only in that directory.
-- The main checkout stays on the project's base branch. Do not commit task work there; `kevin finish` merges the task branch when the pipeline is done.
+- The main checkout stays on the project's base branch. Do not commit task work there. A finished task reaches the base branch through a pull request from its task branch; `kevin finish` never commits on a protected branch (main, master, develop, release, or the default branch).
 - Do not inspect, diff, merge, or base work on another task's branch unless the task or the operator names it.
 - Every role on a task works on the same branch in sequence. Build on the commits already there; do not reset, rebase, or rewrite them.
 - If the task worktree is missing or on the wrong branch, stop and report instead of working somewhere else.

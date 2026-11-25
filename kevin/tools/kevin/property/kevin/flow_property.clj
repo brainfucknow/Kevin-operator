@@ -89,22 +89,29 @@
                                    (mapv config/role-audits? catalogue))))))))))
 
 (def ^:private finish-facts
-  "What kevin finish knows of a task: [recorded? tip tip-merged?]."
-  (gen/tuple gen/boolean (gen/elements [nil "t1"]) gen/boolean))
+  "What kevin finish knows of a task: [recorded? tip tip-merged? protected?]."
+  (gen/tuple gen/boolean (gen/elements [nil "t1"]) gen/boolean gen/boolean))
 
 (describe "finish-action"
-  (it "refuses only a task without a branch, and merges only a tip that HEAD has no trace of"
-    (should (passes? (prop/for-all [[recorded? tip merged? :as facts] finish-facts]
+  (it "refuses only a task without a branch, and merges only a tip that HEAD has no trace of on a branch that is not protected"
+    (should (passes? (prop/for-all [[recorded? tip merged? protected? :as facts] finish-facts]
                        (let [action (apply flow/finish-action facts)]
                          (and (= (nil? action) (nil? tip))
-                              (= (= :merge action) (and (some? tip) (not recorded?) (not merged?)))))))))
+                              (= (= :merge action) (and (some? tip) (not recorded?) (not merged?) (not protected?)))))))))
 
-  (it "completes a merge already in HEAD only when HEAD contains the tip, recording it when HEAD has no record"
-    (should (passes? (prop/for-all [[recorded? tip merged? :as facts] finish-facts]
+  (it "completes a merge already in HEAD only when HEAD contains the tip, recording it only off a protected branch"
+    (should (passes? (prop/for-all [[recorded? tip merged? protected? :as facts] finish-facts]
                        (let [action (apply flow/finish-action facts)]
-                         (and (= (#{:keep :record} action) (when (and tip merged?) action))
-                              (= (= :unmerged action) (and (some? tip) recorded? (not merged?)))
-                              (= (= :record action) (and (some? tip) merged? (not recorded?))))))))))
+                         (and (= (#{:keep :record :clean} action) (when (and tip merged?) action))
+                              (= (= :unmerged action) (and (some? tip) recorded? (not merged?) (not protected?)))
+                              (= (= :record action) (and (some? tip) merged? (not recorded?) (not protected?)))
+                              (= (= :clean action) (and (some? tip) merged? (not recorded?) protected?))))))))
+
+  (it "never writes a commit on a protected branch, and refuses one whose HEAD lacks the tip"
+    (should (passes? (prop/for-all [[_ tip merged? protected? :as facts] finish-facts]
+                       (let [action (apply flow/finish-action facts)]
+                         (and (not (and protected? (#{:merge :record} action)))
+                              (= (= :protected action) (and (some? tip) (not merged?) protected?)))))))))
 
 (def ^:private review-catalogue ["specifier" "coder" "cleaner" "architect" "pr-reviewer" "qa"])
 

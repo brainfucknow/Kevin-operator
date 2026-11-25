@@ -4,6 +4,7 @@
             [clojure.string :as str]
             [kevin.audit :as audit]
             [kevin.config :as config]
+            [kevin.exclude :as exclude]
             [kevin.flow :as flow]
             [kevin.git :as plumbing]
             [kevin.harvest :as harvest]
@@ -13,6 +14,7 @@
             [kevin.metrics :as metrics]
             [kevin.missing-tools :as missing-tools]
             [kevin.options :as options]
+            [kevin.project-agents :as project-agents]
             [kevin.record :as record]
             [kevin.runtime :as runtime]
             [kevin.installed :as installed]
@@ -136,20 +138,9 @@
       (fs/create-dirs (fs/parent file))
       (spit (str file) (append-line text (str runtime/minimum-label " " version))))))
 
-(defn- exclude!
-  "Adds each ignored line that the shared exclude file lacks."
-  [root]
-  (let [file (fs/path (git root "rev-parse" "--path-format=absolute" "--git-path" "info/exclude"))
-        text (if (fs/exists? file) (slurp (str file)) "")
-        present (set (map str/trim (str/split-lines text)))
-        missing (remove present ignored-lines)]
-    (when (seq missing)
-      (fs/create-dirs (fs/parent file))
-      (spit (str file) (reduce append-line text missing)))))
-
 (defn setup!
   "The project setup that kevin init and kevin init --convert share: the
-  project article, the exclude lines and the hook. Prints the identity, roles
+  project article, the exclude lines, the hook and the project agents. Prints the identity, roles
   and routes."
   []
   (shell/quietly config/check)
@@ -157,9 +148,10 @@
     (println (str "identity: " name " <" email ">")))
   (let [root (shell/repo-root)]
     (write-project-md! root)
-    (exclude! root)
+    (exclude/add! root ignored-lines)
     (fs/create-dirs (str root "/" (hook/worktree-dir)))
-    (hook/install root))
+    (hook/install root)
+    (project-agents/sync!))
   (println (str "roles: " (str/join " " (config/pipeline))))
   (println (str "routes: " (str/join " " (map first (config/named-routes))))))
 
@@ -492,21 +484,37 @@
 (defn- finish-by!
   "Does what flow/finish-action decided for the task and target: merges the
   branch, or verifies the merge already in HEAD and records the finished merge
-  on top of it when HEAD lacks one, or stops."
+  on top of it when HEAD lacks one and target is not protected, or stops."
   [id state target action]
   (case action
     :merge (do (verify-candidate! id target)
                (merge-task! id state target))
-    :keep (verify-head! id target)
+    (:keep :clean) (verify-head! id target)
     :record (do (verify-head! id target)
                 (store/record-merge! id (finished-message id state target)))
+    :protected (shell/die (flow/protected-refusal id target))
     :unmerged (shell/die (record/branch id) " has commits that HEAD does not contain; merge them, then run: kevin finish " id)
     (shell/die "task " id " is finished")))
 
+(defn- finish-plan
+  "The flow/finish-action for the task and the branch it lands on: into, or
+  the current branch when into is blank, for a merge; the current branch for
+  every action on HEAD. protected? tells whether a branch is protected."
+  [id into protected?]
+  (let [current (git (shell/repo-root) "rev-parse" "--abbrev-ref" "HEAD")
+        tip (store/tip id)
+        recorded? (some? (store/finished-record id))
+        merged? (boolean (and tip (store/in-head? tip)))
+        merge-target (if (str/blank? into) current into)
+        action (flow/finish-action recorded? tip merged? (protected? (if (or merged? recorded?) current merge-target)))]
+    [action (if (= :merge action) merge-target current)]))
+
 (defn finish
   "Verifies the merge of a done task into its target, merges it, and removes
-  its worktree and branch. Refuses a worktree with uncommitted changes. Run
-  again after the operator commits a conflicting merge, it completes it."
+  its worktree and branch. Refuses a worktree with uncommitted changes, and
+  never commits on a protected branch: there it only verifies and cleans up
+  a merge already in HEAD. Run again after the operator commits a conflicting
+  merge, it completes it."
   [[id-arg & args]]
   (operator-only! "finish")
   (let [id (store/resolve-id id-arg)
@@ -517,12 +525,11 @@
         _ (when (not= "done" (:stage state)) (shell/die "task is at stage:" (:stage state) ", not done"))
         _ (when (store/spike? id) (shell/die "task " id " is a spike and cannot be finished"))
         _ (check-worktree! id)
+        protected? (let [default (store/default-branch)] #(flow/protected-branch? % default))
+        _ (when (and (not (str/blank? target)) (protected? target)) (shell/die (flow/protected-refusal id target)))
         root (shell/repo-root)
         dir (worktree-of id)
-        current (git root "rev-parse" "--abbrev-ref" "HEAD")
-        tip (store/tip id)
-        action (flow/finish-action (store/finished? id) tip (boolean (and tip (store/in-head? tip))))
-        target (if (= :merge action) (or (not-empty target) current) current)]
+        [action target] (finish-plan id target protected?)]
     (finish-by! id state target action)
     (when (fs/directory? dir) (git root "worktree" "remove" dir))
     (git root "branch" "-D" (record/branch id))
