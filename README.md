@@ -111,8 +111,11 @@ For the default `feature` route, the session orchestrates:
    approval. You can request changes or adjust the route before approving.
 2. Roles implement, review, and verify on the task branch, committing and
    handing off in sequence. Questions stop the task until you answer in chat.
-3. `kevin finish` verifies the completed merge, merges into the base branch,
-   and removes the task branch and worktree.
+3. The task branch goes to the base branch through a pull request. After
+   it merges with a merge commit and the main checkout pulls it,
+   `kevin finish` verifies HEAD and removes the task branch and worktree.
+   It never commits on a protected branch: main, master, develop, release
+   or the default branch.
 
 `kevin ls` shows open tasks and what they need from you; `kevin show <id>` shows
 history. See the [runtime guide](kevin/README.md) for commands and the

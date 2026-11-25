@@ -103,8 +103,10 @@
 
    [#"the task was finished with kevin finish"
     (fn [world]
-      (doseq [command ["review" "approve" "finish"]]
+      (doseq [command ["review" "approve"]]
         (must (:repo world) (kevin world) command (:id world)))
+      (must (:repo world) "git" "checkout" "-q" "-b" "work")
+      (must (:repo world) (kevin world) "finish" (:id world))
       world)]
 
    [#"I run \"(.*)\" in the (main checkout|task worktree)"

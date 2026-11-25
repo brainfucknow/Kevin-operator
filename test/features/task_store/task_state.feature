@@ -15,7 +15,8 @@ Feature: kevin task state
 
   A task is finished when the history of the HEAD of the main checkout, any
   parent included, has its finished record (the merge of kevin finish), whatever
-  branch still has swarm/<id>. kevin ls and kevin next skip a finished task; kevin
+  branch still has swarm/<id>, or when it has no local branch and its newest
+  record that HEAD reaches is at done (see kevin finish protected). kevin ls and kevin next skip a finished task; kevin
   start and every command that writes a record refuse it with "task <id> is
   finished" and exit status 1. kevin reads only local branches: a remote
   swarm/<id> that could not be deleted never lists or reopens a task. A task

@@ -43,9 +43,10 @@ Feature: kevin reads project configuration and runtime text apart
     Given the file "kevin/verify.conf" in the runtime holds "false"
     And I ran "git add -A" and "git commit -m config" in the repository
     And task "A" titled "Add login" is at stage "done" with one commit
+    And the main checkout was put on the new branch "work"
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the base branch has the commit of task "A"
+    And the branch "work" has the commit of task "A"
 
   # kevin reads project configuration and runtime text apart 3
   Scenario: kevin reads project configuration and runtime text apart 3: a project role prompt is not read

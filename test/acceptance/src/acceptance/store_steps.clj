@@ -56,6 +56,13 @@
 (defn git [world & args]
   (apply must-in world (:repo world) "git" args))
 
+(defn on-work!
+  "Puts the main checkout on the branch work, made from HEAD when it does not
+  exist: a branch that is not protected, so kevin finish merges into it."
+  [world]
+  (when-not (= "work" (git world "branch" "--show-current"))
+    (git world "checkout" "-q" (if (str/blank? (git world "branch" "--list" "work")) "-b" "--no-guess") "work")))
+
 (defn tips
   "The tip of each branch, by ref."
   [world]
@@ -176,6 +183,7 @@
    [#"task \"(\w)\" was finished"
     (fn [world name]
       (handoff-to-done world name)
+      (on-work! world)
       (must-in world (:repo world) "kevin" "finish" (id-of world name))
       world)]
 
@@ -406,6 +414,18 @@
       (let [ref (branch-ref world name)]
         (check (= (get-in world [:before ref]) (get (tips world) ref)) "the branch moved"))
       world)]
+
+   [#"the main checkout is on the branch \"([^\"]+)\""
+    (fn [world name]
+      (let [actual (git world "branch" "--show-current")]
+        (check (= name actual) (str "on the branch " (pr-str actual)))
+        world))]
+
+   [#"the branch \"([^\"]+)\" did not move"
+    (fn [world branch]
+      (let [ref (str "refs/heads/" branch)]
+        (check (= (get-in world [:before ref]) (get (tips world) ref)) (str branch " moved"))
+        world))]
 
    [(step "the (parent of the )?tip commit of {task} has the message \"(.*)\"")
     (fn [world parent name text]

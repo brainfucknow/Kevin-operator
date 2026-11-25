@@ -62,7 +62,7 @@ kevin new "Spike: can X do Y?" -m "..." --route spike   # coder answers, qa chec
 kevin approve <id>    # operator; moves the task to the next role on the route
 kevin gates <id> falsifier   # operator turns the falsifier on for the task
 kevin ls              # id, stage, needs, route, gates, title
-kevin finish <id>     # at stage done: verify the merge, merge, remove the branch
+kevin finish <id>     # at stage done, after the pull request's merge is pulled: verify, remove the branch
 ```
 
 Without harness subagents, `kevin run <id>` dispatches each stage to a headless

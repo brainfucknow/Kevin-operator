@@ -157,14 +157,37 @@
       (should= ["handoff"] (map :record (:records task)))
       (should= [["Tested: it"]] (map :trailers (:commits task))))))
 
-(defn- merge-without-finish! []
-  (store/create! "t-3" (record/message (assoc (flow/created "Hosted merge" "Keep history." "coder") :task "t-3")))
-  (git *dir* "checkout" "-q" "swarm/t-3")
-  (git *dir* "commit" "-q" "--allow-empty" "-m" "Implementation\n\nBy coder.\n\nTested: real check")
-  (store/write! "t-3" (fn [_] {:record "handoff" :from "coder" :stage "done" :route "coder" :needs "none"}))
-  (git *dir* "checkout" "-q" "main")
-  (git *dir* "merge" "-q" "--no-ff" "-m" "Hosted merge" "swarm/t-3")
-  (git *dir* "branch" "-q" "-D" "swarm/t-3"))
+(defn- merge-without-finish!
+  "Task t-3, its newest record at stage, merged into main by a host that
+  wrote no finished record; its branch deleted."
+  ([] (merge-without-finish! "qa"))
+  ([stage]
+   (store/create! "t-3" (record/message (assoc (flow/created "Hosted merge" "Keep history." "coder") :task "t-3")))
+   (git *dir* "checkout" "-q" "swarm/t-3")
+   (git *dir* "commit" "-q" "--allow-empty" "-m" "Implementation\n\nBy coder.\n\nTested: real check")
+   (store/write! "t-3" (fn [_] {:record "handoff" :from "coder" :stage stage :route "coder" :needs "none"}))
+   (git *dir* "checkout" "-q" "main")
+   (git *dir* "merge" "-q" "--no-ff" "-m" "Hosted merge" "swarm/t-3")
+   (git *dir* "branch" "-q" "-D" "swarm/t-3")))
+
+(describe "reachable history closed at done by a host's merge"
+  (around [it] (with-repo it))
+
+  (it "is finished, and lists the done record once as the last record"
+    (merge-without-finish! "done")
+    (let [[task] (:tasks (harvested))
+          {:keys [status state records]} (history/view "t-3")]
+      (should= ["t-3" "finished" "Hosted merge"] ((juxt :id :status :title) task))
+      (should= ["created" "handoff"] (map :record (:records task)))
+      (should= ["real check"] (map :value (kevin.lore/entries (:commits task))))
+      (should= "finished" status)
+      (should= "done" (:stage state))
+      (should= ["created" "handoff"] (map :record records))
+      (should= [] (store/open-ids))))
+
+  (it "refuses start as a finished task"
+    (merge-without-finish! "done")
+    (should-throw clojure.lang.ExceptionInfo "task t-3 is finished" (task/start ["t-3"]))))
 
 (describe "reachable history without lifecycle closure"
   (around [it] (with-repo it))
@@ -184,7 +207,7 @@
     (should= "t-3" (store/resolve-id "3"))
     (let [{:keys [status state records]} (history/view "t-3")]
       (should= "unclosed" status)
-      (should= "done" (:stage state))
+      (should= "qa" (:stage state))
       (should= ["created" "handoff"] (map :record records))))
 
   (it "rejects lifecycle writes and start without recreating the branch"
