@@ -17,7 +17,8 @@ version" is a scratch copy of this repository with that version in its
 plugin manifests; its `kevin/bin/kevin` is the `kevin` on PATH. The project
 is a separate scratch repository. "A committed Kevin install" is the layout
 the removed `install.sh <project>` committed: the runtime under `kevin/`,
-`kevin/constitution/articles/project.md`, the configuration, the generated
+`kevin/constitution/articles/project.md` without a
+`Minimum Kevin version` line, the configuration, the generated
 agents, the swarm skills and command, the `kevin/.gitignore` lines, and
 `SWARM` (the old swarm line) in `AGENTS.md` with `@AGENTS.md` in `CLAUDE.md`
 and the Copilot line. "The shared exclude file" is the file
@@ -32,5 +33,7 @@ that writes its arguments to a file and exits 0; "the recorded prompt" is
 its last argument. "The output is <text> and the absolute path of <path>
 in the repository" (or "in the runtime") means that the output, with each
 run of white space as one space, is the text and then the absolute path of
-that file under the main checkout (or under the runtime). Placeholder conventions
+that file under the main checkout (or under the runtime). In an error
+output line, `<kevin home>` is the runtime's `kevin/` directory, the path
+that `kevin home` prints. Other placeholder conventions
 follow the [task-store guide](../task_store/README.md).

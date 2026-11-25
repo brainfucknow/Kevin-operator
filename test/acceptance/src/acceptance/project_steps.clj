@@ -125,9 +125,17 @@
            (fs/create-dirs (fs/parent (fs/path root path)))
            (spit (str (fs/path root path)) text)))))")
 
+(defn- without-minimum!
+  "Drops the Minimum Kevin version line, which no committed install had."
+  [file]
+  (spit (str file) (str/join "\n" (concat (remove #(str/starts-with? % "Minimum Kevin version:")
+                                                   (lines (slurp (str file))))
+                                           [""]))))
+
 (defn- committed-install!
   "The layout the removed install.sh <project> committed in the repository:
-  the runtime under kevin/ with kevin/constitution/articles/project.md, the
+  the runtime under kevin/ with kevin/constitution/articles/project.md
+  without a minimum version line, the
   configuration, the generated agents, the swarm skills and command, the
   kevin/.gitignore lines and the instruction lines."
   [world]
@@ -135,6 +143,7 @@
         kevin (fs/path repo "kevin")]
     (fs/copy-tree (fs/path (:runtime world) "kevin") kevin)
     (fs/move (fs/path kevin "project.md") (fs/path kevin "constitution" "articles" "project.md"))
+    (without-minimum! (fs/path kevin "constitution" "articles" "project.md"))
     (fs/delete-if-exists (fs/path kevin "verify.conf"))
     (write! repo "kevin/.gitignore" "!/bin/\n!/bin/**\n")
     (doseq [path [".claude/skills/swarm/SKILL.md" ".agents/skills/swarm/SKILL.md" ".vibe/skills/swarm/SKILL.md"]]
@@ -210,6 +219,16 @@
         (:description (yaml/parse-string front))))))
 
 (defn- has-line? [text line] (some #{line} (lines text)))
+
+(defn- with-kevin-home
+  "The line with <kevin home> read as the runtime's kevin/ directory, once as
+  written and once with symbolic links resolved."
+  [world line]
+  (if-let [runtime (:runtime world)]
+    (let [home (fs/path runtime "kevin")]
+      (distinct (for [path [home (fs/canonicalize home)]]
+                  (str/replace line "<kevin home>" (str path)))))
+    [line]))
 
 (defn- has-check [has found what]
   (check (if (= "has" has) found (not found)) what))
@@ -413,7 +432,8 @@
 
    [#"the error output (has|does not have) the line \"(.*)\""
     (fn [world has line]
-      (has-check has (has-line? (:err world) line) (str "error output was " (pr-str (:err world))))
+      (has-check has (some #(has-line? (:err world) %) (with-kevin-home world line))
+                 (str "error output was " (pr-str (:err world))))
       world)]
 
    [#"the main checkout was put on the new branch \"([^\"]+)\""

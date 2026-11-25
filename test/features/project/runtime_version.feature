@@ -9,7 +9,9 @@ Feature: kevin refuses a runtime older than the project needs
   "Minimum Kevin version: <version>" of the main checkout's
   kevin/project.md and refuses a runtime older than it: exit 1, the error
   line "kevin: this project needs Kevin <minimum> or newer; this runtime is
-  <version>", and nothing changed. This holds in a task worktree and for
+  <version> at <kevin home>. Run install.sh --user from a Kevin plugin at
+  <minimum> or newer.", and nothing changed. <kevin home> is the path that
+  kevin home prints. This holds in a task worktree and for
   the kevin commit-msg run by the hook. A project without kevin/project.md,
   or without that line, sets no minimum. A value that is not
   <major>.<minor>.<patch> is refused with the error line "kevin:
@@ -26,7 +28,7 @@ Feature: kevin refuses a runtime older than the project needs
     And the file "kevin/project.md" in the repository holds "# Mine\nMinimum Kevin version: <minimum>"
     When I run "kevin ls"
     Then the exit status is <status>
-    And the error output <has> the line "kevin: this project needs Kevin <minimum> or newer; this runtime is <runtime>"
+    And the error output <has> the line "kevin: this project needs Kevin <minimum> or newer; this runtime is <runtime> at <kevin home>. Run install.sh --user from a Kevin plugin at <minimum> or newer."
 
     Examples:
       | runtime | minimum | status | has           |
@@ -44,7 +46,7 @@ Feature: kevin refuses a runtime older than the project needs
     And the file "kevin/project.md" in the repository holds "# Mine\nMinimum Kevin version: 1.0.0"
     When I run "kevin start $A" in the worktree of task "A"
     Then the exit status is 1
-    And the error output has the line "kevin: this project needs Kevin 1.0.0 or newer; this runtime is 0.2.0"
+    And the error output has the line "kevin: this project needs Kevin 1.0.0 or newer; this runtime is 0.2.0 at <kevin home>. Run install.sh --user from a Kevin plugin at 1.0.0 or newer."
 
   # kevin refuses a runtime older than the project needs 3
   Scenario: kevin refuses a runtime older than the project needs 3: a malformed minimum is refused
