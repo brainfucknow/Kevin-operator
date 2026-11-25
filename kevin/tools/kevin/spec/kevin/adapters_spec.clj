@@ -1,12 +1,26 @@
 (ns kevin.adapters-spec
   (:require [babashka.fs :as fs]
+            [cheshire.core :as json]
             [clojure.string :as str]
             [speclj.core :refer :all]
             [kevin.adapters :as adapters]
+            [kevin.agents :as agents]
+            [kevin.config :as config]
+            [kevin.installed :as installed]
             [kevin.repo-support :refer [*dir* with-repo write-conf! captured write! files]]
             [kevin.shell :as shell]))
 
 (defn- read [path] (slurp (str (fs/path *dir* path))))
+
+(def ^:private runtime-home
+  "The kevin/ directory of this checkout, whose roles the length check covers."
+  (installed/home))
+
+(defn- vibe-description
+  "The description of a Vibe agent file, unescaped: TOML basic string escapes
+  are JSON's."
+  [text]
+  (json/parse-string (str "\"" (second (re-find #"(?m)^description = \"(.*)\"$" text)) "\"")))
 
 (defn- source-checkout! []
   (write! ".claude-plugin/plugin.json" "{\"name\": \"kevin\", \"version\": \"0.2.0\"}\n"))
@@ -68,6 +82,37 @@
     (should-contain "\ntools: [\"read\", \"search\", \"shell\"]\n" (read ".github/plugin/agents/spec-judge.agent.md"))
     (should-contain "Read `<home>/roles/spec-judge.md`" (read "agents/spec-judge.md"))
     (should-not-contain "tools:" (read "agents/coder.md")))
+
+  (it "counts Unicode code points, not UTF-16 code units, for the description length"
+    (should= 1 (adapters/code-point-count "😀"))
+    (should= 1 (adapters/code-point-count "a"))
+    (should= 3 (adapters/code-point-count "a😀b"))
+    (should= 2 (adapters/code-point-count "👨👩")))
+
+  (it "keeps every Vibe agent description of the runtime's roles within 300 code points"
+    (source-checkout!)
+    (doseq [name ["roles.conf" "tiers.conf" "routes.conf"]]
+      (write-conf! *dir* name (slurp (str (fs/path runtime-home name)))))
+    (doseq [role (map first (config/rows "roles.conf"))]
+      (write! (str "kevin/roles/" role ".md") (slurp (str (fs/path runtime-home "roles" (str role ".md"))))))
+    (should= 0 (:status (captured #(adapters/adapters []))))
+    (doseq [file (fs/glob (fs/path *dir* "ai.mistral.vibe/agents") "*.toml")]
+      (should (<= (adapters/code-point-count (vibe-description (slurp (str file)))) 300))))
+
+  (it "refuses a description over 300 code points, names the role and length, and writes nothing"
+    (source-checkout!)
+    (captured #(adapters/adapters []))
+    (write-gate!)
+    (let [before (files)
+          summary (apply str (repeat 290 "x"))]
+      (write! "kevin/roles/falsifier.md" (str "# falsifier\n\n" summary "\n"))
+      (let [{:keys [status err]} (captured #(adapters/adapters []))
+            length (adapters/code-point-count (agents/description "falsifier" :gate summary))]
+        (should= 1 status)
+        (should-contain "falsifier" err)
+        (should-contain (str length) err))
+      (should= (dissoc before (str (fs/path *dir* "kevin/roles/falsifier.md")))
+               (dissoc (files) (str (fs/path *dir* "kevin/roles/falsifier.md"))))))
 
   (it "deletes the agents of a role that is no longer a subagent, and is idempotent"
     (source-checkout!)

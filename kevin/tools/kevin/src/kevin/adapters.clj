@@ -15,6 +15,15 @@
             [kevin.project-agents :as project-agents]
             [kevin.shell :as shell]))
 
+(defn code-point-count
+  "Count Unicode code points in a string, not UTF-16 code units."
+  [s]
+  (.codePointCount s 0 (.length s)))
+
+(def max-description
+  "The most characters (Unicode code points) Vibe accepts in a plugin agent description."
+  300)
+
 (defn- runtime-prompt
   "The text of the runtime's prompt of the role."
   [role]
@@ -38,14 +47,15 @@
   "The agent of each harness for the role as kevin wrote it into a project:
   path to text. templates is the resource directory of the templates (\"\"
   for the current ones, \"legacy/\" for those of the removed committed
-  install), summary the first line of the role prompt."
-  [role tier kind {:keys [templates summary]}]
+  install), summary the first line of the role prompt, use the sentence saying
+  when to use the agent (the kind's current one when absent)."
+  [role tier kind {:keys [templates summary use] :or {use (:use (agents/kinds kind))}}]
   (let [{:keys [template]} (agents/kinds kind)
         read-only? (not= :stage kind)
         body (-> (shell/template (str templates template))
                  (str/replace "{{prompt}}" (agents/home-prompt role))
                  (str/replace "{{role}}" role))
-        description (agents/description role kind summary)
+        description (agents/description role kind summary use)
         toml-escape agents/toml-escape
         gate-tools agents/gate-tools]
     {(str ".claude/agents/" role ".md")
@@ -87,6 +97,12 @@
   (let [roles (config/rows "roles.conf")
         tiers (config/rows "tiers.conf")
         templates (project-agents/templates)]
+    (doseq [role (agents/subagents roles)
+            :let [text {:summary (agents/summary (runtime-prompt role)) :prompt (agents/home-prompt role)}
+                  length (code-point-count (:description (agents/fields "vibe" roles tiers role text)))]
+            :when (> length max-description)]
+      (shell/die (str "kevin adapters: the description of " role " is " length
+                      " characters; Vibe accepts at most " max-description)))
     (into {} (for [role (agents/subagents roles)
                    :let [text {:summary (agents/summary (runtime-prompt role)) :prompt (agents/home-prompt role)}]
                    [dir {:keys [harness suffix]}] plugin-dirs]
