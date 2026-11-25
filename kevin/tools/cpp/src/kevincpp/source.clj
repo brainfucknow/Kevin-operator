@@ -7,8 +7,8 @@
   ["c" "cc" "cpp" "cxx" "c++" "h" "hh" "hpp" "hxx" "ixx" "inl"])
 
 (def pathspecs
-  "git pathspecs naming every C or C++ source."
-  (mapv #(str "*." %) extensions))
+  "Case-insensitive Git pathspecs naming every C or C++ source."
+  (mapv #(str ":(icase)*." %) extensions))
 
 (defn source? [path]
   (boolean (some #(str/ends-with? (str/lower-case path) (str "." %)) extensions)))

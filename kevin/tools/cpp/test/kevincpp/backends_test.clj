@@ -66,8 +66,10 @@
   (is (not (str/includes? (mull/config {:root "/repo"}) "gitDiffRef"))))
 
 (deftest mull-runner-reports-in-ide-and-elements-formats
-  (is (= ["--reporters" "IDE" "--reporters" "Elements" "--report-dir" "tmp/mull" "--report-name" "sign_test" "/b/sign_test" "pos"]
-         (mull/runner-args {:report-dir "tmp/mull" :name "sign_test" :command ["/b/sign_test" "pos"] :extra []})))
+  (is (= ["--reporters" "IDE" "--reporters" "Elements" "--report-dir" "tmp/mull" "--report-name" "sign_test"
+          "--workers" "4" "--test-program" "/usr/bin/ctest" "/b/sign_test" "--" "-I" "1,1"]
+         (mull/runner-args {:report-dir "tmp/mull" :name "sign_test" :ctest "/usr/bin/ctest" :executable "/b/sign_test"
+                            :test-args ["-I" "1,1"] :extra ["--workers" "4"]})))
   (is (= "tmp/mull/sign_test.json" (mull/report-path "tmp/mull" "sign_test"))))
 
 (deftest a-mutant-any-test-kills-is-killed

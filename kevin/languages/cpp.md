@@ -76,8 +76,10 @@ Mull runs only with clang, a matching `mull-runner-<clang major>` on PATH with
 `mull-ir-frontend-<major>` in the `lib/` beside its `bin/`, and a CMake
 project. kevin-cpp builds into `tmp/build/mutate` with the Mull IR frontend
 plugin, writes `tmp/mull/mull.yml` (diff against the merge base, sources
-outside `tmp/` and test directories), and runs `mull-runner` on each test
-ctest lists. A mutant any test kills counts as killed. Keep mutation
+outside `tmp/` and test directories), and runs Mull on each enabled CTest
+test. Mull inspects the instrumented executable and launches the test through
+CTest, which applies the test's environment, working directory and result
+rules. A mutant any test kills counts as killed. Keep mutation
 differential: do not pass `--all`.
 
 Any other setup (gcc, MSVC, MSBuild, no Mull) exits 2 with "mutation

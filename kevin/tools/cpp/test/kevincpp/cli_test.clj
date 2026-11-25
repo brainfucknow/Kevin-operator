@@ -362,7 +362,8 @@
   (let [prefix (str (fs/path *project* "mull"))]
     (fs/create-dirs (fs/path prefix "lib"))
     (spit (str (fs/path prefix "lib" "mull-ir-frontend-18")) "")
-    {:which {"clang" "/usr/bin/clang" "clang++" "/usr/bin/clang++" "mull-runner-18" (str prefix "/bin/mull-runner-18")}
+    {:which {"clang" "/usr/bin/clang" "clang++" "/usr/bin/clang++" "ctest" "/usr/bin/ctest"
+             "mull-runner-18" (str prefix "/bin/mull-runner-18")}
      :prefix prefix}))
 
 (deftest mutation-runs-only-enabled-tests-in-ctest
@@ -373,7 +374,7 @@
                 (str/starts-with? % "clang --version") {:exit 0 :out "clang version 18.1.3"}
                 (str/includes? % "--show-only=json-v1") {:exit 0 :out (json/generate-string {:tests tests})}
                 :else (cmake-tool %))
-        {:keys [calls]} (run-kevin-cpp {:tool tool :which (assoc which "ctest" "/usr/bin/ctest")} "mutate" "--all")
+        {:keys [calls]} (run-kevin-cpp {:tool tool :which which} "mutate" "--all")
         runs (filter #(str/includes? % "/bin/mull-runner-18 ") calls)]
     (is (= 1 (count runs)))
     (is (some #(str/includes? % "--test-program /usr/bin/ctest /b/sign_test -- --test-dir tmp/build/mutate -C Debug --output-on-failure --no-tests=error -I 2,2") runs))))
@@ -403,7 +404,8 @@
                     (str/includes? % (str "-DCMAKE_CXX_FLAGS=-fpass-plugin=" prefix "/lib/mull-ir-frontend-18 -g -grecord-command-line")))
               calls))
     (is (some #{(str "MULL_CONFIG=" config " " prefix "/bin/mull-runner-18 --reporters IDE --reporters Elements "
-                     "--report-dir tmp/mull --report-name sign_positive /b/sign_test positive")} calls))
+                     "--report-dir tmp/mull --report-name sign_positive --test-program /usr/bin/ctest /b/sign_test "
+                     "-- --test-dir tmp/build/mutate -C Debug --output-on-failure --no-tests=error -I 1,1")} calls))
     (is (str/includes? (slurp config) "gitDiffRef: "))
     (is (str/includes? out "Survived   /r/src/sign.cpp:4  cxx_gt_to_ge"))
     (is (str/includes? out "mutation score 50.0%")))

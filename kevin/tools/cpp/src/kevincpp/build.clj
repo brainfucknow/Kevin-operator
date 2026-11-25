@@ -106,14 +106,19 @@
 (defn ctest-args [build-dir extra]
   (into ["--test-dir" build-dir "-C" config "--output-on-failure"] extra))
 
+(defn ctest-one-test-args [build-dir index]
+  (ctest-args build-dir ["--no-tests=error" "-I" (str index "," index)]))
+
 (defn ctest-tests
-  "The tests `ctest --show-only=json-v1` lists, each {:name :command}."
+  "CTest's test list with one-based indices for -I, including disabled tests."
   [text]
-  (let [parsed (try (json/parse-string text) (catch Exception _ nil))]
+  (let [parsed (try (json/parse-string text true) (catch Exception _ nil))]
     (when-not (map? parsed)
       (throw (outcome/usage-error "ctest listed no tests: its --show-only=json-v1 output is not JSON")))
-    (mapv (fn [test] {:name (get test "name") :command (vec (get test "command"))})
-          (get parsed "tests"))))
+    (mapv (fn [index {:keys [name command properties]}]
+            {:index (inc index) :name name :executable (first command)
+             :disabled? (boolean (some #(and (= "DISABLED" (:name %)) (true? (:value %))) properties))})
+          (range) (:tests parsed))))
 
 (defn cached-compiler
   "The C++ compiler, else the C compiler, in `cmake -N -LA` output."

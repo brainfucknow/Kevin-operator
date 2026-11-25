@@ -140,12 +140,38 @@ windows() {
 
 mull() {
   new_project mull cpp_cmake_project
-  run "$KEVIN_CPP" mutate --all
+  cat >> CMakeLists.txt <<'EOF'
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/default.marker" "")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/explicit/explicit.marker" "")
+add_test(NAME sign_default COMMAND sign_test positive default)
+set_tests_properties(sign_default PROPERTIES ENVIRONMENT "KEVIN_CPP_TEST_CONTEXT=default")
+add_test(NAME sign_disabled COMMAND sign_test positive default)
+set_tests_properties(sign_disabled PROPERTIES DISABLED TRUE)
+add_test(NAME sign_expected_failure COMMAND sign_test positive explicit)
+set_tests_properties(sign_expected_failure PROPERTIES
+  WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/explicit"
+  ENVIRONMENT "KEVIN_CPP_TEST_CONTEXT=explicit"
+  WILL_FAIL TRUE)
+EOF
+
+  run "$KEVIN_CPP" test
+  assert_status "CTest passes with its own environment and working directories" "$status" 0
+  run tmp/build/test/sign_test positive default
+  assert_status "direct execution lacks CTest context" "$status" 1
+
+  run "$KEVIN_CPP" mutate --all -- --workers 4 --no-cache
   assert_match "Mull ran and scored the mutants" "$out" "mutation score"
   [ "$status" -le 1 ] && pass "mutate --all ends with a verdict" || fail "mutate --all exited $status"
-  sed -i 's/add_test(NAME sign_positive COMMAND sign_test positive)/&\nadd_test(NAME sign_negative COMMAND sign_test negative)\nadd_test(NAME sign_zero COMMAND sign_test zero)/' CMakeLists.txt
-  git commit -q -am "test every side"
-  run "$KEVIN_CPP" mutate
+  for name in sign_default sign_expected_failure; do
+    if [ -f "tmp/mull/$name.json" ]; then
+      assert_match "$name kills a mutant through CTest" "$(cat "tmp/mull/$name.json")" '"status"[[:space:]]*:[[:space:]]*"Killed"'
+    else
+      fail "$name produced no Mull report"
+    fi
+  done
+  test ! -e tmp/mull/sign_disabled.json && pass "Mull skips the disabled test" || fail "Mull ran the disabled test"
+
+  run "$KEVIN_CPP" mutate -- --workers 4 --no-cache
   assert_match "mutate on an unchanged source scores no mutant" "$out" "no mutants"
 }
 
