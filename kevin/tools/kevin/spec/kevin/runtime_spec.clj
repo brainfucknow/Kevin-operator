@@ -65,23 +65,25 @@
 
 (describe "project-refusal"
   (it "refuses a runtime older than the project's minimum"
-    (should= "this project needs Kevin 0.3.0 or newer; this runtime is 0.2.0"
-             (runtime/project-refusal "# Mine\nMinimum Kevin version: 0.3.0\n" "0.2.0")))
+    (should= (str "this project needs Kevin 0.3.0 or newer; this runtime is 0.2.0 at /opt/old/kevin."
+                  " Run install.sh --user from a Kevin plugin at 0.3.0 or newer.")
+             (runtime/project-refusal "# Mine\nMinimum Kevin version: 0.3.0\n" "0.2.0" "/opt/old/kevin")))
 
   (it "accepts a runtime at or above the minimum"
-    (should-be-nil (runtime/project-refusal "Minimum Kevin version: 0.2.0" "0.2.0"))
-    (should-be-nil (runtime/project-refusal "Minimum Kevin version: 0.9.1" "0.10.0")))
+    (should-be-nil (runtime/project-refusal "Minimum Kevin version: 0.2.0" "0.2.0" "/opt/kevin"))
+    (should-be-nil (runtime/project-refusal "Minimum Kevin version: 0.9.1" "0.10.0" "/opt/kevin")))
 
   (it "sets no minimum without the line or the file"
-    (should-be-nil (runtime/project-refusal "# Mine\n" "0.1.0"))
-    (should-be-nil (runtime/project-refusal nil "0.1.0")))
+    (should-be-nil (runtime/project-refusal "# Mine\n" "0.1.0" "/opt/kevin"))
+    (should-be-nil (runtime/project-refusal nil "0.1.0" "/opt/kevin")))
 
   (it "refuses a minimum that is not three numbers"
     (should= "kevin/project.md: Minimum Kevin version must be <major>.<minor>.<patch>, not 'soon'"
-             (runtime/project-refusal "Minimum Kevin version: soon" "0.2.0"))
+             (runtime/project-refusal "Minimum Kevin version: soon" "0.2.0" "/opt/kevin"))
     (should= "kevin/project.md: Minimum Kevin version must be <major>.<minor>.<patch>, not '1.0'"
-             (runtime/project-refusal "Minimum Kevin version: 1.0" "0.2.0")))
+             (runtime/project-refusal "Minimum Kevin version: 1.0" "0.2.0" "/opt/kevin")))
 
   (it "refuses a runtime with no version when the project sets a minimum"
-    (should= "this project needs Kevin 0.1.0 or newer; this runtime is of unknown version"
-             (runtime/project-refusal "Minimum Kevin version: 0.1.0" nil))))
+    (should= (str "this project needs Kevin 0.1.0 or newer; this runtime is of unknown version at /opt/old/kevin."
+                  " Run install.sh --user from a Kevin plugin at 0.1.0 or newer.")
+             (runtime/project-refusal "Minimum Kevin version: 0.1.0" nil "/opt/old/kevin"))))

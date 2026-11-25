@@ -69,7 +69,10 @@
 
   (it "refuses a command when the project needs a newer runtime"
     (spit (str support/*dir* "/kevin/project.md") "# Mine\nMinimum Kevin version: 0.3.0\n")
-    (should= {:out "" :err "this project needs Kevin 0.3.0 or newer; this runtime is 0.2.0" :status 1}
+    (should= {:out ""
+              :err (str "this project needs Kevin 0.3.0 or newer; this runtime is 0.2.0 at " (installed/home) "."
+                        " Run install.sh --user from a Kevin plugin at 0.3.0 or newer.")
+              :status 1}
              (dissoc (kevin "ls") :result))
     (should= 1 (:status (kevin "commit-msg" "coder" "/no/such/file"))))
 
