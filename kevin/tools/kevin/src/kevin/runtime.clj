@@ -55,10 +55,11 @@
     (str "kevin/project.md: Minimum Kevin version must be <major>.<minor>.<patch>, not '" value "'")))
 
 (defn project-refusal
-  "Why the runtime at version cannot work on a project whose kevin/project.md
-  holds text, or nil when it can."
-  [text version]
+  "Why the runtime at version, installed at home, cannot work on a project whose
+  kevin/project.md holds text, or nil when it can."
+  [text version home]
   (when-let [value (minimum-value text)]
     (or (version-problem value)
         (when (or (nil? version) (older? version value))
-          (str "this project needs Kevin " value " or newer; this runtime is " (or version "of unknown version"))))))
+          (str "this project needs Kevin " value " or newer; this runtime is " (or version "of unknown version")
+               " at " home ". Run install.sh --user from a Kevin plugin at " value " or newer.")))))

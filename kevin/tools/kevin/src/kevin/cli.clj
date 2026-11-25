@@ -83,7 +83,7 @@
   (when-let [root (shell/main-root)]
     (let [file (fs/path root "kevin" "project.md")]
       (when (fs/exists? file)
-        (when-let [refusal (runtime/project-refusal (slurp (str file)) (installed/version))]
+        (when-let [refusal (runtime/project-refusal (slurp (str file)) (installed/version) (installed/home))]
           (shell/die refusal))))))
 
 (defn main [[command & args]]
