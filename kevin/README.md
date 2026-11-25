@@ -25,6 +25,7 @@ this repository.
 | `bin/kevin-rb`, `languages/ruby.md` | Ruby tool wrapper: SimpleCov coverage, CRAP from RuboCop or flog, DRY from jscpd or flay, and optional mutant. |
 | `bin/kevin-java`, `languages/java.md` | Maven Java 17+ / JUnit 5 tests, JaCoCo coverage, pinned Java CRAP, DRY and differential mutation. |
 | `bin/kevin-mojo`, [Mojo guide](languages/mojo.md) | Mojo TestSuite tests, Linux line coverage with kcov, and DRY with jscpd. |
+| `bin/kevin-rust`, [Rust tools](languages/rust.md) | Cargo tests, property tests, coverage, CRAP, DRY, and differential mutation. |
 | `languages/semgrep.md` | Shared scanner setup used by language guides, which define the scan scope and required/optional status. |
 | `tools/core/` | Report readers shared by the language tool wrappers: changed lines, CRAP, jscpd, Stryker. |
 | `handoff-protocol.md` | The task branch, record commits, and lifecycle. |

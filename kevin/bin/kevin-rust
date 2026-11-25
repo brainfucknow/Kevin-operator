@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+command -v bb >/dev/null || { echo "kevin rust: Babashka (bb) is required" >&2; exit 2; }
+here="$(cd "$(dirname "$0")/../tools/rust" && pwd)"
+exec bb -cp "$here/src:$here/../core/src" -m kevinrust.cli "$@"

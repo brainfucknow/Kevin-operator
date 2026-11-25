@@ -11,7 +11,7 @@
 (def tools-dir (str (nth (iterate fs/parent (fs/canonicalize *file*)) 4)))
 
 (def source-roots
-  ["core/src" "javascript/src" "javascript/acceptance/src" "csharp/src" "ruby/src"])
+  ["core/src" "javascript/src" "javascript/acceptance/src" "csharp/src" "ruby/src" "rust/src"])
 
 (defn- ns-form [file]
   (with-open [reader (java.io.PushbackReader. (java.io.FileReader. (str file)))]
@@ -35,7 +35,9 @@
 
 (def adapters
   "The namespaces that may touch processes, files, git, or the console."
-  '#{kevincore.shell kevincore.git kevinjs.cli kevincs.cli kevincs.cobertura kevinfs.cli kevinvb.cli kevinrb.cli})
+  '#{kevincore.shell kevincore.git kevinjs.cli kevincs.cli kevincs.cobertura kevinfs.cli kevinvb.cli kevinrb.cli
+     kevinrust.cli kevinrust.analysis kevinrust.artifacts kevinrust.mutation kevinrust.project
+     kevinrust.snapshot kevinrust.testing kevinrust.tools})
 
 (def dotnet-entrypoints '#{kevinfs.cli kevinvb.cli})
 
@@ -49,7 +51,8 @@
   (cond
     (in? "kevinjs." sym) :javascript
     (dotnet? sym) :dotnet
-    (in? "kevinrb." sym) :ruby))
+    (in? "kevinrb." sym) :ruby
+    (in? "kevinrust." sym) :rust))
 
 (defn- violations [pred]
   (into (sorted-map) (keep (fn [[from deps]] (when-let [bad (seq (filter #(pred from %) deps))] [from (vec (sort bad))])))
@@ -58,6 +61,7 @@
 (deftest the-graph-is-read
   (is (contains? graph 'kevinjs.cli))
   (is (contains? graph 'kevinrb.cli))
+  (is (contains? graph 'kevinrust.libtest))
   (is (contains? (graph 'kevinjs.cli) 'kevincore.git)))
 
 (deftest policy-namespaces-stay-free-of-io
@@ -76,7 +80,7 @@
 
 (deftest command-line-dependencies-are-limited-to-the-dotnet-entrypoint
   (is (= {} (violations (fn [from dep]
-                          (or (and (or (#{'kevinjs.cli 'kevincs.cli 'kevinrb.cli} dep) (dotnet-entrypoints dep))
+                          (or (and (or (#{'kevinjs.cli 'kevincs.cli 'kevinrb.cli 'kevinrust.cli} dep) (dotnet-entrypoints dep))
                                    (not (and (dotnet-entrypoints from) (= 'kevincs.cli dep))))
                               (and (not (in? "kevinjs.acceptance." from)) (in? "kevinjs.acceptance." dep))))))))
 

@@ -1,0 +1,10 @@
+{:paths ["src" "../core/src" "spec" "property"]
+ :deps {speclj/speclj {:mvn/version "3.12.2"}}
+ :tasks
+ {:init (def here (babashka.fs/parent (babashka.fs/absolutize (System/getProperty "babashka.config"))))
+  spec {:doc "Run the Rust wrapper specs"
+        :task (apply (requiring-resolve 'speclj.main/-main)
+                     ["-c" (str (babashka.fs/path here "spec"))])}
+  property {:doc "Run Rust wrapper properties separately"
+            :task (apply (requiring-resolve 'speclj.main/-main)
+                         ["-c" (str (babashka.fs/path here "property"))])}}}
