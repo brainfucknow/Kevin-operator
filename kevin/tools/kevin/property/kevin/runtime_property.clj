@@ -27,7 +27,7 @@
     (should (passes? (prop/for-all [minimum version running version before sentence after sentence]
                        (let [text (str before "\nMinimum Kevin version: " minimum "\n" after)]
                          (= (runtime/older? running minimum)
-                            (some? (runtime/project-refusal text running))))))))
+                            (some? (runtime/project-refusal text running "/opt/kevin"))))))))
 
   (it "reads the minimum back from the line it is written in"
     (should (passes? (prop/for-all [minimum version]

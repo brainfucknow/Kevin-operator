@@ -46,4 +46,4 @@
 
 ## Kevin Runtime
 
-Minimum Kevin version: 0.2.0
+Minimum Kevin version: 0.3.0

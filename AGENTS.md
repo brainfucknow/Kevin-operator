@@ -18,6 +18,7 @@ branches, each task on its own route through the role catalogue. Read
 - All task bookkeeping goes through `kevin`. Never write a
   `Kevin-*` trailer by hand.
 - Roles that need a decision stop and ask in chat. Do not guess.
+- To release Kevin, follow `RELEASING.md`.
 
 ## Prose and tests
 

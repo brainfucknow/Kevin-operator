@@ -1156,10 +1156,10 @@ for gates in none falsifier; do
     "$([ "$gates" = none ] && echo 0 || echo 1)"
 done
 
-versions="$(for manifest in .claude-plugin/plugin.json .codex-plugin/plugin.json .github/plugin/plugin.json; do
+versions="$(for manifest in plugin.json .claude-plugin/plugin.json .codex-plugin/plugin.json .github/plugin/plugin.json; do
   bb -e '(:version (cheshire.core/parse-string (slurp (first *command-line-args*)) true))' "$HERE/$manifest"
 done | sort -u)"
-assert_eq "the three plugin manifests carry one version" "$(wc -l <<<"$versions")" "1"
+assert_eq "the four plugin manifests carry one version" "$(wc -l <<<"$versions")" "1"
 assert_eq "kevin version prints the plugin version" "\"$("$HERE/kevin/bin/kevin" version)\"" "$versions"
 assert_eq "the Copilot plugin names its agents" \
   "$(bb -e '(:agents (cheshire.core/parse-string (slurp (first *command-line-args*)) true))' "$HERE/.github/plugin/plugin.json")" '".github/plugin/agents/"'
