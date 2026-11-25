@@ -2,6 +2,7 @@
   "The catalogue files under kevin/: roles, tiers, routes and tools."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
+            [kevin.agents :as agents]
             [kevin.catalogue :as catalogue]
             [kevin.flow :as flow]
             [kevin.installed :as installed]
@@ -36,6 +37,25 @@
 
 (defn rows [name]
   (shell/conf-rows (conf-file name)))
+
+(defn runtime-rows
+  "The rows of the runtime's kevin/<name>."
+  [name]
+  (shell/conf-rows (fs/path (installed/home) name)))
+
+(defn- runtime-roles
+  "The roles of the runtime's roles.conf."
+  []
+  (set (map first (runtime-rows "roles.conf"))))
+
+(defn prompt-file
+  "The prompt of the role: the runtime's roles/<role>.md when the runtime's
+  roles.conf has the role, else the checkout's kevin/roles/<role>.md. A
+  project file of a runtime role's name is never read."
+  [role]
+  (str (if ((runtime-roles) role)
+         (fs/path (installed/home) "roles" (str role ".md"))
+         (fs/path (project-dir) "roles" (str role ".md")))))
 
 (defn- field
   "Column (1-based) of the first row whose first field is key."
@@ -147,14 +167,21 @@
                      {:seen #{} :problems []}
                      rows)))
 
+(defn- safe-value?
+  "True when a tiers.conf value cannot be read as an option or as shell text."
+  [value]
+  (boolean (re-matches #"[A-Za-z0-9][A-Za-z0-9._:/@\[\]-]*" value)))
+
 (defn- check-tiers []
   (if-not (fs/exists? (conf-file "tiers.conf"))
     ["tiers.conf: missing"]
     (scan (rows "tiers.conf")
-          (fn [[tier :as row] seen]
+          (fn [[tier & values :as row] seen]
             (cond-> []
               (not (<= 4 (count row) 6)) (conj (str "tiers.conf: '" tier "' needs exactly <tier> <claude-model> <codex-effort> <copilot-model> [<kilo-model>] [<vibe-model>]"))
-              (seen tier) (conj (str "tiers.conf: tier '" tier "' listed twice")))))))
+              (seen tier) (conj (str "tiers.conf: tier '" tier "' listed twice"))
+              true (into (for [value values :when (not (safe-value? value))]
+                           (str "tiers.conf: '" tier "' has the unsafe value '" value "'"))))))))
 
 (defn- flag-problems [role runs flags]
   (concat
@@ -173,18 +200,24 @@
         (not= "subagent" runs) (conj (str "roles.conf: '" role "' is a spec-judge and must run as subagent"))
         (some #{"send-back"} flags) (conj (str "roles.conf: '" role "' is a spec-judge and cannot also be send-back"))))))
 
-(defn- runtime-roles
-  "The roles of the runtime's roles.conf."
-  []
-  (set (map first (shell/conf-rows (fs/path (installed/home) "roles.conf")))))
+(defn- added-role-problem
+  "Why the prompt of a role that the project adds is unusable, or nil."
+  [role flags]
+  (let [file (prompt-file role)
+        label (str "kevin/roles/" role ".md")
+        text (when (fs/exists? file) (slurp file))]
+    (cond
+      (some #{"spec-judge"} flags) (str "roles.conf: '" role "' is a spec-judge; only a runtime role can be")
+      (nil? text) (str label ": missing role prompt for '" role "'")
+      (not (and (str/starts-with? text "#") (agents/summary text))) (str label ": needs a title line and a summary line"))))
 
 (defn- prompt-problem
-  "Why the role's prompt is missing from the runtime, or nil. A role that the
-  runtime does not have is refused once, for that."
-  [role known]
-  (cond
-    (not (known role)) (str "roles.conf: '" role "' is not a role of the Kevin runtime")
-    (not (fs/exists? (fs/path (installed/home) "roles" (str role ".md")))) (str "roles/" role ".md: missing role prompt for '" role "'")))
+  "Why the role's prompt is missing or unusable, or nil. known holds the
+  runtime's roles, whose prompts come only from the runtime."
+  [role flags known]
+  (if (known role)
+    (when-not (fs/exists? (prompt-file role)) (str "roles/" role ".md: missing role prompt for '" role "'"))
+    (added-role-problem role flags)))
 
 (defn- check-role [known [role tier runs & flags :as row] seen]
   (if-not (<= 3 (count row) 6)
@@ -195,7 +228,7 @@
       (seen role) (conj (str "roles.conf: role '" role "' listed twice"))
       (not (tier-field tier 2)) (conj (str "roles.conf: '" role "' uses unknown tier '" tier "' (see tiers.conf)"))
       (not (#{"subagent" "session"} runs)) (conj (str "roles.conf: '" role "' runs-as must be subagent or session, not '" runs "'"))
-      true (into (some-> (prompt-problem role known) vector)))))
+      true (into (some-> (prompt-problem role flags known) vector)))))
 
 (defn- second-spec-judges []
   (for [role (rest (map first (filter spec-judge-row? (rows "roles.conf"))))]

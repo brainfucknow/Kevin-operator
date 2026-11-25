@@ -1,6 +1,6 @@
 ---
 name: specifier
-description: Kevin specifier role. Defines proportional acceptance criteria and independent QA, then stops for approval. Use for a task whose stage is specifier.
+description: "Kevin specifier role. Defines proportional acceptance criteria and independent QA, then stops for approval. Use for a task whose stage is specifier."
 model: inherit
 ---
 

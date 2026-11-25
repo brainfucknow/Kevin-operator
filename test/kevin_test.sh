@@ -472,10 +472,10 @@ assert_match "frontier agent inherits the session model" "$(cat agents/coder.md)
 assert_eq "copilot agent uses the tier model" \
   "$(sed -n 's/^model: //p' .github/plugin/agents/cleaner.agent.md)" "$(awk '$1 == "fast" {print $4}' kevin/tiers.conf)"
 outside="$(mktemp -d "$scratch/outside.XXXX")"
-(cd "$outside" && git init -q . && ! kevin adapters 2>"$outside.err") \
-  && assert_eq "adapters refuse outside the Kevin source checkout" "$(cat "$outside.err")" "kevin: kevin adapters runs only in the Kevin source checkout" \
-  || fail "adapters ran outside the Kevin source checkout"
-assert_eq "adapters write nothing outside the Kevin source checkout" "$(ls -A "$outside")" ".git"
+(cd "$outside" && git init -q . && kevin adapters >/dev/null) \
+  && pass "adapters run outside the Kevin source checkout" \
+  || fail "adapters refused outside the Kevin source checkout"
+assert_eq "adapters write no agent in a project that changes nothing" "$(ls -A "$outside")" ".git"
 
 # committed plugin agents are current
 work="$(mktemp -d "$scratch/adapters.XXXX")"

@@ -5,15 +5,11 @@ Feature: kevin reads project configuration and runtime text apart
   the main checkout's kevin/<file> when the project has it, else the
   runtime's kevin/<file>. kevin/verify.conf comes only from the project;
   without one, kevin finish runs no checks, and the runtime's verify.conf
-  is never run. Role prompts, the constitution and its articles other than
-  the project article, the language guides and the tool sources come only
-  from the runtime; a project's kevin/roles/ is never read. The project
-  article is the project's kevin/project.md.
-
-  A project roles.conf may narrow the roles but not add one: kevin check
-  (and every command that runs it) refuses a role the runtime's roles.conf
-  lacks with the line "CHECK: roles.conf: '<role>' is not a role of the
-  Kevin runtime".
+  is never run. The constitution and its articles other than the project
+  article, the language guides, the tool sources and the prompts of the
+  runtime's roles come only from the runtime. The project article is the
+  project's kevin/project.md. A project adds a role with its own prompt
+  (see project_roles.feature).
 
   kevin home prints the absolute path of the runtime's kevin/ directory,
   in the main checkout, in a task worktree, and outside any git
@@ -47,14 +43,6 @@ Feature: kevin reads project configuration and runtime text apart
     When I run "kevin finish $A"
     Then the exit status is 0
     And the branch "work" has the commit of task "A"
-
-  # kevin reads project configuration and runtime text apart 3
-  Scenario: kevin reads project configuration and runtime text apart 3: a project role prompt is not read
-    Given the file "kevin/roles.conf" in the repository holds the runtime's roles.conf with the row "designer strong subagent"
-    And the file "kevin/roles/designer.md" in the repository holds "# designer"
-    When I run "kevin check"
-    Then the exit status is 1
-    And the error output has the line "CHECK: roles.conf: 'designer' is not a role of the Kevin runtime"
 
   # kevin reads project configuration and runtime text apart 4
   Scenario Outline: kevin reads project configuration and runtime text apart 4: kevin home names the runtime

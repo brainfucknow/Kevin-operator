@@ -4,6 +4,7 @@
   and a separate scratch project repository."
   (:require [acceptance.support :as support :refer [check unescape]]
             [babashka.fs :as fs]
+            [clj-yaml.core :as yaml]
             [clojure.string :as str]))
 
 (defn new-world [] {:ids {}})
@@ -113,14 +114,14 @@
   "Writes the agents that the removed install.sh generated with the base-commit
   templates, for the roles of the project's committed roles.conf. Run by bb
   with the runtime's kevin source on the classpath."
-  "(require '[kevin.adapters :as a] '[kevin.config :as c] '[kevin.installed :as r] '[babashka.fs :as fs])
+  "(require '[kevin.adapters :as a] '[kevin.agents :as g] '[kevin.config :as c] '[kevin.installed :as r] '[babashka.fs :as fs])
    (let [root (first *command-line-args*)]
      (with-redefs [r/home (constantly (str root \"/kevin\"))]
        (binding [c/*root* root]
-         (doseq [[role tier] (c/rows \"roles.conf\")
-                 [path text] (a/agent-files role tier (a/kind-of role)
+         (doseq [[role tier :as row] (c/rows \"roles.conf\")
+                 [path text] (a/agent-files role tier (g/kind row)
                                             {:templates \"legacy/\"
-                                             :summary (a/summary (slurp (str root \"/kevin/roles/\" role \".md\")))})]
+                                             :summary (g/summary (slurp (str root \"/kevin/roles/\" role \".md\")))})]
            (fs/create-dirs (fs/parent (fs/path root path)))
            (spit (str (fs/path root path)) text)))))")
 
@@ -165,6 +166,48 @@
                                       (must world (:repo world) "kevin" "start" id)
                                       (str (fs/path (:repo world) ".worktrees" id)))
     "outside any git repository" (scratch-dir "outside")))
+
+(def ^:private agent-dirs [".claude/agents" ".github/agents" ".codex/agents"])
+
+(defn- project-agents
+  "The files under the project agent directories of the main checkout that
+  hold the kevin-generated line."
+  [world]
+  (sort (for [dir agent-dirs
+              :let [path (fs/path (:repo world) dir)]
+              :when (fs/directory? path)
+              file (fs/list-dir path)
+              :when (str/includes? (slurp (str file)) "kevin-generated:")]
+          (str dir "/" (fs/file-name file)))))
+
+(defn- status-paths
+  "The paths that git status in the repository lists, each untracked file on its own."
+  [world]
+  (map #(subs % 3) (lines (git world "status" "--porcelain" "--untracked-files=all"))))
+
+(defn- recorder!
+  "A claude in the world's bin directory that writes its arguments, each
+  ended by a NUL, to a file, and exits 0."
+  [world]
+  (let [record (str (fs/path (:bin world) "claude.args"))
+        script (fs/path (:bin world) "claude")]
+    (spit (str script) (str "#!/bin/sh\nfor a in \"$@\"; do printf '%s\\0' \"$a\"; done > '" record "'\n"))
+    (fs/set-posix-file-permissions script "rwxr-xr-x")
+    (assoc world :recorded record)))
+
+(defn- recorded-prompt [world]
+  (last (str/split (slurp (:recorded world)) #"\u0000")))
+
+(defn- agent-description
+  "The description of the project agent: YAML front matter of a Markdown
+  agent, or a TOML agent read by Python's tomllib."
+  [world path]
+  (let [file (str (fs/path (:repo world) path))]
+    (if (str/ends-with? path ".toml")
+      (must world (:repo world) "python3" "-I" "-c"
+            "import sys, tomllib; print(tomllib.load(open(sys.argv[1], 'rb'))['description'])" file)
+      (let [[_ front] (re-find #"(?s)\A---\n(.*?)\n---\n" (slurp file))]
+        (:description (yaml/parse-string front))))))
 
 (defn- has-line? [text line] (some #{line} (lines text)))
 
@@ -263,6 +306,28 @@
    [#"MISTRAL_API_KEY is not set"
     (fn [world] (assoc world :unset ["MISTRAL_API_KEY"]))]
 
+   [#"the project roles.conf holds the runtime's with the row of \"([^\"]+)\" as \"(.*)\""
+    (fn [world role row]
+      (let [runtime (slurp (str (fs/path (:runtime world) "kevin" "roles.conf")))
+            text (str/join "\n" (for [line (lines runtime)]
+                                  (if (= role (first (str/split (str/trim line) #"\s+"))) row line)))]
+        (write! (:repo world) "kevin/roles.conf" (str text "\n"))
+        world))]
+
+   [#"the file \"([^\"]+)\" in the repository is deleted"
+    (fn [world path]
+      (fs/delete (fs/path (:repo world) path))
+      world)]
+
+   [#"the runtime moves to version \"([^\"]+)\""
+    (fn [world version]
+      (let [manifest (str (fs/path (:runtime world) ".claude-plugin" "plugin.json"))]
+        (spit manifest (str/replace (slurp manifest) #"\"version\": \"[^\"]*\"" (str "\"version\": \"" version "\"")))
+        world))]
+
+   [#"a claude on PATH that records its arguments"
+    (fn [world] (recorder! world))]
+
    ;; When
    [#"I run \"(kevin [^\"]+)\"(?: (\d+) times)?"
     (fn [world command times]
@@ -320,6 +385,14 @@
     (fn [world]
       (check (= (str (fs/canonicalize (fs/path (:runtime world) "kevin"))) (str/trim (:out world)))
              (str "output was " (pr-str (:out world))))
+      world)]
+
+   [#"the output is \"(.*)\" and the absolute path of \"([^\"]+)\" in the (repository|runtime)"
+    (fn [world text path place]
+      (let [squeeze #(str/replace (str/trim %) #"\s+" " ")
+            file (fs/path (if (= "runtime" place) (:runtime world) (:repo world)) path)]
+        (check (some #(= (squeeze (str text %)) (squeeze (:out world))) [file (fs/canonicalize file)])
+               (str "output was " (pr-str (:out world)))))
       world)]
 
    [#"the output is \"(.*)\""
@@ -420,6 +493,43 @@
     (fn [world text]
       (let [found (filter (index-paths world) (quoted text))]
         (check (empty? found) (str "index holds " (pr-str found)))
+        world))]
+
+   [#"the project agents are \"([^\"]+)\""
+    (fn [world text]
+      (let [expected (if (= "none" text) [] (sort (str/split text #",\s*")))]
+        (check (= expected (project-agents world)) (str "project agents " (pr-str (project-agents world))))
+        world))]
+
+   [#"git status in the repository shows no project agent"
+    (fn [world]
+      (let [shown (filter (fn [path] (some #(str/starts-with? path (str % "/")) agent-dirs)) (status-paths world))]
+        (check (empty? shown) (str "git status shows " (pr-str shown)))
+        world))]
+
+   [#"git status in the repository shows the path \"([^\"]+)\""
+    (fn [world path]
+      (check (some #{path} (status-paths world)) (str "git status shows " (pr-str (status-paths world))))
+      world)]
+
+   [#"the file \"([^\"]+)\" in the repository has one line that holds \"(.*)\""
+    (fn [world path text]
+      (let [n (count (filter #(str/includes? % text) (lines (read-file world path))))]
+        (check (= 1 n) (str path " has " n " lines that hold " text))
+        world))]
+
+   [#"the recorded prompt names the absolute path of \"([^\"]+)\" in the (repository|runtime)"
+    (fn [world path place]
+      (let [file (fs/path (if (= "runtime" place) (:runtime world) (:repo world)) path)
+            prompt (recorded-prompt world)]
+        (check (some #(str/includes? prompt (str %)) [file (fs/canonicalize file)])
+               (str "the prompt was " (pr-str prompt)))
+        world))]
+
+   [#"the \"description\" of the project agent \"([^\"]+)\" contains \"(.*)\""
+    (fn [world path text]
+      (let [description (agent-description world path)]
+        (check (str/includes? (str description) text) (str "the description was " (pr-str description)))
         world))]
 
    [#"the repository has no path \"([^\"]+)\""

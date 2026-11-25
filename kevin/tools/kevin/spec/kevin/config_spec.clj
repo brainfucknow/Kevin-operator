@@ -84,21 +84,57 @@
                (spit (str (fs/path project "swarmforge" "routes.conf")) "x")
                (should= (str (fs/path runtime "routes.conf")) (config/conf-file "routes.conf"))))))
 
+(defn- added-role!
+  "A runtime with coder, and a project roles.conf that adds row with the
+  project prompt text for designer (none when text is nil)."
+  [project runtime row text]
+  (spit (str (fs/path runtime "tiers.conf")) "strong opus high gpt\n")
+  (spit (str (fs/path runtime "roles.conf")) "coder strong subagent\n")
+  (spit (str (fs/path runtime "routes.conf")) "feature coder\n")
+  (fs/create-dirs (fs/path runtime "roles"))
+  (spit (str (fs/path runtime "roles" "coder.md")) "# coder\n\nCodes.\n")
+  (spit (str (fs/path project "kevin" "roles.conf")) (str "coder strong subagent\n" row "\n"))
+  (fs/create-dirs (fs/path project "kevin" "roles"))
+  (when text (spit (str (fs/path project "kevin" "roles" "designer.md")) text)))
+
+(defn- check-lines []
+  (let [[status _ errors] (check)]
+    [status (filter #(str/starts-with? % "CHECK:") errors)]))
+
 (describe "check against the runtime"
-  (it "refuses a project role that the runtime's roles.conf lacks, and only once"
+  (it "accepts a role that the project adds with its own prompt"
     (in-dirs (fn [project runtime]
-               (spit (str (fs/path runtime "tiers.conf")) "strong opus high gpt\n")
-               (spit (str (fs/path runtime "roles.conf")) "coder strong subagent\n")
-               (spit (str (fs/path runtime "routes.conf")) "feature coder\n")
-               (fs/create-dirs (fs/path runtime "roles"))
-               (spit (str (fs/path runtime "roles" "coder.md")) "# coder")
-               (spit (str (fs/path project "kevin" "roles.conf")) "coder strong subagent\ndesigner strong subagent\n")
-               (fs/create-dirs (fs/path project "kevin" "roles"))
-               (spit (str (fs/path project "kevin" "roles" "designer.md")) "# designer")
-               (let [[status _ errors] (check)]
-                 (should= 1 status)
-                 (should= ["CHECK: roles.conf: 'designer' is not a role of the Kevin runtime"]
-                          (filter #(str/starts-with? % "CHECK:") errors))))))
+               (added-role! project runtime "designer strong subagent" "# designer\n\nDraws.\n")
+               (should= [0 []] (check-lines)))))
+
+  (it "refuses an added role without a prompt, without a summary line, or flagged spec-judge"
+    (in-dirs (fn [project runtime]
+               (added-role! project runtime "designer strong subagent" nil)
+               (should= [1 ["CHECK: kevin/roles/designer.md: missing role prompt for 'designer'"]] (check-lines))
+               (added-role! project runtime "designer strong subagent" "# designer\n")
+               (should= [1 ["CHECK: kevin/roles/designer.md: needs a title line and a summary line"]] (check-lines))
+               (added-role! project runtime "designer strong subagent" "Draws.\n\nMore.\n")
+               (should= [1 ["CHECK: kevin/roles/designer.md: needs a title line and a summary line"]] (check-lines))
+               (added-role! project runtime "designer strong subagent spec-judge" "# designer\n\nJudges.\n")
+               (should= [1 ["CHECK: roles.conf: 'designer' is a spec-judge; only a runtime role can be"]] (check-lines)))))
+
+  (it "names the prompt of a runtime role in the runtime and of an added role in the checkout"
+    (in-dirs (fn [project runtime]
+               (added-role! project runtime "designer strong subagent" "# designer\n\nDraws.\n")
+               (spit (str (fs/path project "kevin" "roles" "coder.md")) "# coder\n\nMine.\n")
+               (should= (str (fs/path runtime "roles" "coder.md")) (config/prompt-file "coder"))
+               (should= (str (fs/path project "kevin" "roles" "designer.md")) (config/prompt-file "designer"))
+               (binding [config/*root* "/elsewhere"]
+                 (should= "/elsewhere/kevin/roles/designer.md" (config/prompt-file "designer"))))))
+
+  (it "refuses a tiers.conf value that could be read as an option or shell text"
+    (in-dirs (fn [project runtime]
+               (added-role! project runtime "designer strong subagent" "# designer\n\nDraws.\n")
+               (doseq [[value ok?] [["--x" false] ["gpt;b" false] ["$(id)" false] ["a b" true]
+                                    ["opus[1m]" true] ["provider/gpt-b@1:0" true] ["claude-haiku-5.5_x" true]]]
+                 (spit (str (fs/path project "kevin" "tiers.conf")) (str "strong opus high " value "\n"))
+                 (should= [value (if ok? [0 []] [1 [(str "CHECK: tiers.conf: 'strong' has the unsafe value '" value "'")]])]
+                          [value (check-lines)])))))
 
   (it "reads role prompts from the runtime, not the project"
     (in-dirs (fn [project runtime]
