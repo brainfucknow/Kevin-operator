@@ -83,6 +83,12 @@
     (should-contain "Read `<home>/roles/spec-judge.md`" (read "agents/spec-judge.md"))
     (should-not-contain "tools:" (read "agents/coder.md")))
 
+  (it "counts Unicode code points, not UTF-16 code units, for the description length"
+    (should= 1 (adapters/code-point-count "😀"))
+    (should= 1 (adapters/code-point-count "a"))
+    (should= 3 (adapters/code-point-count "a😀b"))
+    (should= 2 (adapters/code-point-count "👨👩")))
+
   (it "keeps every Vibe agent description of the runtime's roles within 300 code points"
     (source-checkout!)
     (doseq [name ["roles.conf" "tiers.conf" "routes.conf"]]
