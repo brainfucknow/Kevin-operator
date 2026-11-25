@@ -171,17 +171,39 @@
                :merged-into target}
               state))
 
+(def ^:private protected-names #{"main" "master" "develop" "release"})
+
+(defn protected-branch?
+  "True when kevin finish must not commit on branch: it is main, master,
+  develop or release, or the repository's default branch."
+  [branch default-branch]
+  (or (contains? protected-names branch) (= default-branch branch)))
+
+(defn protected-refusal
+  "Why kevin finish does not merge the task into the protected branch, and
+  how the work reaches it instead."
+  [id branch]
+  (let [task-branch (record/branch id)]
+    (str "refusing to merge " task-branch " into " branch ": " branch " is a protected branch; push " task-branch
+         ", open a pull request into " branch ", merge it with a merge commit, pull " branch
+         ", then run: kevin finish " id)))
+
 (defn finish-action
   "What kevin finish does with a done task, from whether HEAD's history has its
-  finished record (recorded?), its branch tip (nil when it has no branch) and
-  whether HEAD contains the tip (tip-merged?): :merge the branch when HEAD has
-  neither, :record the finished merge on top of HEAD when HEAD contains the
-  tip without the record, :keep HEAD when it has both, :unmerged when the
-  branch moved after the recorded merge, else nil: the task is finished. No
-  action rewrites a commit HEAD already has."
-  [recorded? tip tip-merged?]
+  finished record (recorded?), its branch tip (nil when it has no branch),
+  whether HEAD contains the tip (tip-merged?) and whether the branch the
+  action lands on is protected (protected?): :keep HEAD when it has the record
+  and the tip; on a protected branch, :clean up when HEAD contains the tip and
+  refuse with :protected when it does not; else :unmerged when the branch
+  moved after the recorded merge, :record the finished merge on top of HEAD
+  when HEAD contains the tip, :merge the branch when HEAD has neither; nil when
+  the task is finished. No action rewrites a commit HEAD already has, and none
+  writes a commit on a protected branch."
+  [recorded? tip tip-merged? protected?]
   (cond (nil? tip) nil
-        recorded? (if tip-merged? :keep :unmerged)
+        (and recorded? tip-merged?) :keep
+        protected? (if tip-merged? :clean :protected)
+        recorded? :unmerged
         tip-merged? :record
         :else :merge))
 

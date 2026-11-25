@@ -1,6 +1,6 @@
 ---
 name: cleaner
-description: Kevin cleaner role. Reviews behavior-preserving cleanup and applicable source-quality gates after the coder. Use for a task whose stage is cleaner.
+description: "Kevin cleaner role. Reviews behavior-preserving cleanup and applicable source-quality gates after the coder. Use for a task whose stage is cleaner."
 model: sonnet
 ---
 

@@ -47,11 +47,12 @@ Feature: kevin task done
     And role "coder" committed the file "src/a.clj" with "Code" in the worktree of task "A" as C1
     And I ran "kevin handoff $A"
     And the tip of the branch of task "A" is named T1
+    And I ran "git checkout -q -b work"
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the output is "VERIFY: none configured\nFINISHED: $A merged into main"
+    And the output is "VERIFY: none configured\nFINISHED: $A merged into work"
     And the HEAD of the main checkout is a merge whose second parent is T1
-    And the HEAD of the main checkout has the message "kevin finished: $A\n\nKevin-Task: $A\nKevin-Record: finished\nKevin-From: operator\nKevin-Stage: done\nKevin-Route: coder\nKevin-Needs: none\nKevin-Merged-Into: main"
+    And the HEAD of the main checkout has the message "kevin finished: $A\n\nKevin-Task: $A\nKevin-Record: finished\nKevin-From: operator\nKevin-Stage: done\nKevin-Route: coder\nKevin-Needs: none\nKevin-Merged-Into: work"
     And the main checkout has the file "src/a.clj" and no file "tasks/$A.md"
     And the main checkout has no file "tasks/done/$A.md" and no uncommitted change
     And the branch "swarm/$A" does not exist

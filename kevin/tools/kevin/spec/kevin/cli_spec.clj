@@ -56,7 +56,7 @@
     (should= (installed/home) (:out (kevin "home"))))
 
   (it "lists the runtime commands in the usage"
-    (doseq [entry ["  version " "  home " "  init [--convert] " "  cs|fs|vb|js|rb|java|mistral "]]
+    (doseq [entry ["  version " "  home " "  init [--convert] " "  cs|fs|vb|js|rb|java|mojo|rust|mistral "]]
       (should-contain entry (:out (kevin "help")))))
 
   (it "runs kevin init, or kevin init --convert, and refuses other arguments"
@@ -92,7 +92,7 @@
     (let [bin (fs/path (installed/home) "bin")
           out (str (fs/path support/*dir* "args"))]
       (fs/create-dirs bin)
-      (doseq [name ["cs" "fs" "vb" "js" "rb" "java" "mistral"]
+      (doseq [name ["cs" "fs" "vb" "js" "rb" "java" "rust" "mistral"]
               :let [script (fs/path bin (str "kevin-" name))]]
         (spit (str script) (str "#!/usr/bin/env bash\necho \"" name " $*\" > '" out "'\nexit 3\n"))
         (fs/set-posix-file-permissions script "rwxr-xr-x")

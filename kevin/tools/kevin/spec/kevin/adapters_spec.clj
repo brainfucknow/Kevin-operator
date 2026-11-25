@@ -4,25 +4,13 @@
             [clojure.string :as str]
             [speclj.core :refer :all]
             [kevin.adapters :as adapters]
+            [kevin.agents :as agents]
             [kevin.config :as config]
             [kevin.installed :as installed]
-            [kevin.repo-support :refer [*dir* with-repo write-conf! captured]]
+            [kevin.repo-support :refer [*dir* with-repo write-conf! captured write! files]]
             [kevin.shell :as shell]))
 
-(defn- write! [path text]
-  (let [file (fs/path *dir* path)]
-    (fs/create-dirs (fs/parent file))
-    (spit (str file) text)))
-
 (defn- read [path] (slurp (str (fs/path *dir* path))))
-
-(defn- source-checkout! []
-  (write! ".claude-plugin/plugin.json" "{\"name\": \"kevin\", \"version\": \"0.2.0\"}\n"))
-
-(defn- snapshot []
-  (into {} (for [file (fs/glob *dir* "**" {:hidden true})
-                 :when (and (fs/regular-file? file) (not (str/includes? (str file) "/.git/")))]
-             [(str file) (slurp (str file))])))
 
 (def ^:private runtime-home
   "The kevin/ directory of this checkout, whose roles the length check covers."
@@ -34,6 +22,9 @@
   [text]
   (json/parse-string (str "\"" (second (re-find #"(?m)^description = \"(.*)\"$" text)) "\"")))
 
+(defn- source-checkout! []
+  (write! ".claude-plugin/plugin.json" "{\"name\": \"kevin\", \"version\": \"0.2.0\"}\n"))
+
 (defn- write-gate! []
   (write-conf! *dir* "roles.conf" "specifier frontier subagent\nfalsifier strong subagent gate\nspec-judge strong subagent spec-judge\ncoder strong subagent\ncleaner fast session\n")
   (write! "kevin/roles/falsifier.md" "# falsifier\n\nAudits a specification.\n")
@@ -42,13 +33,10 @@
 (describe "kevin adapters"
   (around [it] (with-repo it))
 
-  (it "refuses outside the Kevin source checkout and writes nothing"
-    (let [before (snapshot)]
-      (should= {:status 1 :err "kevin adapters runs only in the Kevin source checkout"}
-               (select-keys (captured #(adapters/adapters [])) [:status :err]))
-      (write! ".claude-plugin/plugin.json" "{\"name\": \"other\"}")
-      (should= 1 (:status (captured #(adapters/adapters []))))
-      (should= (assoc before (str (fs/path *dir* ".claude-plugin/plugin.json")) "{\"name\": \"other\"}") (snapshot))))
+  (it "writes no plugin agents and no project agents outside the Kevin source checkout when nothing differs"
+    (let [before (files)]
+      (should= 0 (:status (captured #(adapters/adapters []))))
+      (should= before (files))))
 
   (it "writes the Claude Code and Copilot plugin agents of each subagent role"
     (source-checkout!)
@@ -62,7 +50,10 @@
       (should-contain "\nname: coder\n" coder)
       (should-contain "\nmodel: opus\n" coder)
       (should-contain "Does coder work." coder)
-      (should-contain (str/replace (shell/template "adapter.md") "{{role}}" "coder") coder))
+      (should-contain "\ndescription: \"Kevin coder role. Does coder work. Use for a task whose stage is coder.\"\n" coder)
+      (should-contain "Read `<home>/roles/coder.md`." coder)
+      (should-not-contain "{{" coder)
+      (should-not-contain "kevin-generated" coder))
     (should-contain "\nmodel: gpt-5\n" (read ".github/plugin/agents/coder.agent.md")))
 
   (it "writes the Vibe plugin agents with the plugin schema version and deletes them with the role"
@@ -73,7 +64,10 @@
     (let [coder (read "ai.mistral.vibe/agents/coder.toml")]
       (should (str/starts-with? coder "schema_version = 1\n"))
       (should-contain "agent_type = \"subagent\"" coder)
-      (should-contain (str/replace (shell/template "adapter.md") "{{role}}" "coder") coder))
+      (should-contain (-> (shell/template "adapter.md")
+                          (str/replace "{{role}}" "coder")
+                          (str/replace "{{prompt}}" "<home>/roles/coder.md"))
+                      coder))
     (write-conf! *dir* "roles.conf" "specifier frontier session\ncoder fast subagent\ncleaner fast subagent\n")
     (should= 0 (:status (captured #(adapters/adapters []))))
     (should-not (fs/exists? (fs/path *dir* "ai.mistral.vibe/agents/specifier.toml")))
@@ -83,13 +77,13 @@
     (source-checkout!)
     (write-gate!)
     (should= 0 (:status (captured #(adapters/adapters []))))
-    (should-contain (str/replace (shell/template "gate-adapter.md") "{{role}}" "falsifier") (read "agents/falsifier.md"))
+    (should-contain "Read `<home>/roles/falsifier.md`" (read "agents/falsifier.md"))
     (should-contain "\ntools: Read, Grep, Glob, Bash\n" (read "agents/falsifier.md"))
     (should-contain "\ntools: [\"read\", \"search\", \"shell\"]\n" (read ".github/plugin/agents/spec-judge.agent.md"))
-    (should-contain (str/replace (shell/template "spec-judge-adapter.md") "{{role}}" "spec-judge") (read "agents/spec-judge.md"))
+    (should-contain "Read `<home>/roles/spec-judge.md`" (read "agents/spec-judge.md"))
     (should-not-contain "tools:" (read "agents/coder.md")))
 
-  (it "keeps every Vibe agent description of the runtime's roles within 300 characters"
+  (it "keeps every Vibe agent description of the runtime's roles within 300 code points"
     (source-checkout!)
     (doseq [name ["roles.conf" "tiers.conf" "routes.conf"]]
       (write-conf! *dir* name (slurp (str (fs/path runtime-home name)))))
@@ -97,22 +91,22 @@
       (write! (str "kevin/roles/" role ".md") (slurp (str (fs/path runtime-home "roles" (str role ".md"))))))
     (should= 0 (:status (captured #(adapters/adapters []))))
     (doseq [file (fs/glob (fs/path *dir* "ai.mistral.vibe/agents") "*.toml")]
-      (should (<= (count (vibe-description (slurp (str file)))) 300))))
+      (should (<= (adapters/code-point-count (vibe-description (slurp (str file)))) 300))))
 
-  (it "refuses a description over 300 characters, names the role and length, and writes nothing"
+  (it "refuses a description over 300 code points, names the role and length, and writes nothing"
     (source-checkout!)
     (captured #(adapters/adapters []))
     (write-gate!)
-    (let [before (snapshot)
+    (let [before (files)
           summary (apply str (repeat 290 "x"))]
       (write! "kevin/roles/falsifier.md" (str "# falsifier\n\n" summary "\n"))
       (let [{:keys [status err]} (captured #(adapters/adapters []))
-            length (count (adapters/description "falsifier" :gate summary))]
+            length (adapters/code-point-count (agents/description "falsifier" :gate summary))]
         (should= 1 status)
         (should-contain "falsifier" err)
         (should-contain (str length) err))
       (should= (dissoc before (str (fs/path *dir* "kevin/roles/falsifier.md")))
-               (dissoc (snapshot) (str (fs/path *dir* "kevin/roles/falsifier.md"))))))
+               (dissoc (files) (str (fs/path *dir* "kevin/roles/falsifier.md"))))))
 
   (it "deletes the agents of a role that is no longer a subagent, and is idempotent"
     (source-checkout!)
@@ -122,9 +116,9 @@
     (should-not (fs/exists? (fs/path *dir* "agents/specifier.md")))
     (should-not (fs/exists? (fs/path *dir* ".github/plugin/agents/specifier.agent.md")))
     (should-contain "\nmodel: sonnet\n" (read "agents/coder.md"))
-    (let [before (snapshot)]
+    (let [before (files)]
       (captured #(adapters/adapters []))
-      (should= before (snapshot))))
+      (should= before (files))))
 
   (it "names no project path of the runtime in any template"
     (doseq [template ["adapter.md" "gate-adapter.md" "spec-judge-adapter.md"]

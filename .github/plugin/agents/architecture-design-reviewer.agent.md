@@ -1,6 +1,6 @@
 ---
 name: architecture-design-reviewer
-description: Kevin architecture-design-reviewer role. Reviews design before implementation for migrations, public API changes and major dependency changes. Use for a task whose stage is architecture-design-reviewer.
+description: "Kevin architecture-design-reviewer role. Reviews design before implementation for migrations, public API changes and major dependency changes. Use for a task whose stage is architecture-design-reviewer."
 model: gpt-6.1-sol
 tools: ["*"]
 include-custom-instructions: true

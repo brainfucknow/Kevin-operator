@@ -1,5 +1,6 @@
 (ns kevin.store-spec
-  (:require [speclj.core :refer [around describe it should should-not should= should-throw should-be-nil]]
+  (:require [clojure.string :as str]
+            [speclj.core :refer [around describe it should should-not should= should-throw should-be-nil]]
             [kevin.flow :as flow]
             [kevin.record :as record]
             [kevin.repo-support :as repo :refer [*dir* with-repo]]
@@ -18,17 +19,17 @@
       (should-be-nil (store/recording-backend)))))
 
 (describe "resolve-id discovery cost"
-  (it "resolves exact live and finished ids without scanning unclosed history"
+  (it "resolves exact live and finished ids without scanning branchless history"
     (with-redefs [store/branch-ids (constantly ["live-1234567"])
-                  store/finished-ids (constantly ["closed-7654321"])
-                  store/unclosed-tasks #(throw (ex-info "unnecessary history scan" {}))]
+                  store/merged-ids (constantly ["closed-7654321"])
+                  store/closures #(throw (ex-info "unnecessary history scan" {}))]
       (should= "live-1234567" (store/resolve-id "live-1234567"))
       (should= "closed-7654321" (store/resolve-id "closed-7654321"))))
 
-  (it "includes unclosed histories when resolving an ambiguous prefix"
+  (it "includes branchless histories when resolving an ambiguous prefix"
     (with-redefs [store/branch-ids (constantly ["same-1234567"])
-                  store/finished-ids (constantly [])
-                  store/unclosed-tasks (constantly [{:task "same-7654321"}])]
+                  store/merged-ids (constantly [])
+                  store/closures (constantly [{:task "same-7654321"}])]
       (should-throw clojure.lang.ExceptionInfo
                     "task id 'same' is ambiguous: same-1234567 same-7654321"
                     (store/resolve-id "same")))))
@@ -118,6 +119,75 @@
               (str "Merge\n\nKevin-Record: finished\nKevin-Task: t-1\n\nnot trailers: the end")
               "swarm/t-1")
     (should= [] (store/finished-ids))))
+
+(defn- hand-off! [id stage]
+  (store/write! id (fn [_] {:record "handoff" :from "coder" :stage stage :route "coder" :needs "none"})))
+
+(defn- host-merge! [id]
+  (repo/git *dir* "merge" "-q" "--no-ff" "-m" (str "Merge " id) (str "swarm/" id))
+  (repo/git *dir* "branch" "-q" "-D" (str "swarm/" id)))
+
+(describe "tasks a host merged without a finished record"
+  (around [it] (with-repo it))
+
+  (it "are finished when the newest record HEAD reaches is at done"
+    (create! "t-1")
+    (hand-off! "t-1" "done")
+    (host-merge! "t-1")
+    (should (store/finished? "t-1"))
+    (should-be-nil (store/finished-record "t-1"))
+    (should= ["t-1"] (store/finished-ids))
+    (should= [] (store/unclosed-tasks))
+    (should= "done" (:stage (store/state "t-1"))))
+
+  (it "stay unclosed when that record is at another stage"
+    (create! "t-1")
+    (hand-off! "t-1" "qa")
+    (host-merge! "t-1")
+    (should-not (store/finished? "t-1"))
+    (should= [] (store/finished-ids))
+    (should= ["t-1"] (map :task (store/unclosed-tasks))))
+
+  (it "are not finished while the task has a branch"
+    (create! "t-1")
+    (hand-off! "t-1" "done")
+    (repo/git *dir* "merge" "-q" "--no-ff" "-m" "Merge" "swarm/t-1")
+    (should-not (store/finished? "t-1"))
+    (should= ["t-1"] (store/open-ids)))
+
+  (it "are ordered among finished merges by the time of the closing record"
+    (create! "t-1")
+    (create! "t-2")
+    (hand-off! "t-2" "done")
+    (host-merge! "t-2")
+    (shell/must {:dir *dir* :env {"GIT_AUTHOR_DATE" "2090-01-01T00:00:00Z"}}
+                "git" "-c" "user.name=t" "-c" "user.email=t@x"
+                "merge" "-q" "--no-ff" "-m" (finished-message "t-1" "main") "swarm/t-1")
+    (should= ["t-2" "t-1"] (map :task (store/finished-tasks)))
+    (should= ["t-2" "t-1^2"]
+             (map #(str/replace (:rev %) (:sha %) (:task %)) (store/finished-tasks)))))
+
+(describe "default-branch"
+  (around [it] (with-repo it))
+
+  (it "is master without a remote or init.defaultBranch"
+    (repo/git *dir* "config" "init.defaultBranch" "")
+    (should= "master" (store/default-branch)))
+
+  (it "is a non-blank init.defaultBranch when no remote names a HEAD"
+    (repo/git *dir* "config" "init.defaultBranch" "trunk")
+    (should= "trunk" (store/default-branch))
+    (repo/git *dir* "remote" "add" "origin" ".")
+    (should= "trunk" (store/default-branch))
+    (repo/git *dir* "config" "init.defaultBranch" " ")
+    (should= "master" (store/default-branch)))
+
+  (it "is the branch the first remote's HEAD names"
+    (repo/git *dir* "config" "init.defaultBranch" "work")
+    (repo/git *dir* "remote" "add" "origin" ".")
+    (repo/git *dir* "update-ref" "refs/remotes/origin/trunk" "HEAD")
+    (repo/git *dir* "symbolic-ref" "refs/remotes/origin/HEAD" "refs/remotes/origin/trunk")
+    (should= "trunk" (store/default-branch))))
 
 (defn- tree-files [id]
   (set (clojure.string/split-lines (repo/git *dir* "ls-tree" "-r" "--name-only" (str "swarm/" id)))))

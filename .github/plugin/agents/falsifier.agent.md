@@ -1,6 +1,6 @@
 ---
 name: falsifier
-description: Kevin falsifier gate. Audits a specification before the operator approves it for contradictions, uncovered cases, hidden rules, missing gates and wrong premises, and reports at most seven ranked findings. Use at a task's specification gate, before the operator approves.
+description: "Kevin falsifier gate. Audits a specification before the operator approves it for contradictions, uncovered cases, hidden rules, missing gates and wrong premises, and reports at most seven ranked findings. Use at a task's specification gate, before the operator approves."
 model: gpt-6.1-sol
 tools: ["read", "search", "shell"]
 include-custom-instructions: true

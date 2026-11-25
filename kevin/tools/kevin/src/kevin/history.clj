@@ -28,18 +28,24 @@
   (merge (store/title-and-request records)
          {:records (store/with-files records) :commits (lore-commits rev records)}))
 
+(defn- merge-record
+  "The finished record of kevin finish's merge that closes the task, as a
+  list; empty for a done record that closes a host's merge, which is already
+  the last of the task's records."
+  [{:keys [record] :as closing}]
+  (when (= "finished" record) [closing]))
+
 (defn- finished-history
-  "From the merge of kevin finish: the records of its second parent, then the
-  finished record."
-  [finished]
-  (let [rev (str (:sha finished) "^2")]
-    (update (record-history rev (store/records-at rev (:task finished))) :records concat [finished])))
+  "The history of a finished task: the records on the first-parent history of
+  the closing record's :rev, then its finished merge record."
+  [{:keys [rev task] :as closing}]
+  (update (record-history rev (store/records-at rev task)) :records concat (merge-record closing)))
 
 (defn view
   "The task's :title, :request, :status, :state, :records and the :commits
   whose Lore trailers make its LORE: lines."
   [id]
-  (if-let [finished (store/finished-record id)]
+  (if-let [finished (store/finished-entry id)]
     (merge {:status "finished" :state finished} (finished-history finished))
     (let [unclosed (when-not (store/has-branch? id) (store/unclosed-record id))
           rev (if unclosed (:sha unclosed) (store/ref-of id))
@@ -126,11 +132,10 @@
            {:id id :status status :truncated (nil? created) :records records
             :commits (commits-after (or created (:sha (first records))) rev)})))
 
-(defn- finished-task [{:keys [task sha] :as finished}]
-  (let [rev (str sha "^2")
-        records (store/records-at rev task)]
-    (assoc (harvested task "finished" rev (or (not-empty records) [finished]))
-           :records (concat records [finished]))))
+(defn- finished-task [{:keys [task rev] :as closing}]
+  (let [records (store/records-at rev task)]
+    (assoc (harvested task "finished" rev (or (not-empty records) [closing]))
+           :records (concat records (merge-record closing)))))
 
 (defn- open-task
   "The open task id, or nil, after a warning, when its branch has no record."

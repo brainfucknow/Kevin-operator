@@ -23,7 +23,7 @@ Feature: kevin task history
   the records and LORE: lines from that merge's second parent and ends the
   records with the finished block, whether or not the task branch still
   exists. A squash-merged task whose branch remains is open: kevin show reads
-  its branch. A task with no local branch and no finished record in HEAD is
+  its branch. A task with no local branch and no record in HEAD is
   unknown: kevin show refuses it with "no task '<argument>'". kevin start refuses a
   finished task.
 
@@ -64,7 +64,7 @@ Feature: kevin task history
     And I ran "kevin approve $A"
     And task "A" was finished
     And role "coder" committed "Work\n\nTested: from B" in the worktree of task "B" as C1
-    And I ran "git merge --no-edit main" in the worktree of task "B"
+    And I ran "git merge --no-edit work" in the worktree of task "B"
     When I run "kevin show $B"
     Then the exit status is 0
     And the output has no line containing "$A"
@@ -81,7 +81,7 @@ Feature: kevin task history
     When I run "kevin show <argument>"
     Then the exit status is 0
     And the output has the lines "TASK: $A\nTITLE: Add login\nSTATUS: finished\nSTAGE: done\nROUTE: specifier" before the line "---"
-    And the output has the lines "type: finished\nfrom: operator\nmerged-into: main"
+    And the output has the lines "type: finished\nfrom: operator\nmerged-into: work"
     And the output ends with the lines "LORE: C1 specifier Lore-id: L1\nLORE: C1 specifier Tested: x"
 
     Examples:
@@ -135,7 +135,7 @@ Feature: kevin task history
     And I ran "kevin approve $A"
     And task "A" was finished
     And role "coder" committed the file "src/b.clj" with "Work" in the worktree of task "B" as C1
-    And I ran "git merge --no-edit main" in the worktree of task "B"
+    And I ran "git merge --no-edit work" in the worktree of task "B"
     And role "coder" committed "Empty" in the worktree of task "B" as C2
     And I ran "kevin handoff $B"
     When I run "kevin show $B"

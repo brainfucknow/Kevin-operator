@@ -1,6 +1,6 @@
 ---
 name: spec-judge
-description: Kevin spec-judge spec-judge. Rules on each spec revision's gate findings at the specification gate: converged, continue, needs-operator or stuck. Use at a task's specification gate, after each spec revision's gates.
+description: "Kevin spec-judge spec-judge. Rules on each spec revision's gate findings at the specification gate: converged, continue, needs-operator or stuck. Use at a task's specification gate, after each spec revision's gates."
 model: opus
 tools: Read, Grep, Glob, Bash
 ---

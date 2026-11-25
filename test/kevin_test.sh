@@ -181,10 +181,11 @@ assert_eq "the handoff to done changes no file" "$(git diff-tree --no-commit-id 
 assert_fails "finish an unknown task" kevin finish "zzzzzzz"
 idn="$(kevin new "Not done" -m x --route coder)"
 assert_fails "finish from a non-done task" kevin finish "$idn"
+git checkout -q -b work
 out="$(kevin finish "$id")"
-assert_match "finish merges into the current branch" "$out" "merged into main"
+assert_match "finish merges into the current branch" "$out" "merged into work"
 assert_match "finish without verification commands says so" "$out" "^VERIFY: none configured$"
-assert_match "main contains the task work" "$(git log --oneline main)" "Specify login"
+assert_match "work contains the task work" "$(git log --oneline work)" "Specify login"
 assert_eq "finish removes the worktree" "$(test -d ".worktrees/$id" && echo present || echo gone)" "gone"
 assert_eq "finish deletes the branch" "$(git branch --list "swarm/$id")" ""
 assert_eq "finish leaves only unfinished tasks" "$(kevin ls | cut -f1)" "$idn"
@@ -192,6 +193,7 @@ assert_match "a finished task is still shown" "$(kevin show "$id")" "^STATUS: fi
 assert_match "a finished task shows its request" "$(kevin show "$id")" "^Users can log in with email and password\.$"
 assert_eq "no path in HEAD names the finished task" "$(git ls-tree -r --name-only HEAD | grep -c "$id" || true)" "0"
 assert_fails "a finished task cannot be started" kevin start "$id"
+git checkout -q main && git merge -q --ff-only work && git branch -q -d work
 
 # approval over gate findings
 reviewed_task() {
@@ -470,10 +472,10 @@ assert_match "frontier agent inherits the session model" "$(cat agents/coder.md)
 assert_eq "copilot agent uses the tier model" \
   "$(sed -n 's/^model: //p' .github/plugin/agents/cleaner.agent.md)" "$(awk '$1 == "fast" {print $4}' kevin/tiers.conf)"
 outside="$(mktemp -d "$scratch/outside.XXXX")"
-(cd "$outside" && git init -q . && ! kevin adapters 2>"$outside.err") \
-  && assert_eq "adapters refuse outside the Kevin source checkout" "$(cat "$outside.err")" "kevin: kevin adapters runs only in the Kevin source checkout" \
-  || fail "adapters ran outside the Kevin source checkout"
-assert_eq "adapters write nothing outside the Kevin source checkout" "$(ls -A "$outside")" ".git"
+(cd "$outside" && git init -q . && kevin adapters >/dev/null) \
+  && pass "adapters run outside the Kevin source checkout" \
+  || fail "adapters refused outside the Kevin source checkout"
+assert_eq "adapters write no agent in a project that changes nothing" "$(ls -A "$outside")" ".git"
 
 # committed plugin agents are current
 work="$(mktemp -d "$scratch/adapters.XXXX")"
@@ -584,16 +586,17 @@ assert_eq "ls skips a task squash-merged after finish" "$(kevin ls)" ""
 assert_match "show finds no task squash-merged after finish" "$(kevin show "$ids" 2>&1 || true)" "no task '$ids'"
 assert_match "start finds no task squash-merged after finish" "$(kevin start "$ids" 2>&1 || true)" "no task '$ids'"
 
+git checkout -q -b work
 idb="$(done_task "Squash before")"
 git merge -q --squash "swarm/$idb" >/dev/null && git commit -q --allow-empty -m "Squash $idb"
 assert_match "a task squash-merged before finish is listed at done" "$(kevin ls)" "^$idb	done		coder	none	Squash before$"
-assert_match "finish merges a squash-merged task" "$(kevin finish "$idb")" "^FINISHED: $idb merged into main$"
+assert_match "finish merges a squash-merged task" "$(kevin finish "$idb")" "^FINISHED: $idb merged into work$"
 assert_match "the squash-merged task is finished" "$(kevin show "$idb")" "^STATUS: finished$"
 
 idh="$(done_task "Host merge")"
 git merge -q --no-ff --no-edit "swarm/$idh" && git commit -q --allow-empty -m "After the host merge"
 after="$(git rev-parse HEAD)"
-assert_match "finish completes a host merge" "$(kevin finish "$idh")" "^FINISHED: $idh merged into main$"
+assert_match "finish completes a host merge" "$(kevin finish "$idh")" "^FINISHED: $idh merged into work$"
 assert_eq "finish removes the host-merged branch" "$(git branch --list "swarm/$idh")" ""
 assert_eq "finish records on top of the commits after a host merge" "$(git rev-parse HEAD^1)" "$after"
 assert_match "a task finished after a host merge shows as finished" "$(kevin show "$idh")" "^STATUS: finished$"
@@ -611,7 +614,7 @@ git checkout -q -b "swarm/$idl"
 mkdir -p tasks && printf -- '---\nid: %s\ncreated: 2026-10-27\n---\n\n# Legacy task\n\nOld request.\n' "$idl" > "tasks/$idl.md"
 git add "tasks/$idl.md"
 git commit -q --no-verify -m "$(printf 'kevin created: %s\n\nLegacy task\n\nKevin-Task: %s\nKevin-Record: created\nKevin-From: operator\nKevin-Stage: coder\nKevin-Route: coder\nKevin-Needs: none' "$idl" "$idl")"
-git checkout -q main
+git checkout -q work
 assert_match "ls reads the title of a legacy task" "$(kevin ls)" "^$idl	coder		coder	none	Legacy task$"
 assert_eq "a legacy task has no gates" "$(kevin gates "$idl")" ""
 assert_match "show reads the request of a legacy task" "$(kevin show "$idl")" "^Old request\.$"
@@ -658,6 +661,7 @@ git config --unset user.name
 kevin route "$hf" specifier,coder,cleaner,qa >/dev/null
 kevin handoff "$hf" >/dev/null
 kevin handoff "$hf" >/dev/null
+git checkout -q -b work
 kevin finish "$hf" >/dev/null
 git clone -q --depth 3 "file://$hv" "$scratch/harvest-shallow" 2>/dev/null
 ho="$(kevin new "Harvest open" -m "Open request." --route coder)"
@@ -702,7 +706,7 @@ assert_eq "harvest texts" "$(echo "$line_f" | jq -c '[.records[] | select(.text 
   '["Which format?","JSON lines","spec ready","split the criteria","spec revised","specifier work complete","coded","cleaner work complete","qa work complete"]'
 assert_eq "harvest gives the route change its new route" "$(echo "$line_f" | jq -c '[.records[] | select(.type == "route") | .route]')" '[["specifier","coder","cleaner","qa"]]'
 assert_eq "harvest review records wait for approval" "$(echo "$line_f" | jq -r '[.records[] | select(.type == "review") | .needs] | unique | .[]')" "approval"
-assert_eq "harvest gives the finished record its branch" "$(echo "$line_f" | jq -r '.records[-1] | "\(.type) \(.merged_into)"')" "finished main"
+assert_eq "harvest gives the finished record its branch" "$(echo "$line_f" | jq -r '.records[-1] | "\(.type) \(.merged_into)"')" "finished work"
 assert_eq "harvest commits equal kevin show's" "$(echo "$line_f" | jq -r '.records[] | select(.commit != null) | .commit')" "$(kevin show "$hf" | sed -n 's/^commit: //p')"
 assert_eq "harvest parses the approved-over findings" "$(echo "$line_f" | jq -c '.records[] | select(.type == "approval") | .rejected')" \
   '[{"finding":"DEFECT, LOW: a | b","reason":"reason","kind":"DEFECT","severity":"LOW"},{"finding":"plain finding","reason":"accepted","kind":null,"severity":null}]'
@@ -1077,6 +1081,7 @@ b5="$(kevin new "Backend five" -m x --route coder)"
 kevin start "$b5" >/dev/null
 git -C ".worktrees/$b5" commit -q --allow-empty -m "Work"
 kevin handoff "$b5" -m done >/dev/null
+git checkout -q -b work
 env CLAUDECODE=1 kevin finish "$b5" >/dev/null
 assert_eq "the finished merge carries the backend of kevin finish" "$(carried HEAD)" "claude|session"
 bout="$(kevin harvest)"

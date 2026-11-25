@@ -46,6 +46,9 @@ Feature: kevin finish verify
   followed by "FINISHED: <id> merged into <target>". If the cleanup stops,
   the task stays recoverable: a rerun of kevin finish completes it.
 
+  These scenarios finish into branches that are not protected; kevin finish
+  protected describes main, master, develop, release and the default branch.
+
   Background:
     Given a project with kevin initialized
     And task "A" titled "Add login" was started on route "coder"
@@ -56,10 +59,11 @@ Feature: kevin finish verify
     And the main checkout committed the file "kevin/verify.conf" with "<conf>"
     And role "coder" committed the file "b.txt" with "Add b" in the worktree of task "A" as C1
     And I ran "kevin handoff $A"
+    And I ran "git checkout -q -b work"
     And the HEAD of the main checkout is named M1
     When I run "kevin finish $A"
     Then the exit status is 1
-    And the error output has the line "kevin: verification failed on the merge of swarm/$A into main: <failing> exited <status>"
+    And the error output has the line "kevin: verification failed on the merge of swarm/$A into work: <failing> exited <status>"
     And the output is "<passed>"
     And the output has no line containing "touch never"
     And the HEAD of the main checkout is M1
@@ -80,9 +84,10 @@ Feature: kevin finish verify
     And I ran "git add kevin/verify.conf b.txt" in the worktree of task "A"
     And I ran "git commit -q -m Verify" in the worktree of task "A"
     And I ran "kevin handoff $A"
+    And I ran "git checkout -q -b work"
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the output is "VERIFY: passed: touch made-by-verify\nVERIFY: passed: test -e b.txt\nFINISHED: $A merged into main"
+    And the output is "VERIFY: passed: touch made-by-verify\nVERIFY: passed: test -e b.txt\nFINISHED: $A merged into work"
     And the main checkout has the file "b.txt" and no file "made-by-verify"
     And the branch "swarm/$A" does not exist
     And the worktree of task "A" does not exist
@@ -91,9 +96,10 @@ Feature: kevin finish verify
   Scenario: kevin finish verify 3: a verify.conf without commands finishes unverified
     Given the main checkout committed the file "kevin/verify.conf" with "# no commands yet\n"
     And I ran "kevin handoff $A"
+    And I ran "git checkout -q -b work"
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the output is "VERIFY: none configured\nFINISHED: $A merged into main"
+    And the output is "VERIFY: none configured\nFINISHED: $A merged into work"
     And the branch "swarm/$A" does not exist
     And the worktree of task "A" does not exist
 
@@ -124,14 +130,14 @@ Feature: kevin finish verify
   # kevin finish verify 6
   Scenario: kevin finish verify 6: a committed conflict resolution that fails verification is not finished
     Given the main checkout committed the file "kevin/verify.conf" with "grep -qv resolved src/a.clj"
-    And the worktree of task "A" and the branch "main" changed the files "src/a.clj" differently
+    And the worktree of task "A" and the branch "work" changed the files "src/a.clj" differently
     And I ran "kevin handoff $A"
-    And I ran "kevin finish $A"
+    And I ran "kevin finish $A --into work"
     And the operator resolved the conflicts and committed the merge with the message "Resolve conflict"
     And the HEAD of the main checkout is named M1
     When I run "kevin finish $A"
     Then the exit status is 1
-    And the error output has the line "kevin: verification failed on the merge of swarm/$A into main: grep -qv resolved src/a.clj exited 1"
+    And the error output has the line "kevin: verification failed on the merge of swarm/$A into work: grep -qv resolved src/a.clj exited 1"
     And the HEAD of the main checkout is M1
     And the branch of task "A" did not move
     And the worktree of task "A" exists
@@ -139,15 +145,15 @@ Feature: kevin finish verify
   # kevin finish verify 7
   Scenario: kevin finish verify 7: an uncommitted fix in the main checkout does not pass the committed merge
     Given the main checkout committed the file "kevin/verify.conf" with "grep -qv resolved src/a.clj"
-    And the worktree of task "A" and the branch "main" changed the files "src/a.clj" differently
+    And the worktree of task "A" and the branch "work" changed the files "src/a.clj" differently
     And I ran "kevin handoff $A"
-    And I ran "kevin finish $A"
+    And I ran "kevin finish $A --into work"
     And the operator resolved the conflicts and committed the merge with the message "Resolve conflict"
     And the HEAD of the main checkout is named M1
     And the file "src/a.clj" in the main checkout is written with "fixed"
     When I run "kevin finish $A"
     Then the exit status is 1
-    And the error output has the line "kevin: verification failed on the merge of swarm/$A into main: grep -qv resolved src/a.clj exited 1"
+    And the error output has the line "kevin: verification failed on the merge of swarm/$A into work: grep -qv resolved src/a.clj exited 1"
     And the HEAD of the main checkout is M1
     And the branch of task "A" did not move
     And the worktree of task "A" exists

@@ -4,20 +4,16 @@
             [clojure.string :as str]
             [speclj.core :refer [around describe it should should-not should= should-contain should-not-contain]]
             [kevin.adapters :as adapters]
+            [kevin.agents :as agents]
             [kevin.config :as config]
             [kevin.convert :as convert]
-            [kevin.repo-support :refer [*dir* captured git with-repo]]
+            [kevin.repo-support :refer [*dir* captured git with-repo write!]]
             [kevin.installed :as installed]))
 
 (def ^:dynamic *runtime* nil)
 
 (def swarm-line
   "Follow kevin/README.md and kevin/roles/orchestrator.md when asked to swarm a feature; delegate subagent roles by name and keep all task bookkeeping in kevin/bin/kevin.")
-
-(defn- write! [path text]
-  (let [file (fs/path *dir* path)]
-    (fs/create-dirs (fs/parent file))
-    (spit (str file) text)))
 
 (defn- read [path] (slurp (str (fs/path *dir* path))))
 
@@ -48,10 +44,10 @@
                        ".github/copilot-instructions.md" "Follow AGENTS.md at the repository root.\n"}]
     (write! path text))
   (binding [config/*root* *dir*]
-    (doseq [[role tier] (config/rows "roles.conf")
-            [path text] (adapters/agent-files role tier (adapters/kind-of role)
+    (doseq [[role tier :as row] (config/rows "roles.conf")
+            [path text] (adapters/agent-files role tier (agents/kind row)
                                               {:templates "legacy/"
-                                               :summary (adapters/summary (read (str "kevin/roles/" role ".md")))})]
+                                               :summary (agents/summary (read (str "kevin/roles/" role ".md")))})]
       (write! path text)))
   (git *dir* "add" "-A")
   (git *dir* "commit" "-q" "-m" "Committed install"))
@@ -137,7 +133,7 @@
                       [path text] (binding [config/*root* *dir*]
                                     (adapters/agent-files role "strong" (if (= role "falsifier") :gate :spec-judge)
                                                           {:templates templates
-                                                           :summary (adapters/summary (read (str "kevin/roles/" role ".md")))
+                                                           :summary (agents/summary (read (str "kevin/roles/" role ".md")))
                                                            :use use}))]
                   (do (write! path text) path))]
       (doall paths)

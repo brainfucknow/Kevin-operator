@@ -15,7 +15,7 @@ this repository.
 | `constitution.md`, `constitution/articles/` | Rules every role obeys. |
 | `constitution/existing-code.md` | Refactoring policy read only when the project opts into `Existing code: ask before refactoring`. |
 | `roles/*.md` | What each role owns, verifies, and hands off. `orchestrator.md` is the session's own role. |
-| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. Only `kevin` goes on PATH; `kevin cs`, `kevin fs`, `kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral` run the other `bin/kevin-*` commands. |
+| `bin/kevin`, `tools/kevin/` | The only writer of task state. `kevin --help` lists the commands. Only `kevin` goes on PATH. Language and backend commands run the other `bin/kevin-*` files. |
 | `bin/kevin-mistral`, `workflows/` | The mistral backend: runs tasks and roles on Mistral Workflows when no backend CLI is on PATH. See [workflows/README.md](workflows/README.md). |
 | `bin/kevin-cs`, `languages/csharp.md` | C# tool wrapper: tests, coverage, CRAP, DRY, mutation, each scoped to the task's changes. |
 | `bin/kevin-fs`, `languages/fsharp.md` | F# .NET tests, coverage, compiled-method CRAP and DRY; mutation unsupported. |
@@ -24,6 +24,8 @@ this repository.
 | `bin/kevin-js`, `languages/javascript.md` | JavaScript and TypeScript tool wrapper: the same commands for Vitest or Jest, oxlint or ESLint complexity with Istanbul coverage, jscpd, and StrykerJS. |
 | `bin/kevin-rb`, `languages/ruby.md` | Ruby tool wrapper: SimpleCov coverage, CRAP from RuboCop or flog, DRY from jscpd or flay, and optional mutant. |
 | `bin/kevin-java`, `languages/java.md` | Maven Java 17+ / JUnit 5 tests, JaCoCo coverage, pinned Java CRAP, DRY and differential mutation. |
+| `bin/kevin-mojo`, [Mojo guide](languages/mojo.md) | Mojo TestSuite tests, Linux line coverage with kcov, and DRY with jscpd. |
+| `bin/kevin-rust`, [Rust tools](languages/rust.md) | Cargo tests, property tests, coverage, CRAP, DRY, and differential mutation. |
 | `languages/semgrep.md` | Shared scanner setup used by language guides, which define the scan scope and required/optional status. |
 | `tools/core/` | Report readers shared by the language tool wrappers: changed lines, CRAP, jscpd, Stryker. |
 | `handoff-protocol.md` | The task branch, record commits, and lifecycle. |
@@ -42,12 +44,14 @@ A project keeps its configuration in its own `kevin/`:
 | File | Purpose |
 |---|---|
 | `project.md` | Required. The project article that the constitution reads, and `Minimum Kevin version: <major>.<minor>.<patch>`. `kevin init` writes a starter. Every command but `help`, `version` and `home` refuses a runtime older than that version. |
-| `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may narrow the roles but not add one. |
+| `roles.conf`, `routes.conf`, `tiers.conf`, `tools.conf` | Optional. Each replaces the runtime's file of the same name. A project `roles.conf` may drop roles, change their tiers and flags, and add roles. |
+| `roles/<role>.md` | The prompt of each role that the project's `roles.conf` adds: a title line, then a summary line. An added role is a stage or a gate, not a spec-judge. The Mistral Workflow backend also reads a file here for a runtime role, in place of the runtime's prompt. |
 | `verify.conf` | Optional: one shell command per line that `kevin finish` runs on the merge before it merges, for example `make test`. Without it, `kevin finish` runs none. |
 
-Role prompts, the constitution, the language guides and the tool sources
-come only from the runtime. `kevin init` adds `.worktrees/`, `.kevin/`,
-`tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
+The prompts of the runtime's roles, the constitution, the language guides
+and the tool sources come only from the runtime; a project file with the
+name of a runtime role's prompt is never read. `kevin init` adds
+`.worktrees/`, `.kevin/`, `tmp/` and `.metrics/` to `.git/info/exclude`. `kevin init --convert` turns a
 project with an old committed install into this layout.
 
 Start a task from the harness with `/swarm <feature request>`, or by hand:
@@ -61,7 +65,7 @@ kevin new "Spike: can X do Y?" -m "..." --route spike   # coder answers, qa chec
 kevin approve <id>    # operator; moves the task to the next role on the route
 kevin gates <id> falsifier   # operator turns the falsifier on for the task
 kevin ls              # id, stage, needs, route, gates, title
-kevin finish <id>     # at stage done: verify the merge, merge, remove the branch
+kevin finish <id>     # at stage done, after the pull request's merge is pulled: verify, remove the branch
 ```
 
 Without harness subagents, `kevin run <id>` dispatches each stage to a headless
@@ -77,12 +81,37 @@ gates and spec-judge are skipped.
 
 ## Configuration
 
-In the Kevin source checkout, run `kevin adapters` after editing `roles.conf`
-or `tiers.conf`. It regenerates the plugin agents: `agents/<role>.md` for
-Claude Code and `.github/plugin/agents/<role>.agent.md` for Copilot CLI. It
-refuses to run in any other checkout. `kevin check` validates the
-configuration files and the role prompts; `kevin init` and `kevin adapters`
-run it first and refuse a broken setup. `kevin check`, `kevin adapters`,
+Run `kevin adapters` after editing `roles.conf` or `tiers.conf`. It writes
+the project agents into the main checkout, from any worktree. A role has a
+project agent for a harness when the agent generated from the project's
+configuration differs from the one generated from the runtime's:
+`.claude/agents/kevin-<role>.md` for Claude Code,
+`.github/agents/<role>.agent.md` for Copilot CLI and
+`.codex/agents/<role>.toml` for Codex. A Claude Code model change to
+`sonnet`, `opus`, `haiku` or `fable` alone needs no file. Each project agent
+has a `kevin-generated: <version>` line. `kevin adapters` lists each one in
+`.git/info/exclude`, removes those no longer needed, and refuses to write over
+a file without that line. `kevin init` does the same. In the Kevin source
+checkout, `kevin adapters` also regenerates the plugin agents:
+`agents/<role>.md` for Claude Code and `.github/plugin/agents/<role>.agent.md`
+for Copilot CLI.
+
+`kevin agent <role> <harness>` prints how the orchestrator runs a role in
+`claude`, `copilot`, `codex` or `vibe`: `AGENT: <name>`, then `MODEL: <alias>`
+when the delegation call takes the model, then a `WARNING:` when the project
+agent is missing or stale. `AGENT: none` means `kevin dispatch`.
+`AGENT: session` means the orchestrator plays the role; the next line,
+`PROMPT: <path>`, names the prompt to read: the runtime's for a runtime role,
+the main checkout's `kevin/roles/<role>.md` for an added role. In `vibe` a
+runtime role prints its plugin agent `kevin:<role>` and an added role prints
+`AGENT: none`; Vibe has no project agents. A project that relies on project
+agents or adds a role sets `Minimum Kevin version: 0.3.0`.
+
+`kevin check` validates the configuration files and the role prompts, and
+refuses a `tiers.conf` value that does not start with a letter or a digit or
+holds a character other than letters, digits and `. _ : / @ [ ] -`.
+`kevin init`, `kevin adapters`, `kevin agent` and `kevin dispatch` run it
+first and refuse a broken setup. `kevin check`, `kevin adapters`,
 `kevin roles`, `kevin routes` and `kevin tool` read the checkout they run in;
 `kevin init` and task bookkeeping read the main checkout's.
 

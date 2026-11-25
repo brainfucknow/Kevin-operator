@@ -28,6 +28,9 @@ Feature: kevin finish resume
   A task that was squash-merged while its branch remains is not finished;
   kevin finish merges its branch as usual, which records it.
 
+  These scenarios finish into branches that are not protected; kevin finish
+  protected describes main, master, develop, release and the default branch.
+
   Background:
     Given a project with kevin initialized
     And task "A" titled "Add login" was started on route "coder"
@@ -48,14 +51,14 @@ Feature: kevin finish resume
 
     Examples:
       | target  | files               |
-      | main    | src/a.clj           |
-      | release | src/a.clj src/b.clj |
+      | work    | src/a.clj           |
+      | staging | src/a.clj src/b.clj |
 
   # kevin finish resume 2
   Scenario: kevin finish resume 2: a merge in progress is refused
-    Given the worktree of task "A" and the branch "main" changed the files "src/a.clj" differently
+    Given the worktree of task "A" and the branch "work" changed the files "src/a.clj" differently
     And I ran "kevin handoff $A"
-    And I ran "kevin finish $A"
+    And I ran "kevin finish $A --into work"
     And the operator resolved the conflicts and staged them
     And the tip of the branch of task "A" is named T1
     And the HEAD of the main checkout is named M1
@@ -63,7 +66,7 @@ Feature: kevin finish resume
     Then the exit status is 1
     And the error output has the line "kevin: a merge is in progress; commit the merge first"
     And the HEAD of the main checkout is M1
-    And the main checkout is on the branch "main" merging T1 with no conflicted file
+    And the main checkout is on the branch "work" merging T1 with no conflicted file
     And the branch "swarm/$A" exists
     And the worktree of task "A" exists
 
@@ -86,19 +89,19 @@ Feature: kevin finish resume
 
     Examples:
       | target  |
-      | main    |
-      | release |
+      | work    |
+      | staging |
 
   # kevin finish resume 4
   Scenario: kevin finish resume 4: a merge committed with git's prepared message stays as it is
-    Given the worktree of task "A" and the branch "main" changed the files "src/a.clj" differently
+    Given the worktree of task "A" and the branch "work" changed the files "src/a.clj" differently
     And I ran "kevin handoff $A"
-    And I ran "kevin finish $A"
+    And I ran "kevin finish $A --into work"
     And the operator resolved the conflicts and committed the merge with git's prepared message
     And the HEAD of the main checkout is named M1
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the output is "VERIFY: none configured\nFINISHED: $A merged into main"
+    And the output is "VERIFY: none configured\nFINISHED: $A merged into work"
     And the HEAD of the main checkout is M1
     And the branch "swarm/$A" does not exist
     And the worktree of task "A" does not exist
@@ -114,11 +117,12 @@ Feature: kevin finish resume
   Scenario: kevin finish resume 6: kevin finish merges and records a squash-merged task whose branch remains
     Given task "A" was handed off to done and squash-merged into main
     And the tip of the branch of task "A" is named T1
+    And I ran "git checkout -q -b work"
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the output is "VERIFY: none configured\nFINISHED: $A merged into main"
+    And the output is "VERIFY: none configured\nFINISHED: $A merged into work"
     And the HEAD of the main checkout is a merge whose second parent is T1
-    And the HEAD of the main checkout has the message "kevin finished: $A\n\nKevin-Task: $A\nKevin-Record: finished\nKevin-From: operator\nKevin-Stage: done\nKevin-Route: coder\nKevin-Needs: none\nKevin-Merged-Into: main"
+    And the HEAD of the main checkout has the message "kevin finished: $A\n\nKevin-Task: $A\nKevin-Record: finished\nKevin-From: operator\nKevin-Stage: done\nKevin-Route: coder\nKevin-Needs: none\nKevin-Merged-Into: work"
     And the branch "swarm/$A" does not exist
     And the worktree of task "A" does not exist
 
@@ -127,15 +131,16 @@ Feature: kevin finish resume
     Given role "coder" committed the file "src/a.clj" with "Code" in the worktree of task "A" as C1
     And I ran "kevin handoff $A"
     And the tip of the branch of task "A" is named T1
+    And I ran "git checkout -q -b work"
     And I ran "git merge -q --no-ff --no-edit swarm/$A"
     And I ran "<after>"
     And the HEAD of the main checkout is named M1
     When I run "kevin finish $A"
     Then the exit status is 0
-    And the output is "VERIFY: none configured\nFINISHED: $A merged into main"
+    And the output is "VERIFY: none configured\nFINISHED: $A merged into work"
     And the HEAD of the main checkout has the first parent M1 and the tree of M1
     And the HEAD of the main checkout is a merge whose second parent is T1
-    And the HEAD of the main checkout has the message "kevin finished: $A\n\nKevin-Task: $A\nKevin-Record: finished\nKevin-From: operator\nKevin-Stage: done\nKevin-Route: coder\nKevin-Needs: none\nKevin-Merged-Into: main"
+    And the HEAD of the main checkout has the message "kevin finished: $A\n\nKevin-Task: $A\nKevin-Record: finished\nKevin-From: operator\nKevin-Stage: done\nKevin-Route: coder\nKevin-Needs: none\nKevin-Merged-Into: work"
     And the branch "swarm/$A" does not exist
     And the worktree of task "A" does not exist
 
