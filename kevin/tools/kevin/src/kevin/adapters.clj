@@ -15,6 +15,15 @@
             [kevin.project-agents :as project-agents]
             [kevin.shell :as shell]))
 
+(def ^:private max-vibe-description
+  "The most characters (Unicode code points) Vibe accepts in a plugin agent description."
+  300)
+
+(defn- code-point-count
+  "Returns the number of Unicode code points in the string, not UTF-16 code units."
+  [s]
+  (.codePointCount s 0 (count s)))
+
 (defn- runtime-prompt
   "The text of the runtime's prompt of the role."
   [role]
@@ -87,6 +96,14 @@
   (let [roles (config/rows "roles.conf")
         tiers (config/rows "tiers.conf")
         templates (project-agents/templates)]
+    (doseq [role (agents/subagents roles)
+            :let [text {:summary (agents/summary (runtime-prompt role)) :prompt (agents/home-prompt role)}
+                  fields (agents/fields "vibe" roles tiers role text)
+                  description (:description fields)]]
+      (when (> (code-point-count description) max-vibe-description)
+        (shell/die (str "kevin adapters: the Vibe description of " role
+                     " is " (code-point-count description)
+                     " code points; Vibe accepts at most " max-vibe-description))))
     (into {} (for [role (agents/subagents roles)
                    :let [text {:summary (agents/summary (runtime-prompt role)) :prompt (agents/home-prompt role)}]
                    [dir {:keys [harness suffix]}] plugin-dirs]
