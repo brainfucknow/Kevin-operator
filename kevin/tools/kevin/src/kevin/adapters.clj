@@ -11,6 +11,11 @@
             [kevin.installed :as installed]
             [kevin.shell :as shell]))
 
+(defn- code-point-count
+  "Count Unicode code points in a string, not UTF-16 code units."
+  [s]
+  (.codePointCount s 0 (.length s)))
+
 (defn summary
   "The first non-blank line after the title of the role prompt text."
   [text]
@@ -141,7 +146,7 @@
   accepts."
   [role kind]
   (let [summary (role-summary role)
-        length (count (description role kind summary))]
+        length (code-point-count (description role kind summary))]
     (when (> length max-description)
       (shell/die "kevin adapters: the description of " role " is " length
                  " characters; Vibe accepts at most " max-description))
