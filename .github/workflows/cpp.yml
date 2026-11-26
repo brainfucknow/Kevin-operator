@@ -22,9 +22,29 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $bin
       - name: Install OpenCppCoverage
         shell: pwsh
+        env:
+          OCC_VERSION: 0.9.9.0
+          OCC_SHA256: 2295a733da39412c61e4f478677519dd0bb1893d88313ce56b468c9e50517888
         run: |
-          choco install opencppcoverage --no-progress -y
-          Add-Content -Path $env:GITHUB_PATH -Value "C:\Program Files\OpenCppCoverage"
+          $ErrorActionPreference = "Stop"
+          $setup = Join-Path $env:RUNNER_TEMP "OpenCppCoverageSetup.exe"
+          Invoke-WebRequest -MaximumRetryCount 5 -RetryIntervalSec 10 -OutFile $setup `
+            -Uri "https://github.com/OpenCppCoverage/OpenCppCoverage/releases/download/release-$env:OCC_VERSION/OpenCppCoverageSetup-x64-$env:OCC_VERSION.exe"
+          if ((Get-FileHash $setup -Algorithm SHA256).Hash.ToLower() -ne $env:OCC_SHA256) { throw "OpenCppCoverage checksum mismatch" }
+          $install = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "OpenCppCoverage installer exited $($install.ExitCode)" }
+          $dir = "C:\Program Files\OpenCppCoverage"
+          $exe = Join-Path $dir "OpenCppCoverage.exe"
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "$exe is missing after the install" }
+          # --help exits 0x9F8C8E5C by design and prints its usage on stderr.
+          $out = Join-Path $env:RUNNER_TEMP "occ-help.out"
+          $err = Join-Path $env:RUNNER_TEMP "occ-help.err"
+          Start-Process -FilePath $exe -ArgumentList "--help" -Wait -NoNewWindow `
+            -RedirectStandardOutput $out -RedirectStandardError $err
+          $help = (Get-Content -Raw $out) + (Get-Content -Raw $err)
+          Write-Output $help
+          if ($help -notmatch "Usage") { throw "OpenCppCoverage --help printed no usage" }
+          Add-Content -Path $env:GITHUB_PATH -Value $dir
       - name: Set up uv
         uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: End-to-end kevin-cpp on Windows
