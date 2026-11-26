@@ -1,7 +1,7 @@
-(ns kevincs.pin
+(ns kevincore.pin
   "Where the project pins a local dotnet tool, read from
-  `dotnet tool list --local <package> --format json`, and why kevin-cs refuses a
-  pin. Only a committed manifest at the repository root counts: it is the one
+  `dotnet tool list --local <package> --format json`, and why a kevin-* wrapper refuses a
+  pin. kevincore.dotnet runs the check. Only a committed manifest at the repository root counts: it is the one
   `<wrapper> tools` restores from there."
   (:require [cheshire.core :as json]
             [clojure.string :as str]))

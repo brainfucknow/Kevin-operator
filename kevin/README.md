@@ -23,6 +23,7 @@ this repository.
 | `languages/clojure.md` | How to run clj-mutate, crap4clj and dry4clj on Babashka code. |
 | `bin/kevin-js`, `languages/javascript.md` | JavaScript and TypeScript tool wrapper: the same commands for Vitest or Jest, oxlint or ESLint complexity with Istanbul coverage, jscpd, and StrykerJS. |
 | `bin/kevin-rb`, `languages/ruby.md` | Ruby tool wrapper: SimpleCov coverage, CRAP from RuboCop or flog, DRY from jscpd or flay, and optional mutant. |
+| `bin/kevin-cpp`, `languages/cpp.md` | C and C++ tool wrapper: CMake or MSBuild tests, gcov or OpenCppCoverage coverage, CRAP from lizard, DRY from jscpd, and Mull mutation. |
 | `bin/kevin-java`, `languages/java.md` | Maven Java 17+ / JUnit 5 tests, JaCoCo coverage, pinned Java CRAP, DRY and differential mutation. |
 | `bin/kevin-mojo`, [Mojo guide](languages/mojo.md) | Mojo TestSuite tests, Linux line coverage with kcov, and DRY with jscpd. |
 | `bin/kevin-rust`, [Rust tools](languages/rust.md) | Cargo tests, property tests, coverage, CRAP, DRY, and differential mutation. |

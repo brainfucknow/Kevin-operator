@@ -8,8 +8,8 @@ through Git task branches; the operator handles questions and approvals in chat.
 
 - `git`, and `bash` for `install.sh`, the commit-msg hook, and the tool wrappers
 - [Babashka](https://babashka.org) (`bb`) for `kevin`, which needs 1.12.216 or newer
-  and refuses an older `bb`, and for the C#, F#, VB.NET, JavaScript, Ruby and
-  Java tool wrappers and the Clojure constitution tools. `install.sh` checks `bb`
+  and refuses an older `bb`, and for the C#, F#, VB.NET, JavaScript, Ruby,
+  Java and C/C++ tool wrappers and the Clojure constitution tools. `install.sh` checks `bb`
   before it writes anything.
 - One of Claude Code, Copilot CLI, Codex CLI, Kilo, or Mistral Vibe
 
@@ -84,7 +84,7 @@ Mistral Vibe, `$swarm` in Codex, or `/swarm` in Copilot. In Vibe run
 `kevin version` prints the runtime version, and a runtime older than the
 project's `Minimum Kevin version:` is refused. The [runtime
 guide](kevin/README.md) lists the commands, including `kevin cs`, `kevin fs`,
-`kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral`.
+`kevin vb`, `kevin js`, `kevin rb`, `kevin java`, `kevin cpp` and `kevin mistral`.
 
 ### A project with a committed install
 
@@ -197,7 +197,8 @@ agents.
   [C#](kevin/languages/csharp.md), [F#](kevin/languages/fsharp.md),
   [VB.NET](kevin/languages/vbnet.md),
   [JavaScript/TypeScript](kevin/languages/javascript.md),
-  [Ruby](kevin/languages/ruby.md), [Java](kevin/languages/java.md).
+  [Ruby](kevin/languages/ruby.md), [Java](kevin/languages/java.md),
+  [C/C++](kevin/languages/cpp.md).
 - [Semgrep](kevin/languages/semgrep.md): shared setup for the language guides.
 
 ## Tests
@@ -233,13 +234,15 @@ to the affected targets, and property checks remain separate and role-owned.
 | Manifest guard | [guard](test/no_manifests.sh), [tests](test/no_manifests_test.sh) | Rejects staged mutation and coverage artifacts. Uses Bash and Git. | `bash test/no_manifests.sh` checks the index. `bash test/no_manifests_test.sh` tests the guard. | CI |
 | Kevin unit specs | [kevin/tools/kevin/spec/](kevin/tools/kevin/spec/) | CLI, task records, installer, project setup, adapters, and tool policy | `bb --config kevin/tools/kevin/bb.edn spec` | CI |
 | Kevin and Mojo hardening | [Kevin hardening](kevin/tools/kevin/hardening/), [Mojo hardening](kevin/tools/mojo/hardening/) | Regression specs for Kevin's workflow boundaries and the Mojo wrapper | `bb --config kevin/tools/kevin/bb.edn hardening` | CI, one runner for both |
-| Shared wrapper unit tests | [core_test.clj](kevin/tools/core/test/kevincore/core_test.clj) | Shared report handling, paths, and wrapper policy | `bb --config kevin/tools/core/bb.edn test` | CI via .NET `test`, or run on its own |
+| Shared wrapper unit tests | [core_test.clj](kevin/tools/core/test/kevincore/core_test.clj) | Shared report handling, paths, and wrapper policy | `bb --config kevin/tools/core/bb.edn test` | CI via .NET and C/C++ `test`, or run on its own |
 | Shared wrapper architecture | [architecture_test.clj](kevin/tools/core/test/kevincore/architecture_test.clj) | Dependency and IO boundaries | `bb --config kevin/tools/core/bb.edn architecture` | CI on its own and via JavaScript `test` |
 | .NET wrapper unit and regression | [test/](kevin/tools/csharp/test/), [spec/](kevin/tools/csharp/spec/) | C#, F#, and VB.NET wrapper behavior and reports | `bb --config kevin/tools/csharp/bb.edn test`. Use `spec` in place of `test` for the Speclj regression specs alone. | CI via `test`, which also runs shared wrapper unit tests |
 | JavaScript wrapper unit | [kevin/tools/javascript/test/](kevin/tools/javascript/test/) | Package managers, commands, report parsing, and acceptance runner | `bb --config kevin/tools/javascript/bb.edn test` | CI |
 | Ruby wrapper unit | [kevin/tools/ruby/test/](kevin/tools/ruby/test/) | Commands and coverage, quality, and mutation report handling | `bb --config kevin/tools/ruby/bb.edn test` | CI |
 | Ruby wrapper end-to-end | [runner](test/kevin_rb_e2e_test.sh), [sample project](test/ruby_project/) | Wrapper behavior with real gems. Requires Ruby 3.3, Bundler, Node, and access to rubygems.org. | `bash test/kevin_rb_e2e_test.sh` | CI |
 | Java wrapper unit and hardening | [spec/](kevin/tools/java/spec/), [hardening/](kevin/tools/java/hardening/) | CLI, build and quality policy, and report boundary regressions | `bb --config kevin/tools/java/bb.edn spec` or `bb --config kevin/tools/java/bb.edn hardening` | CI, separate runs |
+| C/C++ wrapper unit | [kevin/tools/cpp/test/](kevin/tools/cpp/test/) | Build backends, source selection, coverage reports, and CLI behavior | `bb --config kevin/tools/cpp/bb.edn test` | CI, also runs shared wrapper unit tests |
+| C/C++ wrapper end-to-end | [runner](test/kevin_cpp_e2e_test.sh), [CMake fixture](test/cpp_cmake_project/), [MSBuild fixture](test/cpp_msbuild_project/) | Real builds, tests, and quality tools. The default Linux run needs CMake 3.21+, a C++ compiler, Babashka, uv, and Node. See the [C/C++ workflow](.github/workflows/cpp.yml) for Windows and Mull setup. | `bash test/kevin_cpp_e2e_test.sh`. Set `KEVIN_CPP_E2E=windows` or `KEVIN_CPP_E2E=mull` for those variants. | CI |
 | Mojo wrapper CLI smoke | [test/kevin_mojo_test.sh](test/kevin_mojo_test.sh) | Suite discovery, CLI arguments, and exit status with a fake SDK | `bash test/kevin_mojo_test.sh` | CI |
 | Mojo wrapper unit specs | [kevin/tools/mojo/spec/](kevin/tools/mojo/spec/) | CLI options, coverage results, and empty DRY reports with fixtures | See the standalone command below. | Local |
 | Rust wrapper unit specs | [kevin/tools/rust/spec/](kevin/tools/rust/spec/) | Cargo runner options and wrapper report handling | `bb --config kevin/tools/rust/bb.edn spec` | CI |
@@ -280,6 +283,7 @@ Run these separately from unit tests and coverage. CI runs every row.
 | JavaScript and shared wrapper | [JavaScript properties](kevin/tools/javascript/property/), [shared properties](kevin/tools/core/property/) | JavaScript and shared wrapper report and policy invariants | `bb --config kevin/tools/javascript/bb.edn property` runs both |
 | Ruby | [kevin/tools/ruby/property/](kevin/tools/ruby/property/) | Ruby report and policy invariants | `bb --config kevin/tools/ruby/bb.edn property` |
 | Java | [kevin/tools/java/property/](kevin/tools/java/property/) | Java policy and acceptance runner invariants | `bb --config kevin/tools/java/bb.edn property` |
+| C/C++ | [kevin/tools/cpp/property/](kevin/tools/cpp/property/) | C/C++ wrapper report and scoring invariants | `bb --config kevin/tools/cpp/bb.edn property` |
 | Rust | [kevin/tools/rust/property/](kevin/tools/rust/property/) | Rust test selection, reports, and artifact policy | `bb --config kevin/tools/rust/bb.edn property` |
 
 ### Local .NET coverage
