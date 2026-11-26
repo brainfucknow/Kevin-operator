@@ -8,8 +8,8 @@ through Git task branches; the operator handles questions and approvals in chat.
 
 - `git`, and `bash` for `install.sh`, the commit-msg hook, and the tool wrappers
 - [Babashka](https://babashka.org) (`bb`) for `kevin`, which needs 1.12.216 or newer
-  and refuses an older `bb`, and for the C#, F#, VB.NET, JavaScript, Ruby and
-  Java tool wrappers and the Clojure constitution tools. `install.sh` checks `bb`
+  and refuses an older `bb`, and for the C#, F#, VB.NET, JavaScript, Ruby,
+  Java and C/C++ tool wrappers and the Clojure constitution tools. `install.sh` checks `bb`
   before it writes anything.
 - One of Claude Code, Copilot CLI, Codex CLI, Kilo, or Mistral Vibe
 
@@ -84,7 +84,7 @@ Mistral Vibe, `$swarm` in Codex, or `/swarm` in Copilot. In Vibe run
 `kevin version` prints the runtime version, and a runtime older than the
 project's `Minimum Kevin version:` is refused. The [runtime
 guide](kevin/README.md) lists the commands, including `kevin cs`, `kevin fs`,
-`kevin vb`, `kevin js`, `kevin rb`, `kevin java` and `kevin mistral`.
+`kevin vb`, `kevin js`, `kevin rb`, `kevin java`, `kevin cpp` and `kevin mistral`.
 
 ### A project with a committed install
 
@@ -197,7 +197,8 @@ agents.
   [C#](kevin/languages/csharp.md), [F#](kevin/languages/fsharp.md),
   [VB.NET](kevin/languages/vbnet.md),
   [JavaScript/TypeScript](kevin/languages/javascript.md),
-  [Ruby](kevin/languages/ruby.md), [Java](kevin/languages/java.md).
+  [Ruby](kevin/languages/ruby.md), [Java](kevin/languages/java.md),
+  [C/C++](kevin/languages/cpp.md).
 - [Semgrep](kevin/languages/semgrep.md): shared setup for the language guides.
 
 ## Tests
@@ -242,6 +243,8 @@ bb --config kevin/tools/javascript/bb.edn acceptance
 bb --config kevin/tools/ruby/bb.edn test
 bb --config kevin/tools/ruby/bb.edn property
 bash test/kevin_rb_e2e_test.sh  # needs Ruby and Bundler
+bb --config kevin/tools/cpp/bb.edn test
+bash test/kevin_cpp_e2e_test.sh  # needs cmake 3.21+, a C++ compiler, uv and Node
 bb --config kevin/tools/java/bb.edn spec
 bb --config kevin/tools/java/bb.edn hardening
 bb --config kevin/tools/java/bb.edn acceptance

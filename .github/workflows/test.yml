@@ -147,6 +147,14 @@ jobs:
         run: |
           kevin/bin/kevin tool ensure gherkin-parser
           bb --config kevin/tools/java/bb.edn acceptance
+      - name: Test kevin-cpp
+        run: bb --config kevin/tools/cpp/bb.edn test
+      - name: Property-test kevin-cpp
+        run: bb --config kevin/tools/cpp/bb.edn property
+      - name: Set up uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: End-to-end kevin-cpp with gcov
+        run: bash test/kevin_cpp_e2e_test.sh
       - name: Test kevin-rb
         run: bb --config kevin/tools/ruby/bb.edn test
       - name: Property-test kevin-rb
