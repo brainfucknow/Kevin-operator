@@ -6,9 +6,13 @@
             [kevin.lore :as lore]
             [kevin.property-support :refer [commit-with hex7 passes? sentence]]))
 
+(def ^:private other-key
+  "Keys of trailers that are not Lore, among them Confidence, which old commits carry."
+  (gen/elements ["Co-Authored-By" "Signed-off-by" "Session" "Tested-by" "Confidence"]))
+
 (def ^:private trailer-key
   (gen/one-of [(gen/elements ["Constraint" "Rejected" "Tested" "Not-tested" "Directive"])
-               (gen/elements ["Co-Authored-By" "Signed-off-by" "Session" "Tested-by"])]))
+               other-key]))
 
 (def ^:private trailer (gen/tuple trailer-key sentence))
 
@@ -59,6 +63,13 @@
                        (= (boolean (some lore/lore-key? keys))
                           (str/includes? (sign text r keys) "Lore-id: 0badc0de"))))))
 
+  (it "adds no Lore-id to a block of only trailers that are not Lore"
+    (should (passes? (prop/for-all [subject sentence
+                                    trailers (gen/vector (gen/tuple other-key sentence) 1 4)
+                                    r role]
+                       (let [text (str subject "\n\n" (str/join "\n" (map (fn [[k v]] (str k ": " v)) trailers)) "\n")]
+                         (not (str/includes? (sign text r (mapv first trailers)) "Lore-id: ")))))))
+
   (it "keeps the text before the trailer block as a prefix"
     (should (passes? (prop/for-all [{:keys [text keys]} message r role]
                        (let [head (str/trim-newline (if (seq keys)
@@ -100,7 +111,8 @@
   trailer that is not Lore."
   (gen/one-of [(gen/fmap (fn [[k v]] (str k ": " v))
                          (gen/tuple (gen/elements ["Constraint" "Rejected" "Directive" "Scope-risk" "Reversibility"
-                                                   "Depends-on" "Related" "Tested" "Not-tested" "Co-Authored-By"])
+                                                   "Depends-on" "Related" "Tested" "Not-tested" "Co-Authored-By"
+                                                   "Confidence"])
                                     sentence))
                (gen/fmap #(str "Supersedes: " %) lore-id)]))
 
