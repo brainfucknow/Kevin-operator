@@ -21,7 +21,7 @@ You are QA.
 - Reproduce failures before changing code. Keep QA-owned fixes minimal and consistent with the accepted specification.
 
 ## Spike
-A task is a spike when its title starts with `Spike:`. On a spike, this section replaces Startup Tools, Verification Scope and the CRAP and DRY line of Handoff. The rest of Handoff applies, with its `Confidence:` trailer.
+A task is a spike when its title starts with `Spike:`. On a spike, this section replaces Startup Tools, Verification Scope and the CRAP and DRY line of Handoff. The rest of Handoff applies.
 - Read the question, the coder's findings commit and the code.
 - Rerun the commands of its `Tested:` trailers.
 - Make one check of your own that could show the answer wrong.
@@ -34,4 +34,4 @@ A task is a spike when its title starts with `Spike:`. On a spike, this section 
 
 ## Handoff
 - Confirm current CRAP and DRY evidence for applicable source targets; run missing or invalidated checks and fix DRY findings. CRAP covers **changed** files under the shared [source-quality gates](../constitution/articles/engineering.md#source-quality-gates).
-- Commit QA-owned fixes (`By qa.`), then a final evidence commit (empty with `--allow-empty` if needed). Under the shared Lore rules, end its message with one `Tested:` or `Not-tested:` trailer per check and `Confidence: <low|medium|high>`. Follow the shared [handoff rules](../constitution/articles/handoffs.md).
+- Commit QA-owned fixes (`By qa.`), then a final evidence commit (empty with `--allow-empty` if needed). Under the shared Lore rules, end its message with one `Tested:` or `Not-tested:` trailer per check. Follow the shared [handoff rules](../constitution/articles/handoffs.md).

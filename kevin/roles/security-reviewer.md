@@ -23,5 +23,5 @@ You are the security reviewer, after the hardener and before QA.
 
 ## Handoff
 - Resolve confirmed blocking findings within the task when possible. If an unresolved finding needs an operator decision or cannot be fixed within scope, use `kevin ask <id> "<finding and decision needed>"` and stop; do not hand off while blocked. Do not introduce a separate blocking mechanism.
-- Commit the review and any fixes (`By security-reviewer.`), using `--allow-empty` when no code changes are needed. Record `Tested:`, `Not-tested:`, and `Confidence:` trailers so the next role can assess the evidence.
+- Commit the review and any fixes (`By security-reviewer.`), using `--allow-empty` when no code changes are needed. Record `Tested:` and `Not-tested:` trailers so the next role can assess the evidence.
 - When no blocking finding remains, follow the shared [handoff rules](../constitution/articles/handoffs.md).

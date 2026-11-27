@@ -96,8 +96,8 @@
 
 (describe "lore-key?"
   (it "knows every Lore trailer key"
-    (should= [true true true true true true true true true true true true]
-             (map lore/lore-key? ["Constraint" "Rejected" "Confidence" "Scope-risk" "Reversibility" "Directive"
+    (should= [true true true true true true true true true true true]
+             (map lore/lore-key? ["Constraint" "Rejected" "Scope-risk" "Reversibility" "Directive"
                                   "Tested" "Not-tested" "Supersedes" "Depends-on" "Related" "Lore-id"])))
 
   (it "rejects other keys"
@@ -175,7 +175,7 @@
 
   (it "leaves out the evidence trailers"
     (should= ["LORE: c1 qa Directive: d"]
-             (brief-lines [(commit "c1" "qa" "Lore-id: 1" "Tested: a" "Directive: d" "Not-tested: b" "Confidence: c")])))
+             (brief-lines [(commit "c1" "qa" "Lore-id: 1" "Tested: a" "Directive: d" "Not-tested: b")])))
 
   (it "leaves out every line of a commit whose Lore-id a later commit supersedes"
     (should= ["LORE: c2 coder Directive: two" "LORE: c2 coder Supersedes: 0000000a"]

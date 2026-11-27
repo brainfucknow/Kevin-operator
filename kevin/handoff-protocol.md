@@ -94,7 +94,7 @@ history stays on the pushed branch.
 
 - Every question, answer, and changes-requested record, plus the last ten
   other records, oldest first. `RECORDS:` reports how many were omitted.
-- Decision Lore, excluding `Tested`, `Not-tested`, `Confidence`, and `Lore-id`.
+- Decision Lore, excluding `Tested`, `Not-tested`, and `Lore-id`.
 - No lines from a commit named by a `Supersedes: <Lore-id>` trailer. The
   superseding trailer stays unless its own commit is superseded; unmatched
   IDs remove nothing. `LORE-OMITTED:` counts omitted evidence and superseded lines.
