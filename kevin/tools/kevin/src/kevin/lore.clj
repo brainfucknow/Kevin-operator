@@ -6,7 +6,7 @@
   (:import (java.security SecureRandom)))
 
 (def ^:private lore-keys
-  #{"Constraint" "Rejected" "Confidence" "Scope-risk" "Reversibility" "Directive"
+  #{"Constraint" "Rejected" "Scope-risk" "Reversibility" "Directive"
     "Tested" "Not-tested" "Supersedes" "Depends-on" "Related" "Lore-id"})
 
 (defn lore-key? [key]
@@ -107,7 +107,7 @@
   (map line (mapcat commit-trailers commits)))
 
 (def ^:private evidence-keys
-  #{"Tested" "Not-tested" "Confidence" "Lore-id"})
+  #{"Tested" "Not-tested" "Lore-id"})
 
 (defn- values-of [key trailers]
   (for [trailer trailers :when (= key (:key trailer))] (str/trim (:value trailer))))
@@ -132,7 +132,7 @@
 (defn brief
   "The LORE: lines of commits that kevin start prints, as :lines, and how many of
   the lines that kevin show prints it leaves out, as :omitted. It leaves out the
-  evidence trailers (Tested, Not-tested, Confidence, Lore-id) and every trailer
+  evidence trailers (Tested, Not-tested, Lore-id) and every trailer
   of a commit that is not current."
   [commits]
   (let [kept (for [commit (current commits)

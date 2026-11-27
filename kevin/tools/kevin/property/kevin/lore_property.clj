@@ -7,7 +7,7 @@
             [kevin.property-support :refer [commit-with hex7 passes? sentence]]))
 
 (def ^:private trailer-key
-  (gen/one-of [(gen/elements ["Constraint" "Rejected" "Tested" "Not-tested" "Directive" "Confidence"])
+  (gen/one-of [(gen/elements ["Constraint" "Rejected" "Tested" "Not-tested" "Directive"])
                (gen/elements ["Co-Authored-By" "Signed-off-by" "Session" "Tested-by"])]))
 
 (def ^:private trailer (gen/tuple trailer-key sentence))
@@ -100,14 +100,13 @@
   trailer that is not Lore."
   (gen/one-of [(gen/fmap (fn [[k v]] (str k ": " v))
                          (gen/tuple (gen/elements ["Constraint" "Rejected" "Directive" "Scope-risk" "Reversibility"
-                                                   "Depends-on" "Related" "Tested" "Not-tested" "Confidence"
-                                                   "Co-Authored-By"])
+                                                   "Depends-on" "Related" "Tested" "Not-tested" "Co-Authored-By"])
                                     sentence))
                (gen/fmap #(str "Supersedes: " %) lore-id)]))
 
 (def ^:private brief-commit (commit-with lore-id brief-trailer))
 
-(def ^:private evidence #{"Tested" "Not-tested" "Confidence" "Lore-id"})
+(def ^:private evidence #{"Tested" "Not-tested" "Lore-id"})
 
 (defn- line-key [line]
   (second (re-matches #"LORE: \S+ \S+ ([^:]+): .*" line)))
