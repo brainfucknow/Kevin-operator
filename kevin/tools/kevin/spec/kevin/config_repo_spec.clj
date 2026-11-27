@@ -1,7 +1,7 @@
 (ns kevin.config-repo-spec
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
-            [speclj.core :refer [around describe it should-contain should= should-not-contain]]
+            [speclj.core :refer [around describe it should-contain should=]]
             [kevin.config :as config]
             [kevin.repo-support :as support :refer [*dir* with-repo]]
             [kevin.shell :as shell]))
@@ -105,11 +105,3 @@
   (it "is every role when there is no feature route"
     (support/write-conf! *dir* "routes.conf" "quick coder\n")
     (should= "specifier,coder,cleaner" (config/default-route))))
-
-(describe "audit"
-  (around [it] (with-repo it))
-
-  (it "is a flag of the role"
-    (should= true (config/role-audits? "coder"))
-    (should= false (config/role-audits? "cleaner"))
-    (should-not-contain "audit" (config/pipeline))))

@@ -34,7 +34,7 @@ You are the pull request reviewer. You run in one of two modes:
   ```
 
 - With no finding, write `No findings.` in the body.
-- Add `Tested:` for each command you ran, and `Confidence:`.
+- Add `Tested:` for each command you ran.
 - When the task has an earlier review commit of yours, name its Lore-id with `Supersedes:`.
 
 ## The Obvious Test

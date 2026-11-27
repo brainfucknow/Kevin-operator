@@ -38,15 +38,17 @@ Feature: kevin Lore lines
 
   # kevin Lore lines 3
   Scenario Outline: kevin Lore lines 3: no Lore trailers add nothing
-    Given role "specifier" committed "Spec\n\nCo-Authored-By: A <a@b>" in the task worktree as C1
+    Given role "specifier" committed "Spec\n\n<trailer>" in the task worktree as C1
     When I run "kevin <command> ID" in the main checkout
     Then the exit status is 0
     And the output has no line starting with "LORE:"
 
     Examples:
-      | command |
-      | start   |
-      | show    |
+      | command | trailer                 |
+      | start   | Co-Authored-By: A <a@b> |
+      | show    | Co-Authored-By: A <a@b> |
+      | start   | Confidence: high        |
+      | show    | Confidence: high        |
 
   # kevin Lore lines 4
   Scenario: kevin Lore lines 4: show prints the Lore lines of a finished task

@@ -102,10 +102,8 @@
       (should-contain "HANDOFF" (out task/approve [id]))
       (should= "coder" (out task/stage [id]))))
 
-  (it "does not audit the commit a second time when the approval hands it on"
-    (write-conf! *dir* "roles.conf" "specifier frontier subagent audit\ncoder strong subagent audit\ncleaner fast subagent\n")
+  (it "records the first review at a commit and hands it on at the approval"
     (let [id (new-id "Add login")]
-      (should-contain "AUDIT_REQUIRED" (out (fn [] (try (task/review [id]) (catch Exception _ nil)))))
       (should-contain "REVIEW" (out task/review [id]))
       (should-contain (str "HANDOFF: " id " specifier -> coder") (out task/approve [id]))))
 
@@ -212,12 +210,10 @@
       (git dir "checkout" "-q" "-b" "elsewhere")
       (fails-with "expected" #(task/handoff [id] {:reviewed? true}))))
 
-  (it "asks the audit once per commit before it records a handoff"
+  (it "records the first handoff at a commit"
     (let [id (new-id "Quick" "--route" "coder,cleaner")]
       (out task/start [id])
       (commit-in-worktree id "a")
-      (should-contain "AUDIT_REQUIRED" (out (fn [] (try (task/handoff [id] {}) (catch Exception _ nil)))))
-      (should= "coder" (out task/stage [id]))
       (should-contain "HANDOFF" (out task/handoff [id "-m" "done" "coding"] {}))
       (should= "cleaner" (out task/stage [id]))))
 
@@ -498,94 +494,31 @@
       (should-contain "routes: feature quick" text)
       (should (fs/exists? (fs/path *dir* ".git" "hooks" "commit-msg"))))))
 
-(defn- refused-handoff [id & args]
-  (should= 3 (:status (captured #(task/handoff (into [id] args) {})))))
-
-(defn- audit-trailer
-  "The audit refusal count trailer of the newest handoff or review record of the task, or blank."
+(defn- newest-record
+  "The message of the newest record commit of the task."
   [id]
-  (git *dir* "log" "-1" "--format=%(trailers:key=Kevin-Audit-Refusals,valueonly)"
-       "--grep=^Kevin-Record: \\(handoff\\|review\\)$" (str "swarm/" id)))
+  (git *dir* "log" "-1" "--format=%B" (str "swarm/" id)))
 
-(defn- audit-file [id]
-  (str *dir* "/.kevin/audit/" id))
-
-(describe "the audit refusal count"
+(describe "without an audit gate"
   (around [it] (with-repo it))
 
-  (it "counts the refusals since the last record on the record, across commits"
-    (let [id (new-id "Quick" "--route" "coder,cleaner")]
+  (it "records the first handoff, writes no refusal count and leaves an old pending file alone"
+    (let [id (new-id "Quick" "--route" "coder,cleaner")
+          pending (fs/path *dir* ".kevin" "audit" id "coder")]
       (out task/start [id])
       (commit-in-worktree id "a")
-      (refused-handoff id "--to" "coder")
-      (commit-in-worktree id "b")
-      (refused-handoff id "--to" "coder")
-      (should-contain "HANDOFF" (out task/handoff [id "--to" "coder"] {}))
-      (should= "2" (audit-trailer id))
-      (should-contain "audit-refusals: 2" (out task/show [id]))
-      (should-not (fs/exists? (audit-file id)))
-      (commit-in-worktree id "c")
-      (refused-handoff id)
+      (fs/create-dirs (fs/parent pending))
+      (spit (str pending) (str (git (worktree id) "rev-parse" "--short" "HEAD") "\n5\n"))
       (should-contain "HANDOFF" (out task/handoff [id] {}))
-      (should= "1" (audit-trailer id))))
+      (should-not-contain "Audit" (newest-record id))
+      (should (fs/exists? pending))
+      (should-not-contain "audit" (out task/show [id]))))
 
-  (it "keeps the count when the record cannot be written after the gate passed"
-    (let [id (new-id "Quick" "--route" "coder,cleaner")]
-      (out task/start [id])
-      (commit-in-worktree id "a")
-      (refused-handoff id)
-      (commit-in-worktree id "b")
-      (refused-handoff id)
-      (with-redefs [store/write! (fn [& _] (shell/die "lost the race"))]
-        (should= 1 (:status (captured #(task/handoff [id] {})))))
-      (should (fs/exists? (audit-file id)))
-      (should= "coder" (out task/stage [id]))
-      (should-contain "HANDOFF" (out task/handoff [id] {}))
-      (should= "2" (audit-trailer id))))
-
-  (it "keeps the count of a review whose write failed"
-    (write-conf! *dir* "roles.conf" "specifier frontier subagent audit\ncoder strong subagent\ncleaner fast subagent\n")
+  (it "records the first review and writes no refusal count"
     (let [id (new-id "Add login")]
-      (should= 3 (:status (captured #(task/review [id]))))
-      (with-redefs [store/write! (fn [& _] (shell/die "lost the race"))]
-        (should= 1 (:status (captured #(task/review [id])))))
       (should-contain "REVIEW" (out task/review [id]))
-      (should= "1" (audit-trailer id))))
-
-  (it "counts a pending audit file of an earlier kevin, which names no role, for no role"
-    (let [id (new-id "Quick" "--route" "coder,cleaner")]
-      (out task/start [id])
-      (commit-in-worktree id "a")
-      (fs/create-dirs (fs/parent (audit-file id)))
-      (spit (audit-file id) (str (git (worktree id) "rev-parse" "--short" "HEAD") "\n2\n"))
-      (refused-handoff id)
-      (should-contain "HANDOFF" (out task/handoff [id] {}))
-      (should= "1" (audit-trailer id))
-      (should-not (fs/exists? (audit-file id)))))
-
-  (it "keeps a specifier's refusal through approval for the specifier alone"
-    (write-conf! *dir* "roles.conf" "specifier frontier subagent audit\ncoder strong subagent audit\ncleaner fast subagent\n")
-    (let [id (new-id "Add login")]
-      (should= 3 (:status (captured #(task/review [id]))))
-      (out task/review [id])
-      (should= 3 (:status (captured #(task/review [id]))))
-      (out task/approve [id])
-      (refused-handoff id)
-      (should-contain "HANDOFF" (out task/handoff [id] {}))
-      (should= "1" (audit-trailer id))
-      (should (fs/exists? (fs/path (audit-file id) "specifier")))))
-
-  (it "writes no count for a role without audit or for the handoff of an approval"
-    (write-conf! *dir* "roles.conf" "specifier frontier subagent audit\ncoder strong subagent\ncleaner fast subagent\n")
-    (let [id (new-id "Add login")]
-      (should= 3 (:status (captured #(task/review [id]))))
-      (out task/review [id])
-      (should= "1" (audit-trailer id))
-      (should-contain "audit-refusals: 1" (out task/start [id]))
-      (out task/approve [id])
-      (should= "" (audit-trailer id))
-      (should-contain "HANDOFF" (out task/handoff [id] {}))
-      (should= "" (audit-trailer id)))))
+      (should-not-contain "Audit" (newest-record id))
+      (should-not-contain "audit" (out task/start [id])))))
 
 (describe "harvest"
   (around [it] (with-repo it))

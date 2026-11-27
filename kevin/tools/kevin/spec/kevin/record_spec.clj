@@ -1,5 +1,5 @@
 (ns kevin.record-spec
-  (:require [speclj.core :refer [describe it should= should should-not should-be-nil]]
+  (:require [speclj.core :refer [describe it should= should should-not should-be-nil should-not-contain]]
             [kevin.record :as record]))
 
 (describe "slug"
@@ -267,13 +267,15 @@
     (should-be-nil (:rejected (record/parse {:sha "s" :parents ["p"] :message ""
                                              :trailers ["Rejected: x | y" "Kevin-Record: handoff"]}))))
 
-  (it "writes the audit refusals of a record as a trailer and reads them back"
-    (let [handoff {:task "t-1" :record "handoff" :from "coder" :stage "qa" :route "coder,qa" :needs "none"
-                   :commit "c1" :text "done" :audit-refusals 2}
-          message (record/message handoff)]
-      (should= "Kevin-Audit-Refusals: 2" (last (clojure.string/split-lines message)))
-      (should= "2" (:audit-refusals (record/parse {:sha "s" :parents ["c1"] :message message
-                                                   :trailers (drop 4 (clojure.string/split-lines message))}))))))
+  (it "reads an old record that carries an audit refusal count and ignores the count"
+    (let [rec (record/parse {:sha "s" :parents ["c1"] :message (str "kevin handoff: t-1\n\ndone\n\nKevin-Audit-" "Refusals: 2\n")
+                             :trailers ["Kevin-Task: t-1" "Kevin-Record: handoff" "Kevin-From: coder"
+                                        "Kevin-Stage: qa" "Kevin-Route: coder,qa" "Kevin-Needs: none"
+                                        (str "Kevin-Audit-" "Refusals: 2")]})]
+      (should= {:task "t-1" :record "handoff" :from "coder" :stage "qa" :route "coder,qa" :needs "none"
+                :sha "s" :commit "c1" :text "done"}
+               rec)
+      (should-not-contain "audit" (record/block (assoc rec :files "-"))))))
 
 (describe "rejected-finding"
   (it "splits a Rejected value at its last ' | ' and reads the kind and severity of its prefix"
@@ -361,18 +363,11 @@
     (should= "type: gates\nfrom: operator\ngates: none"
              (record/block {:record "gates" :from "operator"})))
 
-  (it "renders the audit refusals of a review and a handoff that carry them"
-    (should= "type: review\nfrom: specifier\ncommit: c1\nfiles: -\nsummary: ready\naudit-refusals: 2"
-             (record/block {:record "review" :from "specifier" :commit "c1" :files "-" :text "ready" :audit-refusals "2"}))
-    (should= "type: handoff\nfrom: coder\nto: qa\nbranch: swarm/t-1\ncommit: c1\nfiles: -\nsummary: done\naudit-refusals: 1"
-             (record/block {:task "t-1" :record "handoff" :from "coder" :stage "qa" :commit "c1"
-                            :files "-" :text "done" :audit-refusals "1"})))
-
   (it "ends the block of a record that carries a backend with a backend line"
     (should= "type: answer\nfrom: operator\nanswer: yes\nbackend: claude session"
              (record/block {:record "answer" :from "operator" :text "yes" :backend "claude" :dispatched "session"}))
-    (should= "type: review\nfrom: specifier\ncommit: c1\nfiles: -\nsummary: ready\naudit-refusals: 2\nbackend: codex dispatched"
-             (record/block {:record "review" :from "specifier" :commit "c1" :files "-" :text "ready" :audit-refusals "2"
+    (should= "type: review\nfrom: specifier\ncommit: c1\nfiles: -\nsummary: ready\nbackend: codex dispatched"
+             (record/block {:record "review" :from "specifier" :commit "c1" :files "-" :text "ready"
                             :backend "codex" :dispatched "dispatched"})))
 
   (it "renders only the type and the sender of a record without fields"

@@ -89,7 +89,7 @@
    ["Kevin-Needs" :needs]
    ["Kevin-Fixes" :fixes] ["Kevin-Found-By" :found-by]
    ["Kevin-Merged-Into" :merged-into] ["Kevin-Reviewed" :reviewed]
-   ["Kevin-Audit-Refusals" :audit-refusals] ["Kevin-Spec-Verdict" :spec-verdict]
+   ["Kevin-Spec-Verdict" :spec-verdict]
    ["Kevin-Missing-Tools" :missing-tools]
    ["Kevin-Backend" :backend] ["Kevin-Dispatched" :dispatched]])
 
@@ -330,11 +330,10 @@
      :omitted omitted}))
 
 (defn- gate-fields
-  "The audit-refusals and missing-tools lines of a review or handoff record."
-  [{:keys [record audit-refusals missing-tools]}]
-  (when (#{"review" "handoff"} record)
-    (concat (when audit-refusals [["audit-refusals" audit-refusals]])
-            (when missing-tools [["missing-tools" missing-tools]]))))
+  "The missing-tools line of a review or handoff record."
+  [{:keys [record missing-tools]}]
+  (when (and (#{"review" "handoff"} record) missing-tools)
+    [["missing-tools" missing-tools]]))
 
 (defn link-fields
   "The fixes and found-by key-value pairs of a record that has them."

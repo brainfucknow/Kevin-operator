@@ -2,7 +2,6 @@
   "The commands that create, move, and close tasks."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
-            [kevin.audit :as audit]
             [kevin.config :as config]
             [kevin.exclude :as exclude]
             [kevin.flow :as flow]
@@ -277,20 +276,19 @@
 (defn- handoff-entry
   "The store/write! step of handoff: re-checks the refusals against the records
   it appends to, then returns the handoff record."
-  [id target {:keys [from to head summary refusals missing carried]}]
+  [id target {:keys [from to head summary missing carried]}]
   (fn [records]
     (let [state (last records)]
       (refuse (flow/handoff-refusal state (role-head id)))
       (refuse (to-refusal state target records))
       (cond-> (flow/handoff state from to head summary)
-        refusals (assoc :audit-refusals refusals)
         missing (assoc :missing-tools missing)
         carried (merge carried)))))
 
 (defn handoff
   "Records HEAD and moves the task on. role overrides the acting role,
-  reviewed? skips the missing-tool check and the audit gate, which the review
-  ran at the same commit, and carried, the :backend and :dispatched of another
+  reviewed? skips the missing-tool check, which the review ran at the same
+  commit, and carried, the :backend and :dispatched of another
   record, replaces the recording backend."
   [[id-arg & args] {:keys [role reviewed? carried]}]
   (let [id (open-task id-arg)
@@ -303,11 +301,9 @@
         _ (when (not= "done" to) (config/require-role to))
         head (role-head id)]
     (refuse (flow/handoff-refusal state head))
-    (let [missing (when-not reviewed? (missing-tools! id head allow?))
-          refusals (when-not reviewed? (audit/gate id from head))]
-      (store/write! id (handoff-entry id target {:from from :to to :head head :summary summary
-                                                 :refusals refusals :missing missing :carried carried}))
-      (when refusals (audit/clear! id from)))
+    (store/write! id (handoff-entry id target {:from from :to to :head head :summary summary
+                                               :missing (when-not reviewed? (missing-tools! id head allow?))
+                                               :carried carried}))
     (metrics/save! id (worktree-of id))
     (when (and (= "done" to) (fs/directory? (worktree-of id)))
       (git (worktree-of id) "reset" "--quiet" "--hard"))
@@ -335,14 +331,11 @@
         [allow? args] (options/allow-missing-tool args)
         summary (str/trim (options/message "specification ready for review" args))
         head (role-head id)
-        role (acting-role (store/state id))]
-    (let [missing (missing-tools! id head allow?)
-          refusals (audit/gate id role head)]
-      (write! id "review" role (constantly (cond-> {:text summary :needs "approval"
-                                                    :reviewed (git (shell/repo-root) "rev-parse" head)}
-                                             refusals (assoc :audit-refusals refusals)
-                                             missing (assoc :missing-tools missing))))
-      (when refusals (audit/clear! id role)))
+        role (acting-role (store/state id))
+        missing (missing-tools! id head allow?)]
+    (write! id "review" role (constantly (cond-> {:text summary :needs "approval"
+                                                  :reviewed (git (shell/repo-root) "rev-parse" head)}
+                                           missing (assoc :missing-tools missing))))
     (println (str "REVIEW: " id " waits for operator approval"))))
 
 (defn- approval-fields
@@ -373,8 +366,8 @@
                     (let [state (last records)]
                       (refuse (flow/approval-refusal state (flow/reviewed-commit records) (role-head id)))
                       (flow/follow state "approval" "operator" (approval-fields rejected)))))
-    ;; The review that asked for approval passed the missing-tool check and the
-    ;; audit gate at this commit. Thus the handoff must not run them again. The
+    ;; The review that asked for approval passed the missing-tool check at this
+    ;; commit. Thus the handoff must not run it again. The
     ;; handoff is the role's, so it carries the backend of the role's review,
     ;; not the operator's.
     (handoff [id] {:role (acting-role state) :reviewed? true

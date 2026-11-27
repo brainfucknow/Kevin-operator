@@ -6,7 +6,7 @@
 (def ^:private roles
   [["specifier" "frontier" "session"]
    ["falsifier" "strong" "subagent" "gate"]
-   ["coder" "strong" "subagent" "audit"]
+   ["coder" "strong" "subagent"]
    ["cleaner" "fast" "subagent"]])
 
 (def ^:private tiers

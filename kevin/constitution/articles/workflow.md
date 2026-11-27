@@ -21,7 +21,7 @@ By coder.
 - If `kevin start` prints `HOOK:`, prepare the message under `./tmp/`, run `kevin commit-msg <role> <file>`, then `git commit -F <file>`. This supplies the byline and Lore ID without the hook.
 
 ## Lore Trailers
-- Roles record decision context and verification as [Lore](https://github.com/Ian-stetsenko/lore-protocol) git trailers in the last paragraph of a commit message: `Constraint`, `Rejected` (`<alternative> | <reason>`), `Confidence`, `Scope-risk`, `Reversibility`, `Directive`, `Tested`, `Not-tested`, `Supersedes`, `Depends-on`, `Related`. Keep the byline above that block. Write one trailer per line; fold a long value onto a next line that starts with a space.
+- Roles record decision context and verification as [Lore](https://github.com/Ian-stetsenko/lore-protocol) git trailers in the last paragraph of a commit message: `Constraint`, `Rejected` (`<alternative> | <reason>`), `Scope-risk`, `Reversibility`, `Directive`, `Tested`, `Not-tested`, `Supersedes`, `Depends-on`, `Related`. Keep the byline above that block. Write one trailer per line; fold a long value onto a next line that starts with a space.
 - When that block has a Lore trailer and no `Lore-id`, the hook adds `Lore-id: <8 random hex digits>` as its first line. Do not write a `Lore-id` yourself; without the hook, `kevin commit-msg` adds it.
 - Record every specification departure and non-obvious trade-off on the commit making it: `Constraint: <limit>`, `Rejected: <alternative> | <reason>`, or `Directive: <instruction for later roles>`. Record verification with `Tested` and `Not-tested`. Chat alone does not preserve these decisions; `kevin` does not enforce their content.
 

@@ -21,7 +21,6 @@ hand. `kevin start` and `kevin show` print the records;
 - Pass `--to <role>` only when your role prompt says so. Do not send work backwards unless your role has the `send-back` flag in `roles.conf`. `kevin` accepts only your stage or a later role on the route, and `done` only from the route's last role. A `send-back` role may also name an earlier role on the route, other than the specifier, at most twice per task.
 - Do not write long handoff summaries. One line. The commits are the content.
 - After `kevin handoff`, stop and report its one-line output. Do not take another task unless your prompt tells you to.
-- If `kevin handoff` or `kevin review` prints `AUDIT_REQUIRED`, nothing was recorded. Do the listed self-review against the committed work, fix and commit what it finds, then run the command again. Running it again without the review defeats the gate and is a failure condition.
 - If `kevin handoff` or `kevin review` prints `MISSING_TOOL`, nothing was recorded. Follow the [missing-tool rule](engineering.md#startup-tools), commit, and run the command again. If it prints `ALLOW_REFUSED`, ask the operator about each listed tool with `kevin ask` before passing `--allow-missing-tool` again.
 
 ## Questions

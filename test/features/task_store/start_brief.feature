@@ -13,7 +13,7 @@ Feature: kevin start brief
   other records or fewer, kevin start prints every record and no RECORDS: line.
 
   LORE: lines: kevin start leaves out two kinds of LORE: lines.
-  - Evidence keys: Tested, Not-tested, Confidence and Lore-id.
+  - Evidence keys: Tested, Not-tested and Lore-id.
   - Superseded commits: a "Supersedes: <Lore-id>" trailer on any commit of the
     task branch removes every LORE: line of the commit whose Lore-id equals
     the value. The Supersedes line itself stays unless its own commit is
@@ -104,7 +104,6 @@ Feature: kevin start brief
       | key        |
       | Tested     |
       | Not-tested |
-      | Confidence |
 
   # kevin start brief 6
   Scenario: kevin start brief 6: kevin start leaves out every LORE line of a superseded commit
