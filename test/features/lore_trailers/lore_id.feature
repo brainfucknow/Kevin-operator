@@ -1,7 +1,7 @@
 Feature: kevin commit Lore-id
 
   A Lore trailer is a trailer in the trailer block whose key is one of
-  Constraint, Rejected, Confidence, Scope-risk, Reversibility, Directive,
+  Constraint, Rejected, Scope-risk, Reversibility, Directive,
   Tested, Not-tested, Supersedes, Depends-on, Related or Lore-id. When the
   trailer block of a task worktree commit has a Lore trailer and no Lore-id
   trailer, the commit-msg hook adds "Lore-id: <id>" as the first line of the
@@ -25,7 +25,6 @@ Feature: kevin commit Lore-id
       | key           |
       | Constraint    |
       | Rejected      |
-      | Confidence    |
       | Scope-risk    |
       | Reversibility |
       | Directive     |
@@ -45,6 +44,7 @@ Feature: kevin commit Lore-id
       | message                                       | result                                                |
       | Fix\n\nTested: x\n\nClosing text              | Fix\n\nTested: x\n\nClosing text\n\nBy qa.            |
       | Fix\n\nTested-by: A <a@b>                     | Fix\n\nBy qa.\n\nTested-by: A <a@b>                   |
+      | Fix\n\nConfidence: high                       | Fix\n\nBy qa.\n\nConfidence: high                     |
 
   # kevin commit Lore-id 3
   Scenario Outline: kevin commit Lore-id 3: an existing Lore-id stays as it is
