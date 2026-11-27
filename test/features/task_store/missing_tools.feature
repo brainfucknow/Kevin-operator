@@ -2,8 +2,7 @@ Feature: kevin missing tools
 
   kevin handoff and kevin review read every Not-tested trailer, as git parses
   them, with the key matched ignoring case, of the role's commits since the
-  newest created, review or handoff record: the range of the audit gate's
-  diff. A tools.conf row of the catalogue that kevin tool uses, other than a row
+  newest created, review or handoff record. A tools.conf row of the catalogue that kevin tool uses, other than a row
   of kind local, is named in a text when its name appears in the text,
   ignoring case, bounded on each side by the start or end of the text or by
   a character other than a letter, a digit, "-" or "_". A tool named in a
@@ -19,8 +18,7 @@ Feature: kevin missing tools
   ensure <tool>", then the line "Then run the check, or record Not-tested with
   the install or run error. If the install fails, run kevin ask; after the
   operator answers, pass --allow-missing-tool." The check runs after the
-  refusals kevin handoff already has and before the audit gate, so a refusal
-  leaves no audit state.
+  refusals kevin handoff already has.
 
   --allow-missing-tool is found anywhere in the arguments and left out of the
   summary, as --to is. A missing tool is accepted when a question record
