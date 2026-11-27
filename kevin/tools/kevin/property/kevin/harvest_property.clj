@@ -114,8 +114,15 @@
      :records records :commits commits}))
 
 (def ^:private record-keys
-  #{"type" "from" "stage" "needs" "route" "commit" "text" "merged_into" "rejected" "spec_verdict"
-    "time" "recorded_by" "backend" "dispatched"})
+  ["type" "from" "stage" "needs" "route" "commit" "text" "merged_into" "rejected" "spec_verdict"
+   "time" "recorded_by" "backend" "dispatched"])
+
+(defn- record-key-order
+  "The record keys in the order the JSON text of line writes them. Generated
+  values hold no quotes, so a quoted name followed by a colon is a key."
+  [text]
+  (let [records (subs text (str/index-of text "\"records\":") (str/index-of text "\"lore\":"))]
+    (filter (set record-keys) (map second (re-seq #"\"([a-z_]+)\":" records)))))
 
 (describe "line"
   (it "is one line of JSON that reads back the task's id, status and newest state"
@@ -138,7 +145,12 @@
     (should (passes? (prop/for-all [t task]
                        (let [records (get (json/parse-string (harvest/line t)) "records")]
                          (and (= (map :record (:records t)) (map #(get % "type") records))
-                              (every? #(= record-keys (set (keys %))) records)))))))
+                              (every? #(= (set record-keys) (set (keys %))) records)))))))
+
+  (it "writes the record keys of every record in the documented order"
+    (should (passes? (prop/for-all [t task]
+                       (= (apply concat (repeat (count (:records t)) record-keys))
+                          (record-key-order (harvest/line t)))))))
 
   (it "gives a commit only on created, review and handoff, never an empty one"
     (should (passes? (prop/for-all [t task]

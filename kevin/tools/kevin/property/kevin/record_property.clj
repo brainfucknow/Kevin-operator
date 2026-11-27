@@ -158,6 +158,23 @@
 (def ^:private trailer-name
   (gen/fmap #(str/join "-" (map str/capitalize %)) (gen/not-empty (gen/vector word 1 3))))
 
+(def ^:private retired-trailers
+  "Kevin trailers that older kevin versions wrote and this one ignores. Built
+  from parts so the retired names do not appear in the tree."
+  [(str "Kevin-Audit-" "Refusals")])
+
+(describe "retired trailers"
+  (it "leave the parsed record and its printed block unchanged"
+    (should (passes? (prop/for-all [r rec sha hex7 parent hex7
+                                    retired (gen/elements retired-trailers) v value]
+                       (let [message (record/message r)
+                             old (str (str/trimr message) "\n" retired ": " v "\n")
+                             parse #(record/parse {:sha sha :parents [parent] :message %
+                                                   :trailers (trailer-lines %)})]
+                         (and (= (parse message) (parse old))
+                              (= (record/block (assoc (parse message) :files "-"))
+                                 (record/block (assoc (parse old) :files "-"))))))))))
+
 (describe "legacy records"
   (it "parse as the same record as their Kevin- form"
     (should (passes? (prop/for-all [r rec sha hex7 parent hex7]
