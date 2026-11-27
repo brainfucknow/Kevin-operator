@@ -203,7 +203,11 @@ agents.
 
 ## Tests
 
-Run these from the source checkout.
+Run commands from the source checkout root unless a command changes
+directory. The [CI workflow](.github/workflows/test.yml) runs the suites
+marked CI. It also runs the CLI smoke suite and the shared-wrapper CRAP
+gate on the minimum supported Babashka. The [merge checks](kevin/verify.conf)
+run the CLI smoke suite and the Kevin property suite via `kevin finish`.
 
 Choose checks for the affected behavior and dependencies. Reuse passing
 evidence for the same relevant revision and targets; the full CI matrix is
@@ -221,39 +225,68 @@ to the affected targets, and property checks remain separate and role-owned.
 | Acceptance fixtures | `bash test/acceptance.sh <feature>...`; for identity changes include `test/features/task_store/init.feature`. |
 | Documentation only | Manual review and existing configuration/link checks relevant to the edit. |
 
-The commands below list the available suites. CI remains the broader
-integration check, including unaffected language suites.
+### CLI, wrappers, and workflow tests
+
+| Suite | Location | What it checks | Command | Runs in |
+|---|---|---|---|---|
+| Kevin CLI smoke | [test/kevin_test.sh](test/kevin_test.sh) | Public task lifecycle and Git records in a scratch repository | `bash test/kevin_test.sh` | CI and merge |
+| Kevin tool CLI | [test/kevin_tool_test.sh](test/kevin_tool_test.sh) | Tool catalogue, installation, and argument guards with fixture tool sources | `bash test/kevin_tool_test.sh` | CI |
+| Manifest guard | [guard](test/no_manifests.sh), [tests](test/no_manifests_test.sh) | Rejects staged mutation and coverage artifacts. Uses Bash and Git. | `bash test/no_manifests.sh` checks the index. `bash test/no_manifests_test.sh` tests the guard. | CI |
+| Kevin unit specs | [kevin/tools/kevin/spec/](kevin/tools/kevin/spec/) | CLI, task records, installer, project setup, adapters, and tool policy | `bb --config kevin/tools/kevin/bb.edn spec` | CI |
+| Kevin and Mojo hardening | [Kevin hardening](kevin/tools/kevin/hardening/), [Mojo hardening](kevin/tools/mojo/hardening/) | Regression specs for Kevin's workflow boundaries and the Mojo wrapper | `bb --config kevin/tools/kevin/bb.edn hardening` | CI, one runner for both |
+| Shared wrapper unit tests | [core_test.clj](kevin/tools/core/test/kevincore/core_test.clj) | Shared report handling, paths, and wrapper policy | `bb --config kevin/tools/core/bb.edn test` | CI via .NET and C/C++ `test`, or run on its own |
+| Shared wrapper architecture | [architecture_test.clj](kevin/tools/core/test/kevincore/architecture_test.clj) | Dependency and IO boundaries | `bb --config kevin/tools/core/bb.edn architecture` | CI on its own and via JavaScript `test` |
+| .NET wrapper unit and regression | [test/](kevin/tools/csharp/test/), [spec/](kevin/tools/csharp/spec/) | C#, F#, and VB.NET wrapper behavior and reports | `bb --config kevin/tools/csharp/bb.edn test`. Use `spec` in place of `test` for the Speclj regression specs alone. | CI via `test`, which also runs shared wrapper unit tests |
+| JavaScript wrapper unit | [kevin/tools/javascript/test/](kevin/tools/javascript/test/) | Package managers, commands, report parsing, and acceptance runner | `bb --config kevin/tools/javascript/bb.edn test` | CI |
+| Ruby wrapper unit | [kevin/tools/ruby/test/](kevin/tools/ruby/test/) | Commands and coverage, quality, and mutation report handling | `bb --config kevin/tools/ruby/bb.edn test` | CI |
+| Ruby wrapper end-to-end | [runner](test/kevin_rb_e2e_test.sh), [sample project](test/ruby_project/) | Wrapper behavior with real gems. Requires Ruby 3.3, Bundler, Node, and access to rubygems.org. | `bash test/kevin_rb_e2e_test.sh` | CI |
+| Java wrapper unit and hardening | [spec/](kevin/tools/java/spec/), [hardening/](kevin/tools/java/hardening/) | CLI, build and quality policy, and report boundary regressions | `bb --config kevin/tools/java/bb.edn spec` or `bb --config kevin/tools/java/bb.edn hardening` | CI, separate runs |
+| C/C++ wrapper unit | [kevin/tools/cpp/test/](kevin/tools/cpp/test/) | Build backends, source selection, coverage reports, and CLI behavior | `bb --config kevin/tools/cpp/bb.edn test` | CI, also runs shared wrapper unit tests |
+| C/C++ wrapper end-to-end | [runner](test/kevin_cpp_e2e_test.sh), [CMake fixture](test/cpp_cmake_project/), [MSBuild fixture](test/cpp_msbuild_project/) | Real builds, tests, and quality tools. The default Linux run needs CMake 3.21+, a C++ compiler, Babashka, uv, and Node. See the [C/C++ workflow](.github/workflows/cpp.yml) for Windows and Mull setup. | `bash test/kevin_cpp_e2e_test.sh`. Set `KEVIN_CPP_E2E=windows` or `KEVIN_CPP_E2E=mull` for those variants. | CI |
+| Mojo wrapper CLI smoke | [test/kevin_mojo_test.sh](test/kevin_mojo_test.sh) | Suite discovery, CLI arguments, and exit status with a fake SDK | `bash test/kevin_mojo_test.sh` | CI |
+| Mojo wrapper unit specs | [kevin/tools/mojo/spec/](kevin/tools/mojo/spec/) | CLI options, coverage results, and empty DRY reports with fixtures | See the standalone command below. | Local |
+| Rust wrapper unit specs | [kevin/tools/rust/spec/](kevin/tools/rust/spec/) | Cargo runner options and wrapper report handling | `bb --config kevin/tools/rust/bb.edn spec` | CI |
+| Mistral Workflows | [kevin/workflows/tests/](kevin/workflows/tests/) | Pipeline stages, retries, and workspaces with fake workflow activities. Requires uv and Python 3.12 or newer. | `(cd kevin/workflows && uv run --frozen pytest)` | CI |
+
+Run the standalone Mojo unit specs with the Kevin Speclj configuration.
 
 ```sh
-bash test/kevin_test.sh
-bash test/kevin_tool_test.sh
-bash test/no_manifests_test.sh
-bb --config kevin/tools/core/bb.edn architecture
-bb --config kevin/tools/core/bb.edn test
-bb --config kevin/tools/kevin/bb.edn spec
-bb --config kevin/tools/kevin/bb.edn hardening
-bb --config kevin/tools/kevin/bb.edn property
-kevin/bin/kevin tool ensure gherkin-parser
-bash test/acceptance.sh
-bb --config kevin/tools/csharp/bb.edn test
-bb --config kevin/tools/csharp/bb.edn property
-bb --config kevin/tools/javascript/bb.edn test
-bb --config kevin/tools/javascript/bb.edn property
-bb --config kevin/tools/javascript/bb.edn acceptance
-bb --config kevin/tools/ruby/bb.edn test
-bb --config kevin/tools/ruby/bb.edn property
-bash test/kevin_rb_e2e_test.sh  # needs Ruby and Bundler
-bb --config kevin/tools/cpp/bb.edn test
-bash test/kevin_cpp_e2e_test.sh  # needs cmake 3.21+, a C++ compiler, uv and Node
-bb --config kevin/tools/java/bb.edn spec
-bb --config kevin/tools/java/bb.edn hardening
-bb --config kevin/tools/java/bb.edn acceptance
-bb --config kevin/tools/java/bb.edn property
-(cd kevin/workflows && uv run --frozen pytest)
+bb --config kevin/tools/kevin/bb.edn \
+  -Sdeps '{:paths ["../mojo/src" "../core/src"]}' \
+  -m speclj.main -c kevin/tools/mojo/spec
 ```
 
-These suites exercise the CLI with scratch Git repositories and test the
-language wrappers against fixture reports and fake external tools.
+### Acceptance suites
+
+Install the pinned parser first with `kevin/bin/kevin tool ensure gherkin-parser`.
+CI runs all three suites. Pass feature paths after a command to run a subset.
+
+| Suite | Location | What it checks | Command |
+|---|---|---|---|
+| Kevin and installer | [test/features/](test/features/) | Installer, project setup, task state, tool wrappers, Lore, metrics, legacy compatibility, and manifest guard in scratch Git repositories. Project tests use `python3`. | `bash test/acceptance.sh` |
+| JavaScript wrapper | [JavaScript features](kevin/tools/javascript/features/) | Wrapper CLI contracts with fake Node and package managers | `bb --config kevin/tools/javascript/bb.edn acceptance` |
+| Java wrapper | [Java features](kevin/tools/java/features/) | Installation, execution, and quality contracts with fake Java and Maven. The fakes use `/usr/bin/python3`. | `bb --config kevin/tools/java/bb.edn acceptance` |
+
+Use the [Clojure tool compatibility checks](kevin/languages/clojure.md#tool-compatibility-checks)
+and [Java upstream compatibility checks](kevin/languages/java.md#upstream-compatibility)
+when changes affect real upstream tools. For JavaScript, use the real tools in
+the [JavaScript guide](kevin/languages/javascript.md).
+
+### Property suites
+
+Run these separately from unit tests and coverage. CI runs every row.
+
+| Suite | Location | What it checks | Command |
+|---|---|---|---|
+| Kevin | [kevin/tools/kevin/property/](kevin/tools/kevin/property/) | Task flow, records, agents, and tool arguments. Also runs on the merge candidate. | `bb --config kevin/tools/kevin/bb.edn property` |
+| .NET | [kevin/tools/csharp/property/](kevin/tools/csharp/property/) | Report and measurement invariants | `bb --config kevin/tools/csharp/bb.edn property` |
+| JavaScript and shared wrapper | [JavaScript properties](kevin/tools/javascript/property/), [shared properties](kevin/tools/core/property/) | JavaScript and shared wrapper report and policy invariants | `bb --config kevin/tools/javascript/bb.edn property` runs both |
+| Ruby | [kevin/tools/ruby/property/](kevin/tools/ruby/property/) | Ruby report and policy invariants | `bb --config kevin/tools/ruby/bb.edn property` |
+| Java | [kevin/tools/java/property/](kevin/tools/java/property/) | Java policy and acceptance runner invariants | `bb --config kevin/tools/java/bb.edn property` |
+| C/C++ | [kevin/tools/cpp/property/](kevin/tools/cpp/property/) | C/C++ wrapper report and scoring invariants | `bb --config kevin/tools/cpp/bb.edn property` |
+| Rust | [kevin/tools/rust/property/](kevin/tools/rust/property/) | Rust test selection, reports, and artifact policy | `bb --config kevin/tools/rust/bb.edn property` |
+
+### Local .NET coverage
 
 The .NET module has both Speclj and `clojure.test` tests. Its maintained
 `test/combined-coverage.clj` adapter registers both runners with genuine
@@ -275,5 +308,4 @@ Confirm both frameworks
 report nonzero passing tests and the intended source namespaces appear in
 LCOV before citing the result. Either framework's failure fails the combined
 run. The explicit test roots omit property tests; do not add property paths
-to ordinary coverage. A fixture-backed wrapper suite does not establish
-compatibility with a real external tool.
+to ordinary coverage.
