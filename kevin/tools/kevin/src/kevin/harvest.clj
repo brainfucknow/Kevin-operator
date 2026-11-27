@@ -9,16 +9,13 @@
 (defn- route-of [route]
   (when route (flow/route-list route)))
 
-(defn- refusal-count [value]
-  (some-> (re-matches #"\d+" (str value)) parse-long))
-
 (defn- rejected-entry [value]
   (let [{:keys [finding reason kind severity]} (record/rejected-finding value)]
     (array-map "finding" finding "reason" reason "kind" kind "severity" severity)))
 
 (defn- record-entry
   "The record with every key of a harvested record, null where it does not apply."
-  [{:keys [record from stage needs route commit text merged-into rejected audit-refusals spec-verdict time recorded-by
+  [{:keys [record from stage needs route commit text merged-into rejected spec-verdict time recorded-by
            backend dispatched]
     :as rec}]
   (array-map
@@ -31,7 +28,6 @@
    "text" (when (not= "created" record) text)
    "merged_into" (when (= "finished" record) merged-into)
    "rejected" (when (= "approval" record) (mapv rejected-entry rejected))
-   "audit_refusals" (when (#{"review" "handoff"} record) (refusal-count audit-refusals))
    "spec_verdict" (when (#{"spec-verdict" "changes-requested"} record) spec-verdict)
    "time" time
    "recorded_by" recorded-by

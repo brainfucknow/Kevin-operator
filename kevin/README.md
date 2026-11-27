@@ -119,8 +119,6 @@ first and refuse a broken setup. `kevin check`, `kevin adapters`,
 Catalogue settings:
 
 - `session` makes the orchestrator play a role in chat; `subagent` delegates it.
-- `audit` makes the first handoff or review at each commit request self-review
-  without recording anything. Complete that review before retrying.
 - `gate` makes a read-only subagent that audits a specification after
   `kevin review` and before approval; it is not a stage and cannot be on a route.
   It runs only on a task that chose it with `kevin new --gates` or
@@ -143,11 +141,11 @@ Catalogue settings:
   [spec-judge](roles/spec-judge.md) turns the loop on. Delete its line to
   turn it off.
 - `optional` excludes a role from fallback routes. Include it explicitly in a
-  named route, `--route`, or `KEVIN_ROUTE` to enable it; it can also use `audit`.
+  named route, `--route`, or `KEVIN_ROUTE` to enable it.
 - `send-back` lets a role run `kevin handoff <id> --to <role>` with an earlier
   role on the route, other than the specifier. The task then moves forward
   along the route again. `kevin` refuses the third send-back of a task. It
-  combines with `audit` and `optional`; a gate or a spec-judge cannot have it.
+  combines with `optional`; a gate or a spec-judge cannot have it.
 
 Optional reviewers keep the usual approval and handoff flow. The `feature`
 route includes the security reviewer; drop it per task with `kevin route`:

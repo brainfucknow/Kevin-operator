@@ -22,7 +22,7 @@
                     shell/env (fn [name default] (get *env* name default))]
         (binding [*dir* dir]
           (conf "tiers.conf" "strong opus high gpt\nfast sonnet low mini\n")
-          (conf "roles.conf" "specifier strong session\ncoder strong subagent audit\nqa fast subagent\n")
+          (conf "roles.conf" "specifier strong session\ncoder strong subagent\nqa fast subagent\n")
           (conf "routes.conf" "feature specifier,coder,qa\nquick coder,qa\n")
           (conf "tools.conf" (str "dry4clj bbmain github.com/x/dry4clj 0123456789abcdef0123456789abcdef01234567 dry4clj.core - -\n"
                                   "crap4clj bb github.com/x/crap4clj 0123456789abcdef0123456789abcdef01234567 crap coverage -\n"
@@ -151,10 +151,9 @@
 (describe "catalogue"
   (around [it] (with-catalogue it))
 
-  (it "reads roles, tiers and audit flags"
+  (it "reads roles and tiers"
     (should= ["specifier" "coder" "qa"] (config/pipeline))
     (should= "sonnet" (config/tier-field "fast" 2))
-    (should (config/role-audits? "coder"))
     (should= nil (config/require-role "qa"))
     (should-throw clojure.lang.ExceptionInfo "unknown role 'nope' (see kevin/roles.conf)" (config/require-role "nope")))
 
@@ -179,14 +178,13 @@
 
   (context "optional roles"
     (it "requires explicit selection while preserving named and fallback routes"
-      (conf "roles.conf" "specifier strong session\ncoder strong subagent audit\narchitecture-design-reviewer strong subagent optional\nhardener fast subagent\nsecurity-reviewer strong subagent optional audit\nqa fast subagent\n")
+      (conf "roles.conf" "specifier strong session\ncoder strong subagent\narchitecture-design-reviewer strong subagent optional\nhardener fast subagent\nsecurity-reviewer strong subagent optional\nqa fast subagent\n")
       (should= ["specifier" "coder" "architecture-design-reviewer" "hardener" "security-reviewer" "qa"] (config/pipeline))
       (should= "specifier,coder,qa" (config/default-route))
       (conf "routes.conf" "review coder,architecture-design-reviewer,hardener,security-reviewer,qa\n")
       (should= "coder,architecture-design-reviewer,hardener,security-reviewer,qa" (config/resolve-route "review"))
       (conf "routes.conf" "")
       (should= "specifier,coder,hardener,qa" (config/default-route))
-      (should (config/role-audits? "security-reviewer"))
       (should= "coder,architecture-design-reviewer,hardener,security-reviewer,qa"
                (config/resolve-route "coder,architecture-design-reviewer,hardener,security-reviewer,qa"))
       (binding [*env* {"KEVIN_ROUTE" "coder,security-reviewer,qa"}]
@@ -204,28 +202,27 @@
       (conf "routes.conf" "")
       (should-throw clojure.lang.ExceptionInfo "empty route" (config/default-route)))
 
-    (it "accepts optional and audit flags in either order and rejects duplicate or unknown flags"
+    (it "accepts the optional flag and rejects duplicate or unknown flags, audit among them"
       (doseq [role ["architecture-design-reviewer" "security-reviewer"]]
         (spit (str (fs/path *dir* "kevin/roles" (str role ".md"))) "fixture"))
-      (doseq [flags ["optional" "optional audit" "audit optional"]]
-        (conf "roles.conf" (str "coder strong subagent\nsecurity-reviewer strong subagent " flags "\nqa fast subagent\n"))
-        (conf "routes.conf" "feature coder,qa\n")
-        (should= 0 (first (check)))
-        (should= (not= flags "optional") (config/role-audits? "security-reviewer")))
+      (conf "roles.conf" "coder strong subagent\nsecurity-reviewer strong subagent optional\nqa fast subagent\n")
+      (conf "routes.conf" "feature coder,qa\n")
+      (should= 0 (first (check)))
       (conf "routes.conf" "feature coder\n")
       (doseq [[flags problem] [["optional optional" "repeats flag 'optional'"]
-                                ["audit audit" "repeats flag 'audit'"]
-                                ["optional loud" "unknown flag 'loud'"]]]
+                                ["optional loud" "unknown flag 'loud'"]
+                                ["audit" "roles.conf: 'coder' has unknown flag 'audit' (only optional, gate, spec-judge, send-back)"]
+                                ["optional audit" "roles.conf: 'coder' has unknown flag 'audit' (only optional, gate, spec-judge, send-back)"]]]
         (conf "roles.conf" (str "coder strong subagent " flags "\n"))
         (let [[status _ errors] (check)]
           (should= 1 status)
           (should (some #(str/includes? % problem) errors))))))
 
   (context "send-back roles"
-    (it "reads the send-back flag, alone or with audit and optional in any order"
+    (it "reads the send-back flag, alone or with optional in either order"
       (spit (str (fs/path *dir* "kevin/roles/pr-reviewer.md")) "fixture")
       (conf "routes.conf" "feature coder,qa\n")
-      (doseq [flags ["send-back" "optional send-back" "send-back audit optional" "audit optional send-back"]]
+      (doseq [flags ["send-back" "optional send-back" "send-back optional"]]
         (conf "roles.conf" (str "coder strong subagent\npr-reviewer strong subagent " flags "\nqa fast subagent\n"))
         (should= 0 (first (check)))
         (should (config/sends-back? "pr-reviewer"))
@@ -244,7 +241,7 @@
   (context "gate roles"
     (it "keeps a gate off the pipeline and the routes and lists it with the gates"
       (spit (str (fs/path *dir* "kevin/roles/falsifier.md")) "fixture")
-      (conf "roles.conf" "specifier strong session\nfalsifier strong subagent gate\ncoder strong subagent audit\nqa fast subagent\n")
+      (conf "roles.conf" "specifier strong session\nfalsifier strong subagent gate\ncoder strong subagent\nqa fast subagent\n")
       (should= ["specifier" "coder" "qa"] (config/pipeline))
       (should= ["falsifier"] (config/gates))
       (should (config/gate? "falsifier"))
@@ -261,10 +258,9 @@
     (it "has no gates when no role is flagged gate"
       (should= [] (config/gates)))
 
-    (it "refuses a gate that audits, is optional, runs in session, or sits on a route"
+    (it "refuses a gate that is optional, runs in session, or sits on a route"
       (spit (str (fs/path *dir* "kevin/roles/falsifier.md")) "fixture")
-      (doseq [[row problem] [["falsifier strong subagent gate audit" "'falsifier' is a gate and cannot also be audit or optional"]
-                             ["falsifier strong subagent optional gate" "'falsifier' is a gate and cannot also be audit or optional"]
+      (doseq [[row problem] [["falsifier strong subagent optional gate" "'falsifier' is a gate and cannot also be optional"]
                              ["falsifier strong session gate" "'falsifier' is a gate and must run as subagent"]]]
         (conf "roles.conf" (str "specifier strong session\n" row "\ncoder strong subagent\nqa fast subagent\n"))
         (let [[status _ errors] (check)]
@@ -294,11 +290,10 @@
     (it "has no spec-judge when no role is flagged spec-judge"
       (should= nil (config/spec-judge)))
 
-    (it "refuses a spec-judge that is also audit, optional or gate, runs in session, or comes twice"
+    (it "refuses a spec-judge that is also optional or gate, runs in session, or comes twice"
       (doseq [role ["spec-judge" "referee"]] (spit (str (fs/path *dir* "kevin/roles" (str role ".md"))) "fixture"))
-      (doseq [[rows problem] [["spec-judge strong subagent spec-judge audit" "'spec-judge' is a spec-judge and cannot also be audit, optional or gate"]
-                              ["spec-judge strong subagent optional spec-judge" "'spec-judge' is a spec-judge and cannot also be audit, optional or gate"]
-                              ["spec-judge strong subagent gate spec-judge" "'spec-judge' is a spec-judge and cannot also be audit, optional or gate"]
+      (doseq [[rows problem] [["spec-judge strong subagent optional spec-judge" "'spec-judge' is a spec-judge and cannot also be optional or gate"]
+                              ["spec-judge strong subagent gate spec-judge" "'spec-judge' is a spec-judge and cannot also be optional or gate"]
                               ["spec-judge strong session spec-judge" "'spec-judge' is a spec-judge and must run as subagent"]
                               ["spec-judge strong subagent spec-judge\nreferee strong subagent spec-judge" "'referee' is a second spec-judge; roles.conf has one"]]]
         (conf "roles.conf" (str "specifier strong session\n" rows "\ncoder strong subagent\nqa fast subagent\n"))
@@ -311,7 +306,7 @@
       (conf "roles.conf" "specifier strong session\nreferee strong subagent judge\ncoder strong subagent\nqa fast subagent\n")
       (let [[status _ errors] (check)]
         (should= 1 status)
-        (should (some #(str/includes? % "roles.conf: 'referee' has unknown flag 'judge' (only audit, optional, gate, spec-judge, send-back)") errors))))
+        (should (some #(str/includes? % "roles.conf: 'referee' has unknown flag 'judge' (only optional, gate, spec-judge, send-back)") errors))))
 
     (it "refuses a route that names the spec-judge"
       (spit (str (fs/path *dir* "kevin/roles/spec-judge.md")) "fixture")
@@ -356,8 +351,8 @@
                 "CHECK: roles.conf: role 'specifier' listed twice"
                 "CHECK: roles.conf: 'coder' uses unknown tier 'weak' (see tiers.conf)"
                 "CHECK: roles.conf: 'coder' runs-as must be subagent or session, not 'robot'"
-                "CHECK: roles.conf: 'qa' has unknown flag 'flag' (only audit, optional, gate, spec-judge, send-back)"
-                "CHECK: roles.conf: 'x' needs <role> <tier> <runs-as> [audit] [optional] [send-back]"
+                "CHECK: roles.conf: 'qa' has unknown flag 'flag' (only optional, gate, spec-judge, send-back)"
+                "CHECK: roles.conf: 'x' needs <role> <tier> <runs-as> [optional] [send-back]"
                 "CHECK: routes.conf: route 'feature' listed twice"
                 "CHECK: routes.conf: feature: route 'qa,specifier' is out of order; follow kevin/roles.conf: specifier,Bad,done,specifier,coder,qa,x"
                 "CHECK: routes.conf: 'lonely' needs exactly <name> <role,role,...>"

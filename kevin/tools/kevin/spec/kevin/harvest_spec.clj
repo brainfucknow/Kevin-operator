@@ -10,7 +10,7 @@
    {:record "question" :from "specifier" :sha "q1" :commit "c0" :stage "specifier" :route "specifier,coder"
     :needs "operator" :text "Which?"}
    {:record "review" :from "specifier" :sha "v1" :commit "s1" :stage "specifier" :route "specifier,coder"
-    :needs "approval" :text "ready" :audit-refusals "2"}
+    :needs "approval" :text "ready"}
    {:record "approval" :from "operator" :sha "a1" :commit "s1" :stage "specifier" :route "specifier,coder"
     :needs "none" :rejected ["DEFECT, LOW: a | b | reason" "C | d"]}
    {:record "handoff" :from "specifier" :sha "h1" :commit "s1" :stage "coder" :route "specifier,coder"
@@ -33,7 +33,7 @@
 
 (def ^:private null-record
   {"type" nil "from" nil "stage" nil "needs" nil "route" nil "commit" nil "text" nil
-   "merged_into" nil "rejected" nil "audit_refusals" nil "spec_verdict" nil "time" nil "recorded_by" nil
+   "merged_into" nil "rejected" nil "spec_verdict" nil "time" nil "recorded_by" nil
    "backend" nil "dispatched" nil})
 
 (describe "line"
@@ -53,7 +53,7 @@
               (merge null-record {"type" "question" "from" "specifier" "stage" "specifier" "needs" "operator"
                                   "route" ["specifier" "coder"] "text" "Which?"})
               (merge null-record {"type" "review" "from" "specifier" "stage" "specifier" "needs" "approval"
-                                  "route" ["specifier" "coder"] "commit" "s1" "text" "ready" "audit_refusals" 2})
+                                  "route" ["specifier" "coder"] "commit" "s1" "text" "ready"})
               (merge null-record {"type" "approval" "from" "operator" "stage" "specifier" "needs" "none"
                                   "route" ["specifier" "coder"]
                                   "rejected" [{"finding" "DEFECT, LOW: a | b" "reason" "reason" "kind" "DEFECT" "severity" "LOW"}
@@ -80,7 +80,7 @@
     (let [line (harvest/line (assoc task :records [(assoc (records 4) :time "2026-03-01T08:00:00Z" :recorded-by "Codex")]))
           entry (get-in (json/parse-string line) ["records" 0])
           raw (second (re-find #"\"records\":\[\{([^}]*)\}" line))]
-      (should= ["type" "from" "stage" "needs" "route" "commit" "text" "merged_into" "rejected" "audit_refusals"
+      (should= ["type" "from" "stage" "needs" "route" "commit" "text" "merged_into" "rejected"
                 "spec_verdict" "time" "recorded_by" "backend" "dispatched"]
                (map second (re-seq #"\"(\w+)\":" raw)))
       (should= ["2026-03-01T08:00:00Z" "Codex"] [(get entry "time") (get entry "recorded_by")])))
@@ -101,9 +101,6 @@
              (map #(get % "commit")
                   (get (parsed (assoc task :records [(assoc (records 4) :commit "") (dissoc (records 2) :commit)]))
                        "records"))))
-
-  (it "gives audit refusals that are not a count as null"
-    (should= nil (get-in (parsed (assoc task :records [(assoc (records 2) :audit-refusals "x")])) ["records" 0 "audit_refusals"])))
 
   (it "gives each Lore trailer but Lore-id with its commit's Lore-id, role null where there is none"
     (should= [{"commit" "s1" "role" "specifier" "key" "Constraint" "value" "keep it" "lore_id" "0badc0de"}

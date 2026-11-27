@@ -88,7 +88,7 @@
       (should= excluded (exclude))))
 
   (it "names an added role's project prompt in its agents, and the runtime's prompt for a runtime role"
-    (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncoder strong subagent audit\ncleaner fast subagent\ndesigner strong subagent\n")
+    (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncoder strong subagent\ncleaner fast subagent\ndesigner strong subagent\n")
     (write! "kevin/roles/designer.md" "# designer\n\nDraws: screens # and 'flows'.\n")
     (write! "kevin/roles/coder.md" "# coder\n\nProject text.\n")
     (should= 0 (:status (captured #(adapters/adapters []))))
@@ -110,7 +110,7 @@
     (should= "AGENT: none" (:out (agent-out "cleaner" "codex"))))
 
   (it "names a session role with the path of its prompt and refuses an unknown harness or role"
-    (write-conf! *dir* "roles.conf" "specifier frontier session\ncoder strong subagent audit\ncleaner fast subagent\ndesigner strong session\n")
+    (write-conf! *dir* "roles.conf" "specifier frontier session\ncoder strong subagent\ncleaner fast subagent\ndesigner strong session\n")
     (write! "kevin/roles/specifier.md" "# specifier\n\nProject text.\n")
     (write! "kevin/roles/designer.md" "# designer\n\nDraws the screens.\n")
     (should= (str "AGENT: session\nPROMPT: " (fs/path *runtime* "kevin" "roles" "specifier.md"))
@@ -122,7 +122,7 @@
 
   (it "names the plugin agent of a runtime role in vibe, whatever the project's rows, and no agent for an added role"
     (fast! "claude-haiku-5-5 low gpt-mini")
-    (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncoder strong subagent audit\ncleaner fast subagent\ndesigner strong subagent\ncritic strong subagent gate\n")
+    (write-conf! *dir* "roles.conf" "specifier frontier subagent\ncoder strong subagent\ncleaner fast subagent\ndesigner strong subagent\ncritic strong subagent gate\n")
     (write! "kevin/roles/designer.md" "# designer\n\nDraws the screens.\n")
     (write! "kevin/roles/critic.md" "# critic\n\nCriticizes.\n")
     (captured #(adapters/adapters []))

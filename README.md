@@ -182,7 +182,7 @@ subset of the catalogue in `kevin/roles.conf` order:
 The orchestrator suggests `spike`, `spec-code-qa` and `code-qa`; you choose.
 
 The [role catalogue](kevin/roles.conf) assigns tiers and supports
-`subagent`, `session`, `audit`, `optional`, and `send-back` settings. See
+`subagent`, `session`, `optional`, and `send-back` settings. See
 [configuration](kevin/README.md#configuration) for these settings and
 the optional reviewers. Model mappings live in
 [`kevin/tiers.conf`](kevin/tiers.conf). Run `kevin adapters` after changing

@@ -9,7 +9,7 @@
 (def ^:dynamic *dir* nil)
 
 (def default-conf
-  {"roles.conf" "specifier frontier subagent\ncoder strong subagent audit\ncleaner fast subagent\n"
+  {"roles.conf" "specifier frontier subagent\ncoder strong subagent\ncleaner fast subagent\n"
    "tiers.conf" "frontier inherit high gpt kilo/frontier-model vibe/frontier-model\nstrong opus medium gpt-5 kilo/strong-model vibe/strong-model\nfast sonnet low gpt-mini kilo/fast-model vibe/fast-model\n"
    "routes.conf" "feature specifier,coder,cleaner\nquick coder\n"
    "tools.conf" ""})
