@@ -25,5 +25,5 @@
 
 (describe "state-paths"
   (it "is the path under .kevin/, then the legacy one under .swarmforge/"
-    (should= [(str (fs/path "/r" ".kevin" "audit" "t1")) (str (fs/path "/r" ".swarmforge" "audit" "t1"))]
-             (map str (shell/state-paths "/r" "audit" "t1")))))
+    (should= [(str (fs/path "/r" ".kevin" "adapters.edn")) (str (fs/path "/r" ".swarmforge" "adapters.edn"))]
+             (map str (shell/state-paths "/r" "adapters.edn")))))

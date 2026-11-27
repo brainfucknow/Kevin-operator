@@ -363,34 +363,30 @@ kevin start "$sc" >/dev/null && kevin handoff "$sc" >/dev/null
 set +e; err="$(kevin handoff "$sc" --to coder 2>&1)"; rc=$?; set -e
 assert_eq "the security reviewer cannot send back" "$rc $err" "1 kevin: --to coder is not on route 'coder,security-reviewer,qa' at or after stage:security-reviewer"
 
-# audit gate
+# no audit flag
 sed -i 's/^coder     strong   subagent$/coder strong subagent audit/' kevin/roles.conf
-assert_match "check accepts the audit flag" "$(kevin check)" "^CHECK: ok"
-id5="$(kevin new "Audited" -m "x" --route "coder,qa")"
+set +e; out="$(kevin check 2>&1)"; rc=$?; set -e
+assert_eq "check refuses the audit flag" "$rc" "1"
+assert_match "check names the audit flag as unknown" "$out" "^CHECK: roles.conf: 'coder' has unknown flag 'audit' \(only optional, gate, spec-judge, send-back\)$"
+cp "$HERE/kevin/roles.conf" kevin/roles.conf
+assert_match "check accepts roles.conf without the flag" "$(kevin check)" "^CHECK: ok"
+id5="$(kevin new "First handoff" -m "x" --route "coder,qa")"
 kevin start "$id5" >/dev/null
 git -C ".worktrees/$id5" commit -q --allow-empty -m "Coder work"
 head5="$(git -C ".worktrees/$id5" rev-parse --short HEAD)"
-set +e; out="$(kevin handoff "$id5")"; rc=$?; set -e
-assert_eq "first handoff of an audited role exits 3" "$rc" "3"
-assert_match "first handoff prints the checklist" "$out" "^AUDIT_REQUIRED: $id5 at $head5; nothing was recorded"
-assert_eq "refused handoff leaves the stage" "$(kevin stage "$id5")" "coder"
-assert_match "second handoff at the same commit is recorded" "$(kevin handoff "$id5")" "^HANDOFF: $id5 coder -> qa at $head5$"
-assert_eq "audit state is cleared after the record" "$(test -e ".kevin/audit/$id5" && echo kept || echo cleared)" "cleared"
-assert_match "unaudited role hands off at once" "$(kevin handoff "$id5")" "^HANDOFF: $id5 qa -> done"
-id6="$(kevin new "Audited twice" -m "x" --route "coder")"
-kevin start "$id6" >/dev/null
-git -C ".worktrees/$id6" commit -q --allow-empty -m "First"
-kevin handoff "$id6" >/dev/null || true
-git -C ".worktrees/$id6" commit -q --allow-empty -m "Second"
-set +e; kevin handoff "$id6" >/dev/null; rc=$?; set -e
-assert_eq "a new commit restarts the audit" "$rc" "3"
+pending=".kevin"; pending="$pending/audit/$id5/coder"
+mkdir -p "$(dirname "$pending")" && printf '%s\n5\n' "$head5" > "$pending"
+assert_match "the first handoff at a commit is recorded" "$(kevin handoff "$id5")" "^HANDOFF: $id5 coder -> qa at $head5$"
+assert_eq "a left audit file stays" "$(paste -sd ' ' "$pending")" "$head5 5"
+assert_eq "show prints no refusal count" "$(kevin show "$id5" | grep -ci 'audit' || true)" "0"
+assert_eq "the record has no refusal trailer" "$(git log -1 --format=%B "swarm/$id5" | grep -ci 'audit' || true)" "0"
+assert_match "the next role hands off at once" "$(kevin handoff "$id5")" "^HANDOFF: $id5 qa -> done"
 idm="$(kevin new "Audited missing tool" -m "x" --route "coder,qa")"
 kevin start "$idm" >/dev/null
 git -C ".worktrees/$idm" commit -q --allow-empty -m "Code" -m "Not-tested: DRY: dry4clj is not installed"
 set +e; out="$(kevin handoff "$idm")"; rc=$?; set -e
-assert_eq "the missing-tool check runs before the audit gate" "$rc" "4"
+assert_eq "the missing-tool check refuses the handoff" "$rc" "4"
 assert_match "the missing-tool refusal names the tool" "$out" "^MISSING_TOOL: $idm dry4clj "
-assert_eq "a missing-tool refusal leaves no audit state" "$(test -e ".kevin/audit/$idm/coder" && echo kept || echo none)" "none"
 # The missing-tool scan reads only the task branch's first-parent chain.
 merge_base_with_trailer() {
   git commit -q --allow-empty -m "Base" -m "Not-tested: DRY: dry4clj is not installed"
@@ -406,8 +402,8 @@ idfp1="$(kevin new "Merged base trailer" -m "x" --route "coder,qa")"
 kevin start "$idfp1" >/dev/null
 merge_base_with_trailer "$idfp1"
 set +e; out="$(kevin handoff "$idfp1")"; rc=$?; set -e
-assert_eq "a merged base trailer leaves handoff at the audit gate" "$rc" "3"
-assert_match "a merged base trailer gives the audit refusal" "$out" "^AUDIT_REQUIRED: $idfp1 "
+assert_eq "a merged base trailer does not refuse handoff" "$rc" "0"
+assert_match "a merged base trailer lets handoff record" "$out" "^HANDOFF: $idfp1 coder -> qa "
 assert_eq "a merged base trailer prints no MISSING_TOOL" "$(echo "$out" | grep -c '^MISSING_TOOL' || true)" "0"
 idfp2="$(kevin new "Merge commit trailer" -m "x" --route "coder,qa")"
 kevin start "$idfp2" >/dev/null
@@ -427,16 +423,13 @@ merge_with_trailer "$idfp4" "review"
 set +e; out="$(kevin review "$idfp4")"; rc=$?; set -e
 assert_eq "a trailer on the role's merge commit refuses review" "$rc" "4"
 assert_match "the merge-commit trailer names the tool on review" "$out" "^MISSING_TOOL: $idfp4 dry4clj "
-sed -i 's/^specifier frontier subagent$/specifier frontier subagent audit/' kevin/roles.conf
-id7="$(kevin new "Audited spec" -m "x" --route "specifier,coder")"
+id7="$(kevin new "First review" -m "x" --route "specifier,coder")"
 kevin start "$id7" >/dev/null
 git -C ".worktrees/$id7" commit -q --allow-empty -m "Spec. By specifier."
-set +e; kevin review "$id7" >/dev/null; rc=$?; set -e
-assert_eq "first review of an audited specifier exits 3" "$rc" "3"
-assert_match "second review is recorded" "$(kevin review "$id7")" "waits for operator approval"
-assert_match "approval does not re-gate the audited review" "$(kevin approve "$id7")" "^HANDOFF: $id7 specifier -> coder"
-sed -i 's/^specifier frontier subagent audit$/specifier frontier subagent/' kevin/roles.conf
-sed -i 's/^coder strong subagent audit$/coder strong subagent bogus/' kevin/roles.conf
+assert_match "the first review at a commit is recorded" "$(kevin review "$id7")" "waits for operator approval"
+assert_eq "show prints no refusal count on the review" "$(kevin show "$id7" | grep -ci 'audit' || true)" "0"
+assert_match "approval hands the review on" "$(kevin approve "$id7")" "^HANDOFF: $id7 specifier -> coder"
+sed -i 's/^coder     strong   subagent$/coder strong subagent bogus/' kevin/roles.conf
 assert_fails "check rejects an unknown role flag" kevin check
 cp "$HERE/kevin/roles.conf" kevin/roles.conf
 
@@ -680,7 +673,7 @@ assert_eq "harvest gives an open task's records their commit times and authors" 
 assert_eq "harvest gives the record time in UTC and the author name unchanged" \
   "$(echo "$line_f" | jq -r '.records[] | select(.text == "coded") | "\(.time) \(.recorded_by)"')" "2026-03-01T08:00:00Z Codex Ü"
 assert_eq "harvest ends every record with time and recorded_by" "$(echo "$out" | jq -c '.records[] | keys_unsorted' | sort -u)" \
-  '["type","from","stage","needs","route","commit","text","merged_into","rejected","audit_refusals","spec_verdict","time","recorded_by","backend","dispatched"]'
+  '["type","from","stage","needs","route","commit","text","merged_into","rejected","spec_verdict","time","recorded_by","backend","dispatched"]'
 assert_eq "harvest prints the same lines under another time zone" "$(TZ=Asia/Tokyo kevin harvest)" "$out"
 assert_eq "harvest prints one line per task" "$(echo "$out" | wc -l | tr -d ' ')" "2"
 assert_eq "every harvest line is JSON" "$(echo "$out" | jq -e -c 'type' | sort -u)" '"object"'
@@ -710,7 +703,6 @@ assert_eq "harvest gives the finished record its branch" "$(echo "$line_f" | jq 
 assert_eq "harvest commits equal kevin show's" "$(echo "$line_f" | jq -r '.records[] | select(.commit != null) | .commit')" "$(kevin show "$hf" | sed -n 's/^commit: //p')"
 assert_eq "harvest parses the approved-over findings" "$(echo "$line_f" | jq -c '.records[] | select(.type == "approval") | .rejected')" \
   '[{"finding":"DEFECT, LOW: a | b","reason":"reason","kind":"DEFECT","severity":"LOW"},{"finding":"plain finding","reason":"accepted","kind":null,"severity":null}]'
-assert_eq "harvest gives unaudited records no refusal count" "$(echo "$out" | jq -c '[.records[].audit_refusals] | unique')" "$(printf '[null]\n[null]')"
 assert_eq "harvest gives lore the Lore-id of its commit" "$(echo "$line_f" | jq -r --arg id "$spec_lore_id" '[.lore[] | select(.lore_id == $id) | .key] | join(" ")')" "Constraint Tested Supersedes"
 assert_eq "harvest unfolds a folded value" "$(echo "$line_f" | jq -r '.lore[] | select(.key == "Tested") | .value')" "a folded value"
 assert_eq "harvest gives the approval's Rejected lore role null" "$(echo "$line_f" | jq -c '[.lore[] | select(.key == "Rejected") | .role] | unique')" "[null]"
@@ -730,85 +722,20 @@ assert_eq "harvest still prints the tasks beside a stray branch" "$stray" "$out"
 assert_match "harvest names the stray branch" "$(cat "$scratch/harvest.err")" "swarm/experiment"
 git branch -D -q swarm/experiment
 
-# audit refusal count
-sed -i 's/^coder     strong   subagent$/coder strong subagent audit/; s/^specifier frontier subagent$/specifier frontier subagent audit/' kevin/roles.conf
-ia="$(kevin new "Audit count" -m x --route coder,cleaner)"
+# an old record with an audit refusal count
+ia="$(kevin new "Old refusal count" -m x --route coder,cleaner)"
 kevin start "$ia" >/dev/null
 git -C ".worktrees/$ia" commit -q --allow-empty -m "X"
-set +e; kevin handoff "$ia" --to coder >/dev/null; rc1=$?
-git -C ".worktrees/$ia" commit -q --allow-empty -m "Y"
-kevin handoff "$ia" --to coder >/dev/null; rc2=$?; set -e
-assert_eq "each refusal exits 3" "$rc1 $rc2" "3 3"
-kevin handoff "$ia" --to coder >/dev/null
-count() { kevin harvest | jq -c --arg id "$1" 'select(.id == $id) | [.records[] | select(.type == "handoff" or .type == "review") | .audit_refusals]'; }
-assert_eq "the record counts the refusals since the last record" "$(kevin harvest | jq --arg id "$ia" 'select(.id == $id) | .records[-1].audit_refusals == 2')" "true"
-assert_match "show prints the count" "$(kevin show "$ia")" "^audit-refusals: 2$"
-assert_match "start prints the count" "$(kevin start "$ia")" "^audit-refusals: 2$"
-git -C ".worktrees/$ia" commit -q --allow-empty -m "Z"
-set +e; kevin handoff "$ia" >/dev/null; set -e
 kevin handoff "$ia" >/dev/null
-kevin handoff "$ia" >/dev/null
-assert_eq "the count resets at each record; an unaudited role has none" "$(count "$ia")" "[2,1,null]"
-is="$(kevin new "Audit spec" -m x --route specifier,coder)"
-kevin start "$is" >/dev/null
-git -C ".worktrees/$is" commit -q --allow-empty -m "Spec"
-set +e; kevin review "$is" >/dev/null; set -e
-kevin review "$is" >/dev/null
-kevin approve "$is" >/dev/null
-assert_eq "the handoff of an approval has no count; the audited review has one" "$(count "$is")" "[1,null]"
-roles() { kevin harvest | jq -c --arg id "$1" 'select(.id == $id) | [.records[] | select(.type == "handoff" or .type == "review") | [.from, .audit_refusals]]'; }
-# a specifier refused while waiting for approval: one task through kevin approve
-spec_waits() {
-  local t; t="$(kevin new "$1" -m x --route specifier,coder)"
-  kevin start "$t" >/dev/null
-  git -C ".worktrees/$t" commit -q --allow-empty -m "Spec"
-  set +e; kevin review "$t" >/dev/null; set -e
-  kevin review "$t" >/dev/null
-  set +e; kevin review "$t" >/dev/null; set -e
-  echo "$t"
-}
-iq1="$(spec_waits "Audit per role 1")"
-kevin approve "$iq1" >/dev/null
-set +e; out="$(kevin handoff "$iq1")"; rc=$?; set -e
-assert_eq "the coder is refused at the specifier's refused head" "$rc" "3"
-assert_match "the coder's refusal prints the checklist" "$out" "^AUDIT_REQUIRED: $iq1 at "
-kevin handoff "$iq1" >/dev/null
-assert_eq "each role is charged its own refusals" "$(roles "$iq1")" '[["specifier",1],["specifier",null],["coder",1]]'
-iq2="$(spec_waits "Audit per role 2")"
-kevin approve "$iq2" >/dev/null
-git -C ".worktrees/$iq2" commit -q --allow-empty -m "Code"
-set +e; kevin handoff "$iq2" >/dev/null; set -e
-kevin handoff "$iq2" >/dev/null
-assert_eq "a refusal the specifier left behind is not the coder's" "$(roles "$iq2" | jq -c '.[-1]')" '["coder",1]'
-iq4="$(spec_waits "Audit per role 4")"
-kevin reject "$iq4" "again" >/dev/null
-git -C ".worktrees/$iq4" commit -q --allow-empty -m "Spec 2"
-set +e; kevin review "$iq4" >/dev/null; set -e
-kevin review "$iq4" >/dev/null
-assert_eq "the left refusal counts toward the specifier's next review" "$(roles "$iq4" | jq -c '.[-1]')" '["specifier",2]'
-sed -i 's/^hardener  fast     subagent$/hardener fast subagent audit/' kevin/roles.conf
-iq3="$(kevin new "Audit per role 3" -m x --route coder,hardener)"
-kevin start "$iq3" >/dev/null
-git -C ".worktrees/$iq3" commit -q --allow-empty -m "Code"
-set +e; KEVIN_ROLE=coder kevin handoff "$iq3" --to coder >/dev/null; rc1=$?
-KEVIN_ROLE=hardener kevin handoff "$iq3" --to coder >/dev/null; rc2=$?
-KEVIN_ROLE=hardener kevin handoff "$iq3" --to coder >/dev/null; rc3=$?
-KEVIN_ROLE=coder kevin handoff "$iq3" --to coder >/dev/null; rc4=$?; set -e
-assert_eq "each audited role gets its own first refusal" "$rc1 $rc2 $rc3 $rc4" "3 3 0 0"
-assert_eq "a role's record keeps another role's pending state" "$(roles "$iq3")" '[["hardener",1],["coder",1]]'
-assert_eq "no audit state is left once no role is pending" "$(test -e ".kevin/audit/$iq3" && echo kept || echo cleared)" "cleared"
-for legacy in 'h\n2\n' 'h\n'; do
-  iq5="$(kevin new "Audit roleless $legacy" -m x --route coder)"
-  kevin start "$iq5" >/dev/null
-  git -C ".worktrees/$iq5" commit -q --allow-empty -m "Code"
-  h="$(git -C ".worktrees/$iq5" rev-parse --short HEAD)"
-  mkdir -p .kevin/audit && printf "${legacy/h/$h}" > ".kevin/audit/$iq5"
-  set +e; kevin handoff "$iq5" >/dev/null; rc1=$?; kevin handoff "$iq5" >/dev/null; rc2=$?; set -e
-  assert_eq "a roleless file ($legacy) admits no role" "$rc1 $rc2" "3 0"
-  assert_eq "a roleless file ($legacy) adds no refusal" "$(roles "$iq5")" '[["coder",1]]'
-  assert_eq "a roleless file ($legacy) is gone after the record" "$(test -e ".kevin/audit/$iq5" && echo kept || echo cleared)" "cleared"
-done
-cp "$HERE/kevin/roles.conf" kevin/roles.conf
+key="Kevin-Audit"; key="$key-Refusals"
+old="$(git log -1 --format=%B "swarm/$ia" | sed "/^Kevin-Task: /i $key: 2" | git commit-tree "$(git rev-parse "swarm/$ia^{tree}")" -p "swarm/$ia^")"
+git update-ref "refs/heads/swarm/$ia" "$old"
+assert_eq "the old record carries the trailer" "$(git log -1 --format="%(trailers:key=$key,valueonly)" "swarm/$ia")" "2"
+assert_eq "show reads the old record" "$(kevin show "$ia" | grep -c '^type: handoff$')" "1"
+assert_eq "show prints no count for the old record" "$(kevin show "$ia" | grep -ci 'audit' || true)" "0"
+assert_eq "start prints no count for the old record" "$(kevin start "$ia" | grep -ci 'audit' || true)" "0"
+assert_eq "harvest gives the old record no count" "$(kevin harvest | jq -c --arg id "$ia" 'select(.id == $id) | [.records[] | keys[] | select(test("audit"))]')" "[]"
+assert_eq "the old record keeps the task at its stage" "$(kevin stage "$ia")" "cleaner"
 
 # truncated task in a shallow clone
 cd "$scratch/harvest-shallow"
@@ -994,7 +921,7 @@ assert_eq "harvest reads old records as new ones" "$(kevin harvest | jq -c --arg
 assert_eq "kevin does not rewrite old records" "$(git log -1 --format=%B "swarm/$jo" | grep -c '^SwarmForge-Verdict: stuck$')" "1"
 
 sed -i 's/^spec-judge \(.*\) spec-judge$/spec-judge \1 judge/' kevin/roles.conf
-assert_eq "check refuses the old judge flag" "$(kevin check 2>&1 | grep -c "roles.conf: 'spec-judge' has unknown flag 'judge' (only audit, optional, gate, spec-judge, send-back)")" "1"
+assert_eq "check refuses the old judge flag" "$(kevin check 2>&1 | grep -c "roles.conf: 'spec-judge' has unknown flag 'judge' (only optional, gate, spec-judge, send-back)")" "1"
 assert_fails "check fails on the old judge flag" kevin check
 copy_kevin .
 sed -i '/^spec-judge /d' kevin/roles.conf

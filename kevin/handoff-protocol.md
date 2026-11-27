@@ -122,34 +122,9 @@ under it. `kevin run` also stops when a stage it dispatched added an operator
 record. Subagents that the session starts share the session's environment,
 so for them this rule rests on the role prompts.
 
-For an `audit` role, the first handoff or review at a HEAD exits 3 with
-`AUDIT_REQUIRED`, recording nothing. Complete the self-review before retrying
-at that HEAD; a new commit requires a new audit. The role is the acting role:
-`KEVIN_ROLE`, else the task's stage. Pending audit state is kept per
-role, in `.kevin/audit/<id>/<role>`: the HEAD the gate last refused that
-role at and the number of that role's refusals since its last audited record
-on the task. Only a refusal of the same role at the same HEAD lets an attempt
-through, and another role's refusals never add to its count. Writing a role's
-record clears that role's file alone, and only once the record is written, so
-refusals before a write that failed still count; the directory goes when no
-role is pending. kevin reads state that an install under the old name left
-in `.swarmforge/audit/` when `.kevin/audit/` has none, and clears both.
-`kevin approve` clears nothing: a specifier refused while
-waiting for approval keeps that refusal for its own next audited record. A
-file at `.kevin/audit/<id>` itself is from an earlier kevin that kept one
-state per task. It names no role, so it counts for none: the next audited
-attempt deletes it and is refused as that role's first.
-
-The audited role's review or handoff record carries that number in an
-kevin-only `Kevin-Audit-Refusals` trailer, which `kevin show` and `kevin start`
-print as `audit-refusals: <n>`. Because the first attempt at each HEAD is
-always refused, 1 means a clean audited record and n - 1 counts the extra
-audit rounds. Records of unaudited roles, the handoff that `kevin approve`
-performs, and records written before the count existed carry none.
-
-Before the audit gate, `kevin handoff` and `kevin review` read every `Not-tested`
-trailer (key in any case) of the role's commits since the newest created,
-review or handoff record. A trailer names a tool when the name of a non-local
+`kevin handoff` and `kevin review` read every `Not-tested` trailer (key in
+any case) of the role's commits since the newest created, review or handoff
+record. A trailer names a tool when the name of a non-local
 `tools.conf` row appears in it, ignoring case, with no letter, digit, `-` or
 `_` next to it. When `kevin tool require` would exit 1 for a named tool, the
 command exits 4 and records nothing. It prints a `MISSING_TOOL` line and a
@@ -273,9 +248,9 @@ starts with `#` is a pull request; any other is a task id.
 - `records`, oldest first, as `kevin show` prints them. Every element has
   `type`, `from`, `stage`, `needs`, `route`, `commit` (created, review and
   handoff only), `text` (the free text of any record but created),
-  `merged_into` (finished), `rejected` (approval), `audit_refusals`
-  (review and handoff, a number) and `spec_verdict` (a spec-verdict record
-  or an automatic send-back), each null where it does not apply.
+  `merged_into` (finished), `rejected` (approval) and `spec_verdict` (a
+  spec-verdict record or an automatic send-back), each null where it does not
+  apply.
   `rejected` holds one `{finding, reason, kind, severity}` per `Rejected:`
   trailer, split at the last ` | `; `kind` and `severity` come from a
   `DEFECT|PREMISE, CRITICAL|HIGH|MEDIUM|LOW: ` prefix, else null. `files:`

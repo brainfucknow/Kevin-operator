@@ -69,24 +69,17 @@
                               (= (:route s) (:route rec)))))))))
 
 (describe "optional catalogue roles"
-  (it "preserves order and audit flags while excluding only implicit optional roles"
-    (should (passes? (prop/for-all [optional (gen/set (gen/elements (rest catalogue)))
-                                   audited (gen/set (gen/elements catalogue))
-                                   reverse-flags? gen/boolean]
+  (it "preserves order while excluding only implicit optional roles"
+    (should (passes? (prop/for-all [optional (gen/set (gen/elements (rest catalogue)))]
                        (let [rows (mapv (fn [role]
-                                          (let [flags (cond-> []
-                                                        (optional role) (conj "optional")
-                                                        (audited role) (conj "audit"))]
-                                            (into [role "strong" "subagent"]
-                                                  (if reverse-flags? (reverse flags) flags))))
+                                          (cond-> [role "strong" "subagent"]
+                                            (optional role) (conj "optional")))
                                         catalogue)
                              explicit (str/join "," catalogue)]
                          (with-redefs [config/rows #(when (= "roles.conf" %) rows)
                                        shell/env (fn [_ default] default)]
                            (and (= (str/join "," (remove optional catalogue)) (config/default-route))
-                                (= explicit (config/resolve-route explicit))
-                                (= (mapv #(boolean (audited %)) catalogue)
-                                   (mapv config/role-audits? catalogue))))))))))
+                                (= explicit (config/resolve-route explicit))))))))))
 
 (def ^:private finish-facts
   "What kevin finish knows of a task: [recorded? tip tip-merged? protected?]."

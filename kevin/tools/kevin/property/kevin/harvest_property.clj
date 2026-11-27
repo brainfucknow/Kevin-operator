@@ -89,7 +89,6 @@
             sha hex7
             commit (gen/one-of [(gen/return "") hex7])
             text (gen/one-of [(gen/return nil) sentence])
-            refusals (gen/one-of [(gen/return nil) (gen/fmap str gen/nat) word])
             rejected (gen/vector (gen/fmap :text finding) 0 3)
             time (gen/one-of [(gen/return nil) record-time])
             recorded-by (gen/one-of [(gen/return nil) sentence])
@@ -102,7 +101,6 @@
       time (assoc :time time)
       recorded-by (assoc :recorded-by recorded-by)
       gates (assoc :gates gates)
-      refusals (assoc :audit-refusals refusals)
       (= "approval" type) (assoc :rejected rejected))))
 
 (def ^:private task
@@ -116,7 +114,7 @@
      :records records :commits commits}))
 
 (def ^:private record-keys
-  #{"type" "from" "stage" "needs" "route" "commit" "text" "merged_into" "rejected" "audit_refusals" "spec_verdict"
+  #{"type" "from" "stage" "needs" "route" "commit" "text" "merged_into" "rejected" "spec_verdict"
     "time" "recorded_by" "backend" "dispatched"})
 
 (describe "line"
@@ -141,17 +139,6 @@
                        (let [records (get (json/parse-string (harvest/line t)) "records")]
                          (and (= (map :record (:records t)) (map #(get % "type") records))
                               (every? #(= record-keys (set (keys %))) records)))))))
-
-  (it "gives audit_refusals as an integer or null, only on review and handoff"
-    (should (passes? (prop/for-all [t task]
-                       (every? (fn [[r out]]
-                                 (let [n (get out "audit_refusals")]
-                                   (if (and (#{"review" "handoff"} (:record r))
-                                            (re-matches #"\d+" (str (:audit-refusals r))))
-                                     (= (parse-long (:audit-refusals r)) n)
-                                     (nil? n))))
-                               (map vector (:records t)
-                                    (get (json/parse-string (harvest/line t)) "records")))))))
 
   (it "gives a commit only on created, review and handoff, never an empty one"
     (should (passes? (prop/for-all [t task]
